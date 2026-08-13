@@ -13,7 +13,9 @@ HTML共有くんは、Claude Codeが作ったHTMLをスマホでも見やすく�
 - AIからの承認依頼をスマホで確認し、コメントを返す
 - スマホから返した内容を、PC上の作業へ引き継ぐ
 
-![AIから届いた承認依頼をスマホで確認](docs/images/mobile-approval.png)
+<p align="center">
+  <img src="docs/images/mobile-approval.png" alt="AIから届いた承認依頼をスマホで確認" width="520">
+</p>
 
 作者へページや回答を送らないセルフホスト型です。自分のAWSアカウントで動かせます。
 
