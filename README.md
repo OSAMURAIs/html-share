@@ -5,9 +5,9 @@
 HTML共有くんは、Claude Codeが作ったHTMLをスマホでも見やすく共有するためのツールです。初回セットアップが済んだら、あとはClaude Codeへ日本語で頼むだけです。
 
 <p align="center">
-  <img src="docs/images/dashboard.png" alt="HTML共有くんのメインダッシュボード" width="68%">
+  <img src="docs/images/dashboard.png" alt="HTML共有くんのメインダッシュボード" width="66%">
   &nbsp;
-  <img src="docs/images/mobile-approval-actions.png" alt="AIから届いた承認依頼をスマホで確認" width="29%">
+  <img src="docs/images/mobile-approval-actions-native.png" alt="AIから届いた承認依頼をスマホで確認" width="31%">
 </p>
 
 ## できること
