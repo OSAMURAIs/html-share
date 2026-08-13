@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const root = path.resolve(process.argv[2] ?? '.');
-const ignored = new Set(['.git', '.html-share', 'dist', 'node_modules']);
+const ignored = new Set(['.git', '.html-share', 'cdk.out', 'dist', 'node_modules']);
 const textExtensions = new Set(['', '.css', '.html', '.js', '.json', '.md', '.mjs', '.ts', '.yaml', '.yml']);
 const findings = [];
 const rules = [

@@ -30,17 +30,27 @@ export interface HtmlShareStackProps extends StackProps {
   cognitoDomainPrefix: string;
   privateKeyParameterName: string;
   publicKeyPem: string;
+  maximumShareDays: number;
+  allowedInternalCidrs: string[];
 }
 
-function securityPolicy(scope: Construct, id: string, content: boolean): cloudfront.ResponseHeadersPolicy {
+function securityPolicy(
+  scope: Construct,
+  id: string,
+  content: boolean,
+  consoleOrigin: string,
+  contentOrigin: string,
+): cloudfront.ResponseHeadersPolicy {
   const csp = content
-    ? "default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline' data:; img-src data:; font-src data:; media-src data:; frame-src 'none'; connect-src 'none'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'; sandbox allow-scripts"
-    : "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+    ? `default-src 'none'; script-src 'unsafe-inline' data:; style-src 'unsafe-inline' data:; img-src data:; font-src data:; media-src data:; frame-src 'none'; connect-src 'none'; form-action 'none'; frame-ancestors ${consoleOrigin}; base-uri 'none'; sandbox allow-scripts`
+    : `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src ${contentOrigin}; form-action 'self'; frame-ancestors 'none'; base-uri 'none'`;
   return new cloudfront.ResponseHeadersPolicy(scope, id, {
     securityHeadersBehavior: {
       contentSecurityPolicy: { contentSecurityPolicy: csp, override: true },
       contentTypeOptions: { override: true },
-      frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+      ...(content ? {} : {
+        frameOptions: { frameOption: cloudfront.HeadersFrameOption.DENY, override: true },
+      }),
       referrerPolicy: { referrerPolicy: cloudfront.HeadersReferrerPolicy.NO_REFERRER, override: true },
       strictTransportSecurity: {
         accessControlMaxAge: Duration.days(365),
@@ -65,6 +75,7 @@ export class HtmlShareStack extends Stack {
 
     const certificate = acm.Certificate.fromCertificateArn(this, 'Certificate', props.certificateArn);
     const consoleOrigin = `https://${props.consoleDomain}`;
+    const contentOrigin = `https://${props.contentDomain}`;
     const callbackUrl = `${consoleOrigin}/auth/callback`;
     const cognitoOrigin = `https://${props.cognitoDomainPrefix}.auth.${this.region}.amazoncognito.com`;
 
@@ -98,7 +109,7 @@ export class HtmlShareStack extends Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
         cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
-        responseHeadersPolicy: securityPolicy(this, 'ContentHeaders', true),
+        responseHeadersPolicy: securityPolicy(this, 'ContentHeaders', true, consoleOrigin, contentOrigin),
         trustedKeyGroups: [keyGroup],
         compress: true,
       },
@@ -211,16 +222,28 @@ export class HtmlShareStack extends Stack {
       logGroup: reviewLogGroup,
       tracing: lambda.Tracing.ACTIVE,
       bundling: { minify: true, sourceMap: false, target: 'node22' },
-      environment: { CONSOLE_ORIGIN: consoleOrigin, REVIEW_TABLE_NAME: reviewTable.tableName },
+      environment: {
+        ALLOWED_INTERNAL_CIDRS: JSON.stringify(props.allowedInternalCidrs),
+        CLOUDFRONT_KEY_PAIR_ID: publicKey.publicKeyId,
+        CONSOLE_ORIGIN: consoleOrigin,
+        CONTENT_ORIGIN: contentOrigin,
+        MAXIMUM_SHARE_DAYS: String(props.maximumShareDays),
+        PRIVATE_KEY_PARAMETER_NAME: props.privateKeyParameterName,
+        REVIEW_TABLE_NAME: reviewTable.tableName,
+      },
     });
     reviewTable.grantReadWriteData(reviewFunction);
+    reviewFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [privateKeyParameter.parameterArn],
+    }));
 
     const authUrl = authFunction.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.AWS_IAM });
     const reviewUrl = reviewFunction.addFunctionUrl({ authType: lambda.FunctionUrlAuthType.AWS_IAM });
     const authOrigin = origins.FunctionUrlOrigin.withOriginAccessControl(authUrl);
     const reviewOrigin = origins.FunctionUrlOrigin.withOriginAccessControl(reviewUrl);
     const consoleS3Origin = origins.S3BucketOrigin.withOriginAccessControl(consoleBucket);
-    const consoleHeaders = securityPolicy(this, 'ConsoleHeaders', false);
+    const consoleHeaders = securityPolicy(this, 'ConsoleHeaders', false, consoleOrigin, contentOrigin);
     const common = {
       viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
@@ -238,6 +261,12 @@ export class HtmlShareStack extends Stack {
       },
       additionalBehaviors: {
         'app/*': {
+          ...common,
+          origin: consoleS3Origin,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          trustedKeyGroups: [keyGroup],
+        },
+        'review/*': {
           ...common,
           origin: consoleS3Origin,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,

@@ -1,6 +1,9 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
+import { getSignedUrl } from '@aws-sdk/cloudfront-signer';
 import {
+  DeleteCommand,
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
@@ -12,8 +15,11 @@ import {
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}), {
   marshallOptions: { removeUndefinedValues: true },
 });
+const ssm = new SSMClient({});
 const TASK_TTL_SECONDS = 90 * 24 * 60 * 60;
 const PAIR_TTL_SECONDS = 10 * 60;
+const PREFERENCES_KEY = { pk: 'OWNER', sk: 'PREFERENCES' };
+let privateKeyPromise: Promise<string> | undefined;
 
 function required(name: string): string {
   const value = process.env[name];
@@ -52,6 +58,50 @@ function clean(value: unknown, name: string, maximum: number, needed = false): s
 
 function hash(value: string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+async function privateKey(): Promise<string> {
+  if (!privateKeyPromise) {
+    privateKeyPromise = ssm.send(new GetParameterCommand({
+      Name: required('PRIVATE_KEY_PARAMETER_NAME'),
+      WithDecryption: true,
+    })).then((result) => {
+      const value = result.Parameter?.Value;
+      if (!value) throw new Error('CloudFront private key is empty');
+      return value;
+    });
+  }
+  return privateKeyPromise;
+}
+
+function cleanSourceList(value: unknown, name: string, maximum: number): string[] {
+  if (!Array.isArray(value) || value.length > maximum) {
+    throw Object.assign(new Error(`${name} is invalid`), { statusCode: 400 });
+  }
+  return [...new Set(value.map((item) => clean(item, name, 500, true)))];
+}
+
+function cleanReadMarks(value: unknown, maximum: number): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw Object.assign(new Error('readMarks is invalid'), { statusCode: 400 });
+  }
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length > maximum) throw Object.assign(new Error('readMarks is too large'), { statusCode: 400 });
+  return Object.fromEntries(entries.map(([source, readAt]) => {
+    const key = clean(source, 'source', 500, true);
+    const timestamp = clean(readAt, 'readAt', 40, true);
+    if (Number.isNaN(Date.parse(timestamp))) throw Object.assign(new Error('readAt is invalid'), { statusCode: 400 });
+    return [key, timestamp];
+  }));
+}
+
+function internalCidrs(): string[] {
+  try {
+    const values = JSON.parse(required('ALLOWED_INTERNAL_CIDRS'));
+    return Array.isArray(values) ? values.filter((value) => typeof value === 'string') : [];
+  } catch {
+    return [];
+  }
 }
 
 function normalizeCode(value: unknown): string {
@@ -151,8 +201,82 @@ export async function handler(event: any): Promise<any> {
         return json(201, { code, expiresAt: now + PAIR_TTL_SECONDS });
       }
       if (verb === 'GET' && path === '/api/owner/reviews') {
-        const items = (await tasks()).filter((item) => item.status !== 'completed').map(publicTask);
+        const items = (await tasks())
+          .filter((item) => item.status !== 'deleted')
+          .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))
+          .map(publicTask);
         return json(200, { items });
+      }
+      if (verb === 'GET' && path === '/api/owner/preferences') {
+        const result = await ddb.send(new GetCommand({
+          TableName: table,
+          Key: PREFERENCES_KEY,
+          ConsistentRead: true,
+        }));
+        return json(200, {
+          exists: Boolean(result.Item),
+          starredSources: result.Item?.starredSources ?? [],
+          recentSources: result.Item?.recentSources ?? [],
+          hiddenSources: result.Item?.hiddenSources ?? [],
+          readMarks: result.Item?.readMarks ?? null,
+          updatedAt: result.Item?.updatedAt ?? null,
+        });
+      }
+      if (verb === 'PUT' && path === '/api/owner/preferences') {
+        const body = parseBody(event);
+        const starredSources = cleanSourceList(body.starredSources ?? [], 'starredSources', 200);
+        const recentSources = cleanSourceList(body.recentSources ?? [], 'recentSources', 6);
+        const hiddenSources = cleanSourceList(body.hiddenSources ?? [], 'hiddenSources', 500);
+        const readMarks = cleanReadMarks(body.readMarks ?? {}, 800);
+        const updatedAt = new Date().toISOString();
+        await ddb.send(new PutCommand({
+          TableName: table,
+          Item: { ...PREFERENCES_KEY, starredSources, recentSources, hiddenSources, readMarks, updatedAt },
+        }));
+        return json(200, { starredSources, recentSources, hiddenSources, readMarks, updatedAt });
+      }
+      if (verb === 'POST' && path === '/api/owner/shares') {
+        const body = parseBody(event);
+        const slug = clean(body.slug, 'slug', 128, true);
+        if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) return json(400, { error: 'Invalid slug' });
+        const scope = body.scope === 'internal' ? 'internal' : body.scope === 'public' ? 'public' : '';
+        if (!scope) return json(400, { error: 'Invalid share scope' });
+        const days = Number(body.days);
+        const maximumDays = Number(required('MAXIMUM_SHARE_DAYS'));
+        if (!Number.isInteger(days) || days < 1 || days > maximumDays) {
+          return json(400, { error: `Share duration must be between 1 and ${maximumDays} days` });
+        }
+        const expiresAt = now + days * 24 * 60 * 60;
+        const url = `${required('CONTENT_ORIGIN')}/pages/${slug}/index.html`;
+        const credentials = {
+          keyPairId: required('CLOUDFRONT_KEY_PAIR_ID'),
+          privateKey: await privateKey(),
+        };
+        let signedUrl: string;
+        if (scope === 'internal') {
+          const cidrs = internalCidrs();
+          if (cidrs.length === 0) return json(400, { error: 'Internal sharing is not configured' });
+          const policy = JSON.stringify({ Statement: cidrs.map((sourceIp) => ({
+            Resource: url,
+            Condition: {
+              DateLessThan: { 'AWS:EpochTime': expiresAt },
+              IpAddress: { 'AWS:SourceIp': sourceIp },
+            },
+          })) });
+          signedUrl = getSignedUrl({ ...credentials, url, policy });
+        } else {
+          signedUrl = getSignedUrl({ ...credentials, url, dateLessThan: new Date(expiresAt * 1000) });
+        }
+        return json(201, { url: signedUrl, expiresAt });
+      }
+      const remove = path.match(/^\/api\/owner\/reviews\/([^/]+)$/);
+      if (verb === 'DELETE' && remove) {
+        await ddb.send(new DeleteCommand({
+          TableName: table,
+          Key: { pk: 'TASK', sk: remove[1] },
+          ConditionExpression: 'attribute_exists(pk)',
+        }));
+        return json(200, { ok: true });
       }
       const answer = path.match(/^\/api\/owner\/reviews\/([^/]+)\/answer$/);
       if (verb === 'POST' && answer) {

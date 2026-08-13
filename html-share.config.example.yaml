@@ -17,6 +17,12 @@ content:
     - path: examples/demo-report.html
       title: デモレポート
       slug: demo-report
+      repository: examples
+      stream: demo
+      streamLabel: デモ
   ownerLinkDays: 30
   maximumShareDays: 30
   maximumAssetBytes: 10485760
+  # 社内限定URLを使う場合だけ、組織の出口IPをCIDRで指定します。
+  allowedInternalCidrs:
+    - 203.0.113.0/24

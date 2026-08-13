@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>AIからの承認依頼｜HTML共有くん</title>
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0a4695">
+<style>
+:root {
+  /* 上バーの配色。青を保ったまま、右下へ向かって白へ抜ける。
+     白のにじみは中心を右下の外へ置いてあるので、上端の色には触れない */
+  --bar-glow: radial-gradient(135% 220% at 104% 142%,
+    rgba(255, 255, 255, .82) 0%,
+    rgba(150, 226, 250, .52) 28%,
+    rgba(1, 182, 236, 0) 64%);
+  /* 画面上端に接する色。theme-color と html の背景もこれに合わせること。
+     トップ（shell/index.html）と同じ値にする。ここがずれると、トップから
+     レビュー箱へ移った瞬間に Dynamic Island の色だけ変わって継ぎはぎに見える */
+  --safe-top: #0a4695;
+  /* Dynamic Island / ステータスバーの高さ。env() を直に書かず変数へ通しておくと、
+     PCのブラウザでも値を差し込んで iPhone の見え方を再現できる（検証用） */
+  --safe-top-inset: env(safe-area-inset-top, 0px);
+  /* 上のバーと本文で共有する左右の余白。ここ1か所だけを直せば全部そろう */
+  --gutter: clamp(1.15rem, 3vw, 2.75rem);
+  /* 上のバー・本文・下端で共有する最大幅。カード3段（23rem×3＋段間1.25rem×2＝71.5rem）に
+     左右の余白（最大2.75rem×2）を足した実寸。ここを削ると3段目が出なくなる */
+  --shell-w: 77rem;
+  --blue-deep: #0e0d6a;
+  --blue: #0a4695;
+  --blue-mid: #0862aa;
+  --blue-bright: #0aa0dc;
+  --blue-soft: #eaf2fb;
+  --blue-line: #cfe0f2;
+  --blue-grad: linear-gradient(135deg, #0e0d6a 0%, #0a4695 45%, #0862aa 68%, #01b6ec 100%);
+  --ink: #1a1a1f;
+  --sub: #45454d;
+  --mut: #6b6b73;
+  --line: #e5e5ea;
+  --soft: #f6f7f9;
+  --gold: #f0b21f;
+  --gold-deep: #8a5a00;
+  --gold-soft: #fdf3d2;
+  --white: #fff;
+  --success: #176b42;
+  --success-soft: #e8f6ef;
+  --danger: #a42828;
+}
+* { box-sizing: border-box; }
+html { background: var(--soft); }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  color: var(--ink);
+  background: var(--soft);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+button, input { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+/* ── 上のバー。戻る・現在地・件数・更新を1行に収める（トップと同じ作り）───
+   スクロールしても留まるので、下まで読んでから戻れる */
+.topbar {
+  position: sticky; top: 0; z-index: 12;
+  /* セーフエリアぶんも自分の背景で塗る。ここを本文側へ押し出すと、上端だけ
+     別の色（html の背景）が覗いて継ぎはぎになる */
+  padding-top: var(--safe-top-inset);
+  color: var(--white);
+  /* PCは横に長いので斜めのまま。右下へ向かって白へ抜ける */
+  background:
+    var(--bar-glow),
+    linear-gradient(115deg, #0e0d6a 0%, #0a4695 40%, #0862aa 70%, #0aa0dc 100%);
+  box-shadow: 0 6px 20px rgba(14, 13, 106, .16);
+}
+.topbar-inner {
+  width: min(var(--shell-w), 100%); margin: 0 auto;
+  height: 3.4rem;
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  display: flex; align-items: center; gap: .55rem;
+}
+.brand {
+  flex: none;
+  margin-left: -.5rem; padding: .35rem .55rem;
+  display: inline-flex; align-items: center; gap: .45rem;
+  border: 0; border-radius: .6rem; background: transparent; color: var(--white);
+  font: inherit; font-size: .95rem; font-weight: 700; letter-spacing: .04em;
+  text-decoration: none; cursor: pointer; transition: background .16s ease;
+}
+.brand:hover { background: rgba(255, 255, 255, .16); }
+.brand:active { background: rgba(255, 255, 255, .24); }
+.brand svg {
+  width: 1.1rem; height: 1.1rem; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round; opacity: .85;
+}
+.brand-meta {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: .74rem; color: rgba(255, 255, 255, .7);
+  font-variant-numeric: tabular-nums;
+}
+.topbar-actions { flex: none; margin-left: auto; display: flex; align-items: center; gap: .4rem; }
+/* 丸いガラス調のボタン。トップの .tb-btn と同じ寸法・質感 */
+.tb-btn {
+  width: 2.2rem; height: 2.2rem; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid rgba(255, 255, 255, .3); border-radius: 999px;
+  background: rgba(255, 255, 255, .14); color: var(--white);
+  font: inherit; cursor: pointer;
+  transition: background .18s ease, border-color .18s ease;
+}
+.tb-btn:hover { background: rgba(255, 255, 255, .26); border-color: rgba(255, 255, 255, .52); }
+.tb-btn:active { transform: scale(.97); }
+.tb-btn:disabled { opacity: .55; cursor: default; }
+.tb-btn svg {
+  width: 1.05rem; height: 1.05rem; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+main, footer { width: min(var(--shell-w), 100%); margin: 0 auto; }
+main {
+  flex: 1;
+  padding: 1.1rem max(var(--gutter), env(safe-area-inset-right))
+           calc(2rem + env(safe-area-inset-bottom))
+           max(var(--gutter), env(safe-area-inset-left));
+  background: var(--soft);
+}
+.section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin: .25rem 0 .65rem; color: var(--sub); font-size: .82rem; font-weight: 700;
+}
+.count {
+  min-width: 1.6rem; padding: .1rem .45rem; border-radius: 999px;
+  text-align: center; color: var(--blue-deep); background: var(--blue-soft);
+}
+/* 高さのばらつくカードを隙間なく詰めるための多段組み。ダッシュボード（.dbody）と同じ
+   作り・同じ寸法にそろえてある。段数ではなく列幅で指定しているので、画面幅に
+   そのまま追従して最大3段まで自動で増える。Grid だと行の高さが一番背の高いカードに
+   引っ張られて隙間だらけになるため、こちらを選んでいる */
+.cards { columns: 23rem 3; column-gap: 1.25rem; }
+.card {
+  margin-bottom: .75rem; padding: 1rem;
+  border: 1px solid var(--line); border-radius: .85rem;
+  background: var(--white); box-shadow: 0 1px 6px rgba(26,26,31,.04);
+  /* カードが段をまたいで割れると、質問文と承認ボタンが別の段に分かれてしまう */
+  break-inside: avoid; -webkit-column-break-inside: avoid;
+}
+.card.waiting { border-top: 3px solid var(--gold); }
+.card.answered { border-top: 3px solid var(--blue-bright); }
+.meta { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin-bottom: .55rem; }
+.title { color: var(--sub); font-size: .78rem; font-weight: 700; overflow-wrap: anywhere; }
+.time { flex: none; color: var(--mut); font-size: .7rem; }
+.question { margin: 0; font-size: 1rem; line-height: 1.65; white-space: pre-wrap; }
+.context { margin: .6rem 0 0; color: var(--sub); font-size: .82rem; line-height: 1.55; white-space: pre-wrap; }
+.recommendation {
+  margin: .75rem 0 0; padding: .6rem .7rem;
+  border-left: 3px solid var(--blue); border-radius: .35rem;
+  color: var(--blue-deep); background: var(--blue-soft); font-size: .82rem; line-height: 1.5;
+}
+/* 承認を1行占有させ、その下にコメント欄と送るを置く。3段組みだと段幅が23remしかなく、
+   承認・入力・送るを横一列にすると入力欄が指1本ぶんしか残らない。段数が変わっても
+   同じ形にしておけば、スマホとPCで操作の形が食い違わない */
+.actions { display: grid; grid-template-columns: 1fr auto; gap: .45rem; margin-top: .9rem; }
+.approve { grid-column: 1 / -1; }
+.approve, .send {
+  min-height: 2.8rem; border: 0; border-radius: .65rem; padding: .65rem .9rem;
+  color: var(--white); cursor: pointer; font-weight: 700;
+}
+.approve { background: var(--blue); }
+.send { background: var(--sub); }
+.actions input {
+  min-width: 0; min-height: 2.8rem; width: 100%;
+  border: 1px solid var(--line); border-radius: .65rem; padding: .65rem .75rem;
+  color: var(--ink); background: var(--white);
+}
+.actions input:focus { outline: 2px solid var(--blue-bright); border-color: transparent; }
+.actions button:disabled { opacity: .55; cursor: default; }
+.reply {
+  margin: .7rem 0 0; padding: .65rem .75rem; border-radius: .55rem;
+  color: var(--success); background: var(--success-soft); font-size: .84rem; white-space: pre-wrap;
+}
+.waiting-mac { color: var(--blue); font-size: .72rem; font-weight: 700; }
+.discard {
+  flex: none; min-height: 2rem; border: 1px solid var(--line); border-radius: 999px;
+  padding: .1rem .7rem; color: var(--mut); background: transparent;
+  font-size: .7rem; cursor: pointer;
+}
+.discard.armed {
+  border-color: var(--gold); color: var(--gold-deep); background: var(--gold-soft); font-weight: 700;
+}
+.discard:disabled { opacity: .55; cursor: default; }
+/* 「ありません」の1枚だけは段に押し込めず、幅いっぱいの中央に置く */
+.empty {
+  padding: 2.3rem .8rem; text-align: center; color: var(--mut); font-size: .9rem;
+  column-span: all;
+}
+.empty strong { display: block; margin-bottom: .35rem; color: var(--blue-deep); font-size: 1rem; }
+.history { margin-top: 1.4rem; }
+.history details { border-top: 1px solid var(--line); padding-top: .8rem; }
+.history summary { color: var(--mut); cursor: pointer; font-size: .8rem; }
+.history .cards { margin-top: .7rem; opacity: .82; }
+footer {
+  padding: 0 max(var(--gutter), env(safe-area-inset-right))
+           calc(1rem + env(safe-area-inset-bottom))
+           max(var(--gutter), env(safe-area-inset-left));
+  text-align: center;
+  background: var(--soft);
+}
+#pair-button { border: 0; color: var(--mut); background: transparent; font-size: .75rem; cursor: pointer; }
+.pairing {
+  width: min(28rem, calc(100% - 2rem)); padding: 0; border: 0; border-radius: .9rem;
+  box-shadow: 0 20px 60px rgba(14,13,106,.22);
+}
+.pairing::backdrop { background: rgba(14,13,45,.55); }
+.pair-body { padding: 1.1rem; }
+.pair-body h2 { margin: 0 0 .45rem; font-size: 1.1rem; }
+.pair-body p { margin: .35rem 0; color: var(--sub); font-size: .83rem; line-height: 1.55; }
+#pair-code {
+  margin: 1rem 0; padding: .75rem; border-radius: .65rem;
+  color: var(--blue-deep); background: var(--blue-soft); font-size: 1.45rem; font-weight: 800;
+  letter-spacing: .12em; text-align: center;
+}
+.pair-close { width: 100%; min-height: 2.7rem; border: 0; border-radius: .6rem; color: var(--white); background: var(--blue); }
+#toast {
+  /* 上バーが sticky で天井を占めるので、その下端より下に出す（3.4rem + 余白） */
+  display: none; position: sticky; top: calc(var(--safe-top-inset) + 4rem); z-index: 20;
+  width: max-content; max-width: 100%; margin: 0 auto .75rem;
+  padding: .7rem 1rem; border-radius: 999px; color: var(--white); background: var(--ink);
+  font-size: .8rem; pointer-events: none;
+}
+#toast.on { display: block; }
+/* ブレークポイントはトップ（index.html）と同じ 46rem。ここがずれると、
+   タブレット幅で片方だけスマホ表示になって作りが食い違う */
+@media (max-width: 46rem) {
+  html, body {
+    background: var(--safe-top);
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+  /* Dynamic Island の周りは、幅いっぱい同じ色にする。
+     上端に接する色は theme-color・html の背景・PWAのステータスバーからも決まるが、
+     どれも単色しか置けない。一方 135deg の斜めグラデを細い帯へ敷くと、
+     上端だけで色が左端から右端まで一気に進む（左は濃紺・右は水色）。
+     この「左右で変わる上端」と「単色しか置けない外側」は原理的に一致しないので
+     継ぎはぎに見える。だから縦方向のグラデへ組み替え、斜めのニュアンスは
+     上端まで届かない放射グラデ（右下が中心）で足している。トップと同じ作り */
+  .topbar {
+    background:
+      var(--bar-glow),
+      linear-gradient(
+        to bottom,
+        var(--safe-top) 0,
+        var(--safe-top) calc(var(--safe-top-inset) + .2rem),
+        /* ⚠️ 中間点を % で置かない。% はバー全体（セーフエリア込み）に対する割合なので、
+           ホーム画面Webアプリのように上端の余白が59pxある状態では、単色の終わり(.2rem)と
+           58%がほぼ重なり、2pxで色が急変して「Dynamic Islandだけ別の島」に見える。
+           Safariのタブは余白が小さいので再現せず、PWAでだけ出る（2026-08-13 実機で再現）。
+           セーフエリアの下から測った実寸で置けば、どちらでも同じなだらかさになる */
+        #0862aa calc(var(--safe-top-inset) + 1.9rem),
+        #0aa0dc calc(var(--safe-top-inset) + 3.2rem)
+      );
+  }
+  .topbar-inner { height: 3.2rem; gap: .35rem; }
+  .card { padding: .9rem; }
+  /* カードに「質問＋コメント欄＋承認」が入る最小幅を切ると使えなくなるので 1 段で固定する
+     （ダッシュボードの .dbody と同じ扱い） */
+  .cards { columns: 1; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/app/index.html" title="HTML共有くんへ戻る">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5.2 8.2 12l6.8 6.8"/></svg>
+      <span class="label">AIからの承認依頼</span>
+    </a>
+    <span class="brand-meta" id="summary">読み込み中</span>
+    <div class="topbar-actions">
+      <button class="tb-btn" id="refresh" type="button" aria-label="一覧を更新" title="一覧を更新">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M19 11a7 7 0 1 0 .2 5"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="toast" role="status"></div>
+  <div class="section-head"><span>いま対応するもの</span><span class="count" id="active-count">0</span></div>
+  <div class="cards" id="active-cards"></div>
+
+  <section class="history" id="history-section" hidden>
+    <details>
+      <summary>完了したもの</summary>
+      <div class="cards" id="history-cards"></div>
+    </details>
+  </section>
+</main>
+
+<footer><button id="pair-button" type="button">Macを登録</button></footer>
+
+<dialog class="pairing" id="pairing">
+  <div class="pair-body">
+    <h2>Macを登録</h2>
+    <p>Claude Codeとの初回接続に使うコードです。10分で無効になります。</p>
+    <div id="pair-code">発行中…</div>
+    <p>Claude Codeで <strong>/mobile pair このコード</strong> と入力してください。</p>
+    <button class="pair-close" type="button">閉じる</button>
+  </div>
+</dialog>
+<!-- mobile-status.js は読み込まない。あれは個別ページ（/pages/** ほか）の下地を補正する
+     スクリプトで、`body > header` を「ヒーロー」とみなし padding-top を !important で足す
+     （ホーム画面のWebアプリでは +4.5rem＝72px）。レビュー箱の上バーは body 直下の <header> なので
+     誤爆して、ヘッダーだけが厚くなっていた。トップ（index.html）も読み込んでいない。
+     上端の色はこのページの .topbar と html/body の背景で自前に塗っている -->
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const activeCards = $('active-cards');
+  const historyCards = $('history-cards');
+  let busy = false;
+
+  const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[char]);
+
+  // エスケープ済みテキスト中の https URL だけをリンク化する。自ドメインはパス表示に縮める。
+  // 除外集合に & を含めるのは、escapeHtml 後の &quot; 等を URL に巻き込まないため。
+  const linkify = (value) => escapeHtml(value).replace(
+    /https:\/\/[^\s<>"'）」、&]+/g,
+    (url) => `<a href="${url}" target="_blank" rel="noopener">${new URL(url).pathname || url}</a>`,
+  );
+
+  function toast(message) {
+    const el = $('toast');
+    el.textContent = message;
+    el.classList.add('on');
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => el.classList.remove('on'), 2200);
+  }
+
+  function relativeTime(value) {
+    const diff = Date.now() - new Date(value).getTime();
+    if (!Number.isFinite(diff)) return '';
+    if (diff < 60_000) return 'たった今';
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}分前`;
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}時間前`;
+    return new Date(value).toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
+  }
+
+  async function sha256(value) {
+    const bytes = new TextEncoder().encode(value);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function api(path, options = {}) {
+    const payloadHeaders = options.body
+      ? { 'content-type': 'application/json', 'x-amz-content-sha256': await sha256(options.body) }
+      : {};
+    const response = await fetch(`/api${path}`, {
+      cache: 'no-store',
+      ...options,
+      headers: { ...payloadHeaders, ...options.headers },
+    });
+    if (response.status === 401) {
+      location.href = `/auth/login?return=${encodeURIComponent(location.pathname)}`;
+      throw new Error('ログインが必要です');
+    }
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.error ?? '通信に失敗しました');
+    return body;
+  }
+
+  function taskCard(task) {
+    const card = document.createElement('article');
+    card.className = `card ${task.status}`;
+    const recommendation = task.recommendation
+      ? `<div class="recommendation"><strong>Claudeの推奨：</strong>${escapeHtml(task.recommendation)}</div>`
+      : '';
+    const context = task.context ? `<p class="context">${linkify(task.context)}</p>` : '';
+    const response = task.responseText
+      ? `<div class="reply">${escapeHtml(task.responseText)}</div>`
+      : '';
+    card.innerHTML = `
+      <div class="meta">
+        <span class="title">${escapeHtml(task.title)}</span>
+        <span class="time">${relativeTime(task.updatedAt)}</span>
+      </div>
+      <p class="question">${escapeHtml(task.question)}</p>
+      ${context}${recommendation}${response}
+    `;
+
+    // 追跡が不要になったカードを消す。指が当たっただけで消えないよう、1回目は確認へ変わる。
+    const discard = document.createElement('button');
+    discard.className = 'discard';
+    discard.type = 'button';
+    discard.textContent = '削除';
+    discard.setAttribute('aria-label', 'この確認事項を削除する');
+    let armed = false;
+    const disarm = () => {
+      armed = false;
+      discard.textContent = '削除';
+      discard.classList.remove('armed');
+    };
+    discard.addEventListener('click', async () => {
+      if (busy) return;
+      if (!armed) {
+        armed = true;
+        discard.textContent = '本当に削除？';
+        discard.classList.add('armed');
+        clearTimeout(discard.timer);
+        discard.timer = setTimeout(disarm, 5000);
+        return;
+      }
+      clearTimeout(discard.timer);
+      busy = true;
+      discard.disabled = true;
+      try {
+        await api(`/owner/reviews/${encodeURIComponent(task.id)}`, { method: 'DELETE' });
+        toast('削除しました');
+        await load();
+      } catch (error) {
+        toast(error.message);
+        discard.disabled = false;
+        disarm();
+      } finally {
+        busy = false;
+      }
+    });
+    card.querySelector('.meta').append(discard);
+
+    if (task.status === 'waiting') {
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+      const approve = document.createElement('button');
+      approve.className = 'approve'; approve.type = 'button'; approve.textContent = '承認';
+      const input = document.createElement('input');
+      input.type = 'text'; input.placeholder = 'コメントを入力'; input.autocomplete = 'off';
+      input.setAttribute('aria-label', 'コメント');
+      const send = document.createElement('button');
+      send.className = 'send'; send.type = 'button'; send.textContent = '送る';
+
+      const respond = async (kind) => {
+        if (busy) return;
+        const text = input.value.trim();
+        if (kind === 'comment' && !text) { input.focus(); return; }
+        busy = true; approve.disabled = true; send.disabled = true; input.disabled = true;
+        try {
+          await api(`/owner/reviews/${encodeURIComponent(task.id)}/answer`, {
+            method: 'POST', body: JSON.stringify({ approved: kind === 'approve', responseText: text }),
+          });
+          toast(kind === 'approve' ? '承認しました' : 'コメントを送りました');
+          await load();
+        } catch (error) {
+          toast(error.message);
+          approve.disabled = false; send.disabled = false; input.disabled = false;
+        } finally { busy = false; }
+      };
+      approve.addEventListener('click', () => respond('approve'));
+      send.addEventListener('click', () => respond('comment'));
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); respond('comment'); }
+      });
+      actions.append(approve, input, send);
+      card.append(actions);
+    } else if (task.status === 'answered') {
+      const waiting = document.createElement('div');
+      waiting.className = 'waiting-mac'; waiting.textContent = 'Macでの取り込み待ち';
+      card.append(waiting);
+    }
+    return card;
+  }
+
+  function render(items) {
+    const active = items.filter((item) => item.status === 'waiting' || item.status === 'answered');
+    const completed = items.filter((item) => item.status === 'completed');
+    activeCards.replaceChildren(...active.map(taskCard));
+    historyCards.replaceChildren(...completed.map(taskCard));
+    $('active-count').textContent = String(active.length);
+    $('history-section').hidden = completed.length === 0;
+    $('summary').textContent = active.length === 0
+      ? '/mobile スキルで、PC作業の承認依頼をスマホでさばけます'
+      : `確認待ち ${active.filter((item) => item.status === 'waiting').length}件`;
+    if (active.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty';
+      empty.innerHTML = '<strong>/mobile スキルで、PC作業の承認依頼をスマホでさばけます</strong><span>今、確認待ちはありません。</span>';
+      activeCards.append(empty);
+    }
+  }
+
+  async function load() {
+    $('refresh').disabled = true;
+    try {
+      const result = await api('/owner/reviews');
+      render(result.items ?? []);
+    } catch (error) {
+      $('summary').textContent = '読み込みに失敗しました';
+      toast(error.message);
+    } finally { $('refresh').disabled = false; }
+  }
+
+  $('refresh').addEventListener('click', load);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  setInterval(() => { if (!document.hidden && !busy) load(); }, 60_000);
+
+  const pairing = $('pairing');
+  $('pair-button').addEventListener('click', async () => {
+    $('pair-code').textContent = '発行中…';
+    pairing.showModal();
+    try {
+      const result = await api('/owner/pairings', { method: 'POST', body: '{}' });
+      $('pair-code').textContent = result.code;
+    } catch (error) {
+      $('pair-code').textContent = '発行できませんでした';
+      toast(error.message);
+    }
+  });
+  pairing.querySelector('.pair-close').addEventListener('click', () => pairing.close());
+  load();
+})();
+</script>
+</body>
+</html>

@@ -44,6 +44,21 @@ function copyConsole(buildRoot: string, manifest: object): void {
   }
   mkdirSync(path.join(consoleRoot, 'app'), { recursive: true });
   writeFileSync(path.join(consoleRoot, 'app', 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFileSync(path.join(consoleRoot, 'app.webmanifest'), `${JSON.stringify({
+    name: 'HTML共有くん',
+    short_name: '共有くん',
+    lang: 'ja',
+    start_url: '/app/index.html',
+    scope: '/',
+    display: 'standalone',
+    background_color: '#f6f7f9',
+    theme_color: '#0e0d6a',
+    icons: [
+      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+      { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    ],
+  }, null, 2)}\n`);
 }
 
 async function emptyBucket(client: S3Client, bucket: string): Promise<void> {
@@ -75,9 +90,7 @@ function ownerManifest(manifest: BuildManifest, outputs: StackOutputs, config: H
   return {
     generatedAt: manifest.generatedAt,
     pages: manifest.pages.map((page: BuiltPage) => ({
-      slug: page.slug,
-      title: page.title,
-      updatedAt: page.updatedAt,
+      ...page,
       href: signUrl({
         url: `${outputs.ContentUrl}/${page.objectKey}`,
         keyPairId: outputs.CloudFrontPublicKeyId,

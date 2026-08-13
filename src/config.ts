@@ -7,6 +7,9 @@ export interface PageConfig {
   path: string;
   title?: string;
   slug?: string;
+  repository?: string;
+  stream?: string;
+  streamLabel?: string;
 }
 
 export interface HtmlShareConfig {
@@ -27,6 +30,7 @@ export interface HtmlShareConfig {
     ownerLinkDays: number;
     maximumShareDays: number;
     maximumAssetBytes: number;
+    allowedInternalCidrs: string[];
   };
   configFile: string;
   baseDir: string;
@@ -47,6 +51,16 @@ function hostname(value: unknown, name: string): string {
   const result = text(value, name).toLowerCase();
   if (!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(result)) {
     throw new Error(`${name} must be a hostname without a scheme or path`);
+  }
+  return result;
+}
+
+function cidr(value: unknown, name: string): string {
+  const result = text(value, name);
+  if (!/^(?:\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/.test(result)) throw new Error(`${name} must be an IPv4 CIDR`);
+  const [address, prefix] = result.split('/');
+  if (Number(prefix) > 32 || address.split('.').some((part) => Number(part) > 255)) {
+    throw new Error(`${name} must be an IPv4 CIDR`);
   }
   return result;
 }
@@ -74,6 +88,9 @@ export function loadConfig(file?: string): HtmlShareConfig {
   const content = raw?.content ?? {};
   const pages = Array.isArray(content.pages) ? content.pages : [];
   const roots = Array.isArray(content.roots) ? content.roots.map((item: unknown) => text(item, 'content.roots[]')) : [];
+  const allowedInternalCidrs = Array.isArray(content.allowedInternalCidrs)
+    ? content.allowedInternalCidrs.map((item: unknown) => cidr(item, 'content.allowedInternalCidrs[]'))
+    : [];
   if (roots.length === 0) throw new Error('content.roots must contain at least one directory');
   if (pages.length === 0) throw new Error('content.pages must contain at least one page');
   const ownerEmail = text(raw?.ownerEmail, 'ownerEmail');
@@ -106,11 +123,15 @@ export function loadConfig(file?: string): HtmlShareConfig {
           path: text(page.path, `content.pages[${index}].path`),
           title: typeof page.title === 'string' ? page.title.trim() : undefined,
           slug: typeof page.slug === 'string' ? page.slug.trim() : undefined,
+          repository: typeof page.repository === 'string' ? page.repository.trim() : undefined,
+          stream: typeof page.stream === 'string' ? page.stream.trim() : undefined,
+          streamLabel: typeof page.streamLabel === 'string' ? page.streamLabel.trim() : undefined,
         };
       }),
       ownerLinkDays: positiveInteger(content.ownerLinkDays, 30, 'content.ownerLinkDays'),
       maximumShareDays: positiveInteger(content.maximumShareDays, 30, 'content.maximumShareDays'),
       maximumAssetBytes: positiveInteger(content.maximumAssetBytes, 10 * 1024 * 1024, 'content.maximumAssetBytes'),
+      allowedInternalCidrs,
     },
     configFile,
     baseDir: path.dirname(configFile),

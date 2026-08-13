@@ -4,6 +4,7 @@ import path from 'node:path';
 
 const root = path.resolve(process.argv[2] ?? '.html-share/build/console');
 const port = Number(process.env.HTML_SHARE_PREVIEW_PORT ?? 4311);
+const sampleReview = process.env.HTML_SHARE_PREVIEW_SAMPLE_REVIEW === '1';
 const types = {
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -15,7 +16,17 @@ createServer((request, response) => {
   const pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
   if (pathname === '/api/owner/reviews') {
     response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-    response.end('{"items":[]}');
+    response.end(JSON.stringify({
+      items: sampleReview ? [{
+        id: 'preview-review-1',
+        title: 'HTML共有くん OSS公開準備',
+        question: 'GitHubへの公開とREADME画像の追加を進めてよいですか？',
+        context: '実UIへの統一と、公開不可情報のダミー化が完了しています。',
+        recommendation: '公開前テストと秘密情報スキャンを通過済みです。',
+        status: 'waiting',
+        updatedAt: new Date().toISOString(),
+      }] : [],
+    }));
     return;
   }
   if (pathname === '/api/owner/pairings' && request.method === 'POST') {

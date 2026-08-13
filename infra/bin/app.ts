@@ -15,6 +15,8 @@ new HtmlShareStack(app, 'HtmlShareStack', {
   cognitoDomainPrefix: config.aws.cognitoDomainPrefix,
   privateKeyParameterName: config.aws.privateKeyParameterName,
   publicKeyPem: readFileSync(resolveFromConfig(config, config.aws.publicKeyPath), 'utf8'),
+  maximumShareDays: config.content.maximumShareDays,
+  allowedInternalCidrs: config.content.allowedInternalCidrs,
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: config.aws.region,

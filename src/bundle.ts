@@ -41,6 +41,10 @@ export interface BuiltPage {
   title: string;
   source: string;
   updatedAt: string;
+  date: string;
+  repository: string;
+  stream: string;
+  streamLabel: string;
   objectKey: string;
 }
 
@@ -110,6 +114,11 @@ function pagePath(config: HtmlShareConfig, page: PageConfig): string {
   return absolute;
 }
 
+function defaultGroup(page: PageConfig): string {
+  const parent = path.basename(path.dirname(page.path));
+  return parent && parent !== '.' ? parent : 'pages';
+}
+
 export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildManifest {
   const roots = validatedRoots(config);
   const contentRoot = path.join(buildRoot, 'content');
@@ -127,11 +136,18 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
     const directory = path.join(contentRoot, 'pages', slug);
     mkdirSync(directory, { recursive: true });
     writeFileSync(path.join(directory, 'index.html'), html);
+    const updatedAt = statSync(sourceReal).mtime.toISOString();
+    const repository = page.repository || defaultGroup(page);
+    const stream = page.stream || repository;
     return {
       slug,
       title: page.title || extractTitle(html, fallback),
       source: page.path,
-      updatedAt: statSync(sourceReal).mtime.toISOString(),
+      updatedAt,
+      date: updatedAt,
+      repository,
+      stream,
+      streamLabel: page.streamLabel || stream,
       objectKey: `pages/${slug}/index.html`,
     };
   });

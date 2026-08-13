@@ -22,8 +22,12 @@ aws:
   privateKeyParameterName: /html-share/test/private-key
 content:
   roots: [pages]
+  allowedInternalCidrs: [203.0.113.0/24]
   pages:
     - path: pages/demo.html
+      repository: examples
+      stream: release-notes
+      streamLabel: リリースノート
   ownerLinkDays: 7
   maximumShareDays: 30
   maximumAssetBytes: 1024
@@ -36,6 +40,10 @@ test('loads a valid config and resolves its base directory', () => {
   const loaded = loadConfig(config);
   assert.equal(loaded.baseDir, root);
   assert.equal(loaded.content.pages[0].path, 'pages/demo.html');
+  assert.equal(loaded.content.pages[0].repository, 'examples');
+  assert.equal(loaded.content.pages[0].stream, 'release-notes');
+  assert.equal(loaded.content.pages[0].streamLabel, 'リリースノート');
+  assert.deepEqual(loaded.content.allowedInternalCidrs, ['203.0.113.0/24']);
 });
 
 test('adds a page only once', () => {
@@ -50,4 +58,12 @@ test('requires separate console and content origins', () => {
   const source = readFileSync(config, 'utf8').replace('content.example.com', 'console.example.com');
   writeFileSync(config, source);
   assert.throws(() => loadConfig(config), /must be different security origins/);
+});
+
+test('rejects invalid internal CIDRs', () => {
+  const { config } = fixture();
+  const invalid = '999' + '.0.0.1/40';
+  const source = readFileSync(config, 'utf8').replace('203.0.113.0/24', invalid);
+  writeFileSync(config, source);
+  assert.throws(() => loadConfig(config), /must be an IPv4 CIDR/);
 });

@@ -1,33 +1,1243 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="robots" content="noindex, nofollow">
-  <meta name="theme-color" content="#0b55ae">
-  <title>HTML共有くん</title>
-  <link rel="stylesheet" href="/app/app.css">
-  <script src="/app/app.js" defer></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="color-scheme" content="light">
+<title>HTML共有くん</title>
+<link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<!-- crossorigin は必須。これが無いと manifest だけ Cookie 無しで取りに行き 403 になる -->
+<link rel="manifest" href="/app.webmanifest" crossorigin="use-credentials">
+<meta name="apple-mobile-web-app-title" content="HTML共有くん">
+<!-- 上バーの上端と同じ色。ここがずれるとステータスバーの周りが継ぎはぎになる -->
+<meta name="theme-color" content="#0a4695">
+<!-- 一覧の見た目と描画の正本。スマホの個別ページ側も同じものを読む -->
+<script src="/page-list.js"></script>
+<script>MyBriefsList.injectIntoHead();</script>
+<style>
+:root {
+  --blue-deep: #0e0d6a;
+  --blue: #0a4695;
+  --blue-mid: #0862aa;
+  --blue-bright: #0aa0dc;
+  --blue-soft: #eaf2fb;
+  --blue-line: #cfe0f2;
+  --blue-grad: linear-gradient(135deg, #0e0d6a 0%, #0a4695 45%, #0862aa 68%, #01b6ec 100%);
+  /* 上バーの配色。青を保ったまま、右下へ向かって白へ抜ける。
+     白のにじみは中心を右下の外へ置いてあるので、上端の色には触れない */
+  --bar-glow: radial-gradient(135% 220% at 104% 142%,
+    rgba(255, 255, 255, .82) 0%,
+    rgba(150, 226, 250, .52) 28%,
+    rgba(1, 182, 236, 0) 64%);
+  /* 画面上端に接する色。theme-color と html の背景もこれに合わせること */
+  --safe-top: #0a4695;
+  --ink: #1a1a1f;
+  --sub: #45454d;
+  --mut: #6b6b73;
+  --line: #e5e5ea;
+  --soft: #f6f7f9;
+  --gold: #f0b21f;
+  --gold-deep: #8a5a00;
+  --gold-soft: #fdf3d2;
+  --bg: var(--soft);
+  --panel: #ffffff;
+  --ink-soft: var(--sub);
+  --ink-faint: var(--mut);
+  --accent: var(--blue);
+  --accent-soft: var(--blue-soft);
+  --star: var(--gold);
+  --chip: #f0f3f7;
+  --shadow: 0 1px 6px rgba(26, 26, 31, .04), 0 12px 30px rgba(14, 13, 106, .10);
+  --toggle: 2.75rem;
+  /* Dynamic Island / ステータスバーの高さ。env() を直に書かず変数へ通しておくと、
+     PCのブラウザでも値を差し込んで iPhone の見え方を再現できる（検証用） */
+  --safe-top-inset: env(safe-area-inset-top, 0px);
+  /* 上のバーと一覧カードで共有する左右の余白。ここ1か所だけを直せば全部そろう */
+  --gutter: clamp(1.15rem, 3vw, 2.75rem);
+  --repository-deep: linear-gradient(90deg, #0e0d6a, #0a4695);
+  --repository-mid: linear-gradient(90deg, #0a4695, #0862aa);
+  --repository-bright: linear-gradient(90deg, #0862aa, #01b6ec);
+  --repository-soft: linear-gradient(90deg, #7db8df, #cfe0f2);
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; background: var(--bg); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-size: 15px;
+  -webkit-text-size-adjust: 100%;
+}
+.app { display: flex; height: 100%; }
+main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+iframe { flex: 1; width: 100%; border: 0; background: var(--panel); }
+
+/* ── トップ（ページ未選択）───────────────────────── */
+#home {
+  flex: 1; display: none; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+#home.on { display: block; animation: home-in .2s ease both; }
+@keyframes home-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── 上のバー。名前・件数・検索・承認依頼・更新を1行に収める ─────
+   スクロールしても留まるので、下まで読んでから検索やトップへ戻れる */
+.topbar {
+  position: sticky; top: 0; z-index: 12;
+  /* セーフエリアぶんも自分の背景で塗る。ここを本文側へ押し出すと、上端だけ
+     別の色（html の背景）が覗いて継ぎはぎになる */
+  padding-top: var(--safe-top-inset);
+  color: #fff;
+  /* PCは横に長いので斜めのまま。右下へ向かって白へ抜ける */
+  background:
+    var(--bar-glow),
+    linear-gradient(115deg, #0e0d6a 0%, #0a4695 40%, #0862aa 70%, #0aa0dc 100%);
+  box-shadow: 0 6px 20px rgba(14, 13, 106, .16);
+}
+.topbar-inner {
+  height: 3.4rem;
+  padding-right: max(var(--gutter), env(safe-area-inset-right));
+  padding-left: max(var(--gutter), env(safe-area-inset-left));
+  display: flex; align-items: center; gap: .55rem;
+}
+.brand {
+  flex: none;
+  margin-left: -.5rem; padding: .35rem .55rem;
+  display: inline-flex; align-items: center; gap: .45rem;
+  border: 0; border-radius: .6rem; background: transparent; color: #fff;
+  font: inherit; font-size: .95rem; font-weight: 700; letter-spacing: .04em;
+  cursor: pointer; transition: background .16s ease;
+}
+.brand:hover { background: rgba(255, 255, 255, .16); }
+.brand:active { background: rgba(255, 255, 255, .24); }
+.brand svg {
+  width: 1.1rem; height: 1.1rem; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round; opacity: .85;
+}
+.brand-meta {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: .74rem; color: rgba(255, 255, 255, .7);
+  font-variant-numeric: tabular-nums;
+}
+.topbar-actions { flex: none; margin-left: auto; display: flex; align-items: center; gap: .4rem; }
+
+/* 丸いガラス調のボタン。検索の閉じた姿と同じ寸法にそろえる */
+.tb-btn {
+  height: 2.2rem; padding: 0 .85rem;
+  display: inline-flex; align-items: center; gap: .4rem;
+  border: 1px solid rgba(255, 255, 255, .3); border-radius: 999px;
+  background: rgba(255, 255, 255, .14); color: #fff;
+  font: inherit; font-size: .78rem; white-space: nowrap; cursor: pointer;
+  transition: background .18s ease, border-color .18s ease;
+}
+.tb-btn:hover { background: rgba(255, 255, 255, .26); border-color: rgba(255, 255, 255, .52); }
+.tb-btn:active { transform: scale(.97); }
+.tb-btn.icon { width: 2.2rem; padding: 0; justify-content: center; }
+.tb-btn svg {
+  width: 1.05rem; height: 1.05rem; flex: none;
+  fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+body.refreshing #refresh svg { animation: refresh-spin .65s linear infinite; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
+
+/* ── 検索。ふだんは虫めがねだけ、押すと横へ伸びて入力欄になる ───── */
+.search {
+  position: relative; flex: none;
+  width: 2.2rem; height: 2.2rem; overflow: hidden;
+  display: flex; align-items: center;
+  border: 1px solid rgba(255, 255, 255, .3); border-radius: 999px;
+  background: rgba(255, 255, 255, .14);
+  transition: width .26s cubic-bezier(.4, 0, .2, 1), background .18s ease, border-color .18s ease;
+}
+body.searching .search {
+  width: min(17rem, 40vw);
+  background: rgba(255, 255, 255, .22);
+  border-color: rgba(255, 255, 255, .55);
+}
+#search-toggle {
+  flex: none; width: 2.15rem; height: 2.15rem;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; background: transparent; color: #fff;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+#search-toggle svg {
+  width: 1.05rem; height: 1.05rem;
+  fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round;
+}
+#q {
+  flex: 1; min-width: 0; height: 100%; padding: 0;
+  border: 0; background: transparent; color: #fff;
+  font: inherit; font-size: .82rem;
+  opacity: 0; transition: opacity .16s ease;
+}
+body.searching #q { opacity: 1; }
+#q::placeholder { color: rgba(255, 255, 255, .6); }
+#q:focus { outline: 0; }
+#q::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+#search-clear {
+  flex: none; width: 1.9rem; height: 100%;
+  display: none; align-items: center; justify-content: center;
+  border: 0; background: transparent; color: rgba(255, 255, 255, .8);
+  font: inherit; font-size: 1rem; line-height: 1; cursor: pointer;
+}
+body.searching.has-query #search-clear { display: flex; }
+#search-clear:hover { color: #fff; }
+
+.home-content { padding: 1.5rem var(--gutter) calc(3rem + env(safe-area-inset-bottom)); }
+
+/* ── 日付の区切り。テーマは「そのテーマの最終更新日」でどの区切りに入るかが決まる ── */
+.dgroup { margin-bottom: 2.5rem; }
+.dgroup:last-child { margin-bottom: 0; }
+.dhead {
+  /* 日付の見出しも、下に並ぶカードと左右の端をそろえる */
+  display: flex; align-items: baseline; gap: .75rem; margin: 0 0 .9rem;
+  font-size: .75rem; font-weight: 700; letter-spacing: .12em;
+  color: var(--blue);
+}
+.dhead::after { content: ""; flex: 1; height: 1px; background: var(--blue-line); opacity: .7; }
+.dcount { order: 3; font-weight: 500; letter-spacing: .02em; color: var(--mut); }
+
+/* 高さのばらつく塊を隙間なく詰めるための多段組み。段数ではなく列幅で指定して
+   いるので、画面幅にそのまま追従する。Grid だと行の高さが一番大きい塊に
+   引っ張られて隙間だらけになるため、こちらを選んでいる */
+.dbody { columns: 23rem 3; column-gap: 1.25rem; }
+
+/* ── テーマの塊。同じ案件のページを 1 枚にまとめて縦の消費を抑える ── */
+.theme, .solo {
+  margin-bottom: 1.25rem; padding: .35rem 0;
+  border: 1px solid rgba(14, 13, 106, .06); border-radius: 1rem;
+  background: var(--panel);
+  box-shadow: 0 1px 2px rgba(26, 26, 31, .03), 0 10px 26px rgba(14, 13, 106, .055);
+  break-inside: avoid; -webkit-column-break-inside: avoid;
+}
+.th { display: flex; align-items: center; gap: .55rem; padding: .7rem 1.05rem .55rem; }
+.tname { font-size: .9rem; font-weight: 700; letter-spacing: .01em; color: var(--blue-deep); }
+.tunread {
+  padding: .1rem .45rem; border: 1px solid #f0dca5; border-radius: 999px;
+  background: var(--gold-soft); color: var(--gold-deep);
+  font-size: .67rem; font-weight: 700; letter-spacing: .02em;
+}
+.tcount { font-size: .72rem; color: var(--mut); }
+.tlast {
+  margin-left: auto; font-size: .72rem; color: var(--mut);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 1 行 1 ページ。タイトル・更新時刻・スターだけに絞る ── */
+.row-wrap { position: relative; }
+.row-wrap + .row-wrap::before {
+  content: ""; position: absolute; left: 1.7rem; right: .7rem; top: 0;
+  height: 1px; background: #f0f0f4;
+}
+.row {
+  display: flex; align-items: center; gap: .6rem;
+  width: calc(100% - .7rem); margin: 0 .35rem;
+  padding: .5rem 2.5rem .5rem 1.05rem;
+  border: 0; border-radius: .55rem; background: transparent;
+  color: inherit; font: inherit; text-decoration: none; text-align: left; cursor: pointer;
+  transition: background .12s ease;
+}
+.row.in { padding-left: 1.35rem; }
+.row-wrap.in + .row-wrap.in::before { left: 2rem; }
+.row-wrap:hover .row { background: #f4f7fc; }
+/* 隣り合う行の境界線は、どちらかに触れている間だけ消す（塗りと線を重ねない） */
+.row-wrap:hover::before,
+.row-wrap:hover + .row-wrap::before { background: transparent; }
+.row .dot { flex: none; width: .4rem; height: .4rem; border-radius: 50%; background: transparent; }
+.row .dot.on { background: var(--blue-bright); box-shadow: 0 0 0 3px rgba(10, 160, 220, .15); }
+.row .t {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: .875rem; line-height: 1.5; color: var(--sub);
+}
+/* 新着は色だけでなく太さでも示す */
+.row .dot.on ~ .t { font-weight: 650; color: var(--ink); }
+.row .sh { flex: none; font-size: .7rem; opacity: .75; }
+.row time {
+  flex: none; font-size: .71rem; letter-spacing: .01em; color: var(--mut);
+  font-variant-numeric: tabular-nums;
+}
+.row-wrap > .star {
+  position: absolute; top: 50%; right: .5rem; transform: translateY(-50%);
+  width: 1.9rem; height: 1.9rem; font-size: .95rem;
+}
+.row-wrap > .star:active { transform: translateY(-50%) scale(.82); }
+/* 読み終えた行に空の☆が並ぶと視覚ノイズになるので、マウスのある環境では触れたときだけ出す。
+   指で操作する環境ではこの規則が効かず、従来どおり常に見える */
+@media (hover: hover) {
+  .row-wrap > .star:not(.on) { opacity: 0; transition: opacity .12s ease; }
+  .row-wrap:hover > .star:not(.on),
+  .row-wrap > .star:focus-visible { opacity: 1; }
+}
+.row-wrap > .restore {
+  position: absolute; top: 50%; right: .5rem; transform: translateY(-50%);
+  min-height: 1.9rem; padding: 0 .6rem;
+  border: 0; border-radius: .5rem; background: var(--blue-soft); color: var(--blue);
+  font: inherit; font-size: .7rem; font-weight: 600; cursor: pointer;
+}
+/* 「戻す」は☆より横幅を食うので、その分だけ行の右を広く空ける */
+.row.off { padding-right: 4.3rem; cursor: default; }
+.row-wrap:has(.row.off):hover .row { background: transparent; }
+.more {
+  display: block; width: calc(100% - .7rem); margin: .15rem .35rem 0;
+  padding: .5rem 1.05rem .55rem 1.35rem;
+  border: 0; border-radius: .55rem; background: transparent;
+  color: var(--blue); font: inherit; font-size: .76rem;
+  text-align: left; cursor: pointer;
+}
+.more:hover { background: #f4f7fc; }
+
+.empty { padding: 4rem 0; text-align: center; color: var(--mut); font-size: .85rem; }
+
+/* 削除済みは常設の入口を持たせず、一覧の末尾へ控えめに置く */
+.trash-bar { margin-top: 2.25rem; display: flex; justify-content: center; }
+#trash-toggle {
+  min-height: 2.1rem; padding: 0 .9rem;
+  display: none; align-items: center; gap: .4rem;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--panel); color: var(--ink-faint);
+  font: inherit; font-size: .72rem; cursor: pointer;
+  transition: color .16s ease, border-color .16s ease;
+}
+#trash-toggle.on { display: inline-flex; }
+#trash-toggle:hover { color: var(--ink); border-color: var(--blue-line); }
+
+/* ── ページ表示中の操作。左にホーム、右にメニューの2つだけ ───────── */
+#home-btn, #page-actions {
+  position: fixed;
+  top: calc(.45rem + var(--safe-top-inset));
+  z-index: 30;
+  display: none;
+  transition: transform .24s ease, opacity .18s ease;
+}
+#home-btn { left: .55rem; }
+#page-actions { right: .55rem; }
+body.page-open #home-btn { display: flex; }
+body.page-open #page-actions { display: block; }
+#home-btn, #page-more {
+  width: var(--toggle); height: var(--toggle); padding: 0;
+  align-items: center; justify-content: center;
+  border: 1px solid rgba(255, 255, 255, .62); border-radius: 1rem;
+  background: rgba(255, 255, 255, .78); color: var(--ink-soft);
+  font: inherit; cursor: pointer; box-shadow: var(--shadow);
+  backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
+}
+#page-more { display: flex; }
+#home-btn:hover, #page-more:hover { background: var(--panel); color: var(--ink); }
+#home-btn svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#page-more svg { width: 1.15rem; height: 1.15rem; fill: currentColor; }
+#page-menu,
+#page-share-panel {
+  position: absolute; top: calc(100% + .45rem); right: 0;
+  border: 1px solid rgba(28, 35, 51, .10); border-radius: 1rem;
+  background: rgba(255, 255, 255, .92); box-shadow: var(--shadow);
+  backdrop-filter: blur(26px) saturate(180%); -webkit-backdrop-filter: blur(26px) saturate(180%);
+}
+#page-menu[hidden], #page-share-panel[hidden] { display: none; }
+#page-menu { width: 15rem; padding: .38rem; }
+.page-action {
+  width: 100%; min-height: 2.75rem; padding: .55rem .7rem;
+  display: flex; align-items: center; gap: .7rem;
+  border: 0; border-radius: .72rem; background: transparent; color: var(--ink);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.page-action + .page-action { border-top: 1px solid rgba(229, 229, 234, .72); border-radius: 0; }
+.page-action:hover { background: rgba(10, 70, 149, .07); }
+.page-action svg { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.page-action.delete { color: #d92d20; }
+#page-share-panel {
+  width: min(21rem, calc(100vw - 1.1rem)); padding: .75rem;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .8fr); gap: .55rem;
+}
+#page-share-panel label { display: grid; gap: .25rem; color: var(--mut); font-size: .68rem; }
+#page-share-panel select,
+#page-share-issue {
+  min-width: 0; min-height: 2.4rem; padding: .4rem .55rem;
+  border: 1px solid var(--line); border-radius: .6rem; background: #f6f7f9; color: var(--ink);
+  font: inherit;
+}
+#page-share-issue {
+  grid-column: 1 / -1; border-color: var(--blue); background: var(--blue); color: #fff;
+  font-weight: 600; cursor: pointer;
+}
+#page-share-issue:disabled { opacity: .72; }
+body.page-controls-hidden #home-btn,
+body.page-controls-hidden #page-actions {
+  transform: translateY(-5rem); opacity: 0; pointer-events: none;
+}
+
+/* ── スマホ ───────────────────────────────────── */
+@media (max-width: 46rem) {
+  html,
+  body {
+    min-height: 100%;
+    background: var(--safe-top);
+    overflow-x: clip;
+    overscroll-behavior-x: none;
+  }
+  body:not(.page-open) {
+    height: auto;
+    min-height: 100dvh;
+  }
+  body.page-open {
+    height: 100%;
+    min-height: 0;
+  }
+  body.page-open .app {
+    height: 100%;
+    min-height: 0;
+  }
+  body:not(.page-open) .app {
+    height: auto;
+    min-height: 100dvh;
+    background: var(--bg);
+  }
+  body:not(.page-open) main {
+    min-height: 100dvh;
+    background: var(--bg);
+  }
+  body:not(.page-open) #home {
+    flex: none;
+    overflow-y: visible;
+    background: var(--bg);
+  }
+  /* Dynamic Island の周りは、幅いっぱい同じ色にする。
+     上端に接する色は theme-color・html の背景・PWAのステータスバーからも決まるが、
+     どれも単色しか置けない。一方 135deg の斜めグラデを高さ110pxの細い帯へ敷くと、
+     上端だけで色が左端から右端まで一気に進む（左は濃紺・右は水色）。
+     この「左右で変わる上端」と「単色しか置けない外側」は原理的に一致しないので、
+     継ぎはぎに見える。だから縦方向のグラデへ組み替え、斜めのニュアンスは
+     上端まで届かない放射グラデ（右下が中心）で足している。
+     上端を濃紺で覆ってフェードさせる手も試したが、覆いとグラデの境目が帯に見えた。 */
+  .topbar {
+    background:
+      var(--bar-glow),
+      linear-gradient(
+        to bottom,
+        var(--safe-top) 0,
+        var(--safe-top) calc(var(--safe-top-inset) + .2rem),
+        /* ⚠️ 中間点を % で置かない。% はバー全体（セーフエリア込み）に対する割合なので、
+           ホーム画面Webアプリのように上端の余白が59pxある状態では、単色の終わり(.2rem)と
+           58%がほぼ重なり、2pxで色が急変して「Dynamic Islandだけ別の島」に見える。
+           Safariのタブは余白が小さいので再現せず、PWAでだけ出る（2026-08-13 実機で再現）。
+           セーフエリアの下から測った実寸で置けば、どちらでも同じなだらかさになる */
+        #0862aa calc(var(--safe-top-inset) + 1.9rem),
+        #0aa0dc calc(var(--safe-top-inset) + 3.2rem)
+      );
+  }
+  .topbar-inner { height: 3.2rem; gap: .35rem; }
+  /* 画面が狭いので、件数の表示は検索・承認依頼の場所を奪わない範囲でだけ出す */
+  .brand-meta { display: none; }
+  .tb-btn .label { display: none; }
+  .tb-btn { width: 2.2rem; padding: 0; justify-content: center; }
+  /* 検索中はロゴを畳んで、入力欄に残り幅を全部渡す */
+  body.searching .brand { padding-right: .3rem; padding-left: .3rem; }
+  body.searching .brand .label { display: none; }
+  body.searching .search { width: auto; flex: 1; }
+  body.searching .topbar-actions { flex: 1; }
+  .home-content {
+    padding-top: 1.1rem;
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  }
+  .dgroup { margin-bottom: 1.9rem; }
+  .theme, .solo { margin-bottom: .9rem; border-radius: .9rem; }
+  .th { padding: .65rem .85rem .5rem; }
+  .row { padding: .58rem 2.4rem .58rem .85rem; }
+  .row.in { padding-left: 1.15rem; }
+  .row-wrap + .row-wrap::before { left: 1.5rem; }
+  .row-wrap.in + .row-wrap.in::before { left: 1.8rem; }
+  /* 行に「タイトル＋時刻＋★」が入る最小幅を切ると読めなくなるので 1 段で固定する */
+  .dbody { columns: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  #home-btn, #page-more, #page-menu, #page-share-panel {
+    background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none;
+  }
+}
+</style>
 </head>
 <body>
-  <header>
-    <div>
-      <p class="eyebrow">HTML共有くん</p>
-      <h1>Claude Codeの生成結果、<br>ぜんぶ見やすくまとめよう</h1>
-    </div>
-    <nav aria-label="アカウントとAIからの承認依頼">
-      <a class="review-link" href="/app/review.html"><span id="review-count" hidden></span>AIからの承認依頼</a>
-      <a class="quiet-link" href="/auth/logout">ログアウト</a>
-    </nav>
-  </header>
+<div class="app">
   <main>
-    <div class="list-heading">
-      <h2>生成結果</h2>
-      <p id="updated"></p>
+    <iframe id="frame" title="選択中のページ" hidden></iframe>
+    <div id="home" class="on">
+      <header class="topbar">
+        <div class="topbar-inner">
+          <button class="brand" id="brand" type="button" title="トップへ戻る">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 4.5l8 6.7M6.4 9.6V19h11.2V9.6"/></svg>
+            <span class="label">HTML共有くん</span>
+          </button>
+          <span class="brand-meta" id="brand-meta"></span>
+          <div class="topbar-actions">
+            <div class="search" id="search">
+              <button id="search-toggle" type="button" aria-label="検索する" aria-expanded="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.4" fill="none"/><path d="m20 20-4.2-4.2"/></svg>
+              </button>
+              <input id="q" type="search" placeholder="タイトル・リポジトリで絞り込み" autocomplete="off" tabindex="-1">
+              <button id="search-clear" type="button" aria-label="検索語を消す">×</button>
+            </div>
+            <button class="tb-btn" id="review" type="button" title="AIからの承認依頼">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h4l1.4 2.4h5.2L16 13h4M4 13l2.6-7h10.8L20 13v5H4z"/></svg>
+              <span class="label">AIからの承認依頼</span>
+            </button>
+            <button class="tb-btn icon" id="refresh" type="button" aria-label="一覧を更新" title="一覧を更新">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M19 11a7 7 0 1 0 .2 5"/></svg>
+            </button>
+          </div>
+        </div>
+      </header>
+      <div class="home-content">
+        <div id="tiles"></div>
+        <div class="trash-bar">
+          <button id="trash-toggle" type="button"><span id="trash-label"></span></button>
+        </div>
+      </div>
     </div>
-    <div id="pages" class="pages" aria-live="polite"></div>
-    <p id="empty" class="empty" hidden>まだHTMLがありません。Claude Codeから <code>/mobile</code> を実行すると、ここへ状況ページが届きます。</p>
-    <p id="error" class="error" hidden></p>
   </main>
+</div>
+
+<button id="home-btn" type="button" aria-label="トップへ戻る" title="トップへ戻る">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 4.5l8 6.7M6.4 9.6V19h11.2V9.6"/></svg>
+</button>
+<div id="page-actions">
+  <button id="page-more" type="button" aria-label="ページ操作を開く" aria-expanded="false">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+  </button>
+  <div id="page-menu" role="menu" aria-label="ページ操作" hidden>
+    <button class="page-action" id="page-refresh" type="button" role="menuitem">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M19 11a7 7 0 1 0 .2 5"/></svg><span>更新</span>
+    </button>
+    <button class="page-action" id="page-share" type="button" role="menuitem">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg><span>共有URLを発行</span>
+    </button>
+    <button class="page-action delete" id="page-delete" type="button" role="menuitem">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg><span>一覧から削除</span>
+    </button>
+  </div>
+  <div id="page-share-panel" aria-label="共有URLの発行" hidden>
+    <label>公開範囲<select id="page-share-scope"><option value="i">社内限定</option><option value="p">IP制限なし</option></select></label>
+    <label>有効日数<select id="page-share-days"><option>1</option><option>3</option><option selected>7</option><option>14</option><option>30</option><option>90</option></select></label>
+    <button id="page-share-issue" type="button">発行してコピー</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const frame = $('frame'), home = $('home'), tilesEl = $('tiles'), brandMeta = $('brand-meta');
+  const searchBox = $('search'), searchToggle = $('search-toggle'), searchClear = $('search-clear');
+  const refresh = $('refresh'), pageRefresh = $('page-refresh');
+  const pageMore = $('page-more'), pageMenu = $('page-menu'), pageSharePanel = $('page-share-panel');
+  const pageShare = $('page-share'), pageDelete = $('page-delete'), pageShareIssue = $('page-share-issue');
+  const trashToggle = $('trash-toggle'), trashLabel = $('trash-label');
+  const STAR_KEY = 'mb_starred_pages';
+  const HIDDEN_KEY = 'mb_hidden_pages';
+  const READ_KEY = 'mb_read_marks';
+  const CAN_SYNC = location.protocol === 'https:';
+  let allPages = [], pages = [], current = null, meta = null;
+  let starred = new Set();
+  let hiddenSources = new Set();
+  // { ページの source: 開いたときの更新日時 }。更新日時ごと持つので、再更新で自動的に未読へ戻る
+  let readMarks = {};
+  let knowsReadMarks = false;
+  let showingTrash = false;
+  let filterText = '';
+  let preferenceSaveTimer = null;
+  // テーマ内で最初に見せる件数と、「他N件を表示」で開いたテーマのキー
+  const STREAM_PREVIEW = 3;
+  const expandedStreams = new Set();
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(STAR_KEY) ?? '[]');
+    if (Array.isArray(saved)) starred = new Set(saved.filter((item) => typeof item === 'string'));
+  } catch { /* 壊れた保存値は空として扱う */ }
+  try {
+    const saved = JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? '[]');
+    if (Array.isArray(saved)) hiddenSources = new Set(saved.filter((item) => typeof item === 'string'));
+  } catch { /* 壊れた保存値は空として扱う */ }
+  try {
+    const raw = localStorage.getItem(READ_KEY);
+    const saved = raw === null ? null : JSON.parse(raw);
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+      readMarks = saved;
+      knowsReadMarks = true;
+    }
+  } catch { /* 壊れた保存値は未記録として扱う */ }
+
+  // 日付の区切り・新着判定・☆は page-list.js が正本。ここでは委譲するだけにする。
+  // 行の見た目だけはトップ専用（1行1ページ）なので、この画面側で組み立てる
+  const L = window.MyBriefsList;
+  const fmtDateTime = L.fmtDateTime;
+  const dateGroup = L.dateGroup;
+  const shortTime = L.shortTime;
+
+  const isNarrow = () => matchMedia('(max-width: 46rem)').matches;
+  const isStarred = (page) => starred.has(page.source);
+  // 一度も開いていない、または開いたあとに元HTMLが更新されたページ
+  const isUnread = (page) => L.isUnread(page, readMarks);
+  const isNew = (page) => L.isNew(page, readMarks);
+  const pageRepository = L.pageRepository;
+  const pageStream = (page) => page.stream ?? pageRepository(page);
+  const pageStreamLabel = (page) => page.streamLabel ?? pageStream(page);
+
+  function saveLocalPreferences() {
+    try {
+      localStorage.setItem(STAR_KEY, JSON.stringify([...starred]));
+      localStorage.removeItem('mb_recent_pages');
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hiddenSources]));
+      localStorage.setItem(READ_KEY, JSON.stringify(readMarks));
+      knowsReadMarks = true;
+    } catch { /* noop */ }
+  }
+
+  // 既読はMacとスマホで別々に進むので、上書きではなく source ごとに新しい方を残す
+  function mergeReadMarks(base, incoming) {
+    const merged = { ...base };
+    for (const [source, readAt] of Object.entries(incoming ?? {})) {
+      if (typeof readAt !== 'string' || Number.isNaN(Date.parse(readAt))) continue;
+      const current = merged[source];
+      if (!current || Date.parse(readAt) > Date.parse(current)) merged[source] = readAt;
+    }
+    return merged;
+  }
+
+  /** そのページを「今の版で読んだ」ことにする。次に元HTMLが更新されれば再び新着に戻る */
+  function markRead(page) {
+    if (!L.markRead(page, readMarks)) return false;
+    queuePreferenceSave();
+    return true;
+  }
+
+  async function sha256(value) {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+    return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function preferencesApi(options = {}) {
+    const body = options.body;
+    const headers = { ...(options.headers ?? {}) };
+    if (body) {
+      headers['content-type'] = 'application/json';
+      headers['x-amz-content-sha256'] = await sha256(body);
+    }
+    const response = await fetch('/api/owner/preferences', {
+      cache: 'no-store',
+      ...options,
+      headers,
+    });
+    if (response.status === 401) {
+      location.href = '/login.html';
+      throw new Error('認証が必要です');
+    }
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error ?? '表示設定の保存に失敗しました');
+    return payload;
+  }
+
+  async function persistPreferencesRemote() {
+    if (!CAN_SYNC) return;
+    const body = JSON.stringify({
+      starredSources: [...starred],
+      recentSources: [],
+      hiddenSources: [...hiddenSources],
+      readMarks,
+    });
+    await preferencesApi({ method: 'PUT', body });
+  }
+
+  function queuePreferenceSave() {
+    saveLocalPreferences();
+    if (!CAN_SYNC) return;
+    clearTimeout(preferenceSaveTimer);
+    preferenceSaveTimer = setTimeout(() => {
+      persistPreferencesRemote().catch((error) => console.warn(error));
+    }, 250);
+  }
+
+  function pruneReadMarks(validSources) {
+    readMarks = Object.fromEntries(
+      Object.entries(readMarks).filter(([source]) => validSources.has(source)),
+    );
+  }
+
+  /** 導入直後に全ページが新着になるのを避け、いま並んでいるぶんは読んだことにする */
+  function seedReadMarks() {
+    for (const page of allPages) readMarks[page.source] ??= page.date;
+  }
+
+  /** 手元にだけある新しい既読印の有無。無ければ書き戻しのPUTを省ける */
+  function hasUnsyncedReadMarks(remoteMarks) {
+    return Object.entries(readMarks).some(([source, readAt]) => {
+      const remote = remoteMarks?.[source];
+      return !remote || Date.parse(readAt) > Date.parse(remote);
+    });
+  }
+
+  async function loadPreferences() {
+    const hadLocalReadMarks = knowsReadMarks;
+    const validSources = new Set(allPages.map((page) => page.source));
+    starred = new Set([...starred].filter((source) => validSources.has(source)));
+    hiddenSources = new Set([...hiddenSources].filter((source) => validSources.has(source)));
+    pruneReadMarks(validSources);
+    pages = allPages.filter((page) => !hiddenSources.has(page.source));
+    updateTrashToggle();
+    if (!CAN_SYNC) {
+      if (!hadLocalReadMarks) seedReadMarks();
+      saveLocalPreferences();
+      return;
+    }
+    saveLocalPreferences();
+
+    try {
+      const saved = await preferencesApi();
+      if (saved.exists) {
+        starred = new Set((saved.starredSources ?? []).filter((source) => validSources.has(source)));
+        hiddenSources = new Set((saved.hiddenSources ?? []).filter((source) => validSources.has(source)));
+        const needsPush = hasUnsyncedReadMarks(saved.readMarks);
+        readMarks = mergeReadMarks(readMarks, saved.readMarks ?? {});
+        pruneReadMarks(validSources);
+        // どちらにも既読の記録が無ければ、この機能を使い始めた回。全ページを既読から始める
+        const firstRun = !hadLocalReadMarks && saved.readMarks === null;
+        if (firstRun) seedReadMarks();
+        saveLocalPreferences();
+        if (needsPush || firstRun) await persistPreferencesRemote();
+      } else {
+        if (!hadLocalReadMarks) seedReadMarks();
+        saveLocalPreferences();
+        await persistPreferencesRemote();
+      }
+    } catch (error) {
+      console.warn(error);
+    }
+    pages = allPages.filter((page) => !hiddenSources.has(page.source));
+    updateTrashToggle();
+  }
+
+  function updateTrashToggle() {
+    trashToggle.classList.toggle('on', hiddenSources.size > 0);
+    trashLabel.textContent = showingTrash
+      ? '‹ 一覧へ戻る'
+      : `削除済み ${hiddenSources.size}件 ›`;
+  }
+
+  async function savePreferencesNow() {
+    saveLocalPreferences();
+    await persistPreferencesRemote();
+  }
+
+  async function hidePage(page) {
+    if (!confirm(`「${page.title}」を共有くんの一覧から削除します。\n\n原本と発行済みURLは残り、一覧の末尾の「削除済み」から戻せます。`)) return;
+    const previousHidden = new Set(hiddenSources);
+    const previousStarred = new Set(starred);
+    hiddenSources.add(page.source);
+    starred.delete(page.source);
+    pages = allPages.filter((candidate) => !hiddenSources.has(candidate.source));
+    updateTrashToggle();
+    try {
+      await savePreferencesNow();
+      location.hash = '#/';
+    } catch (error) {
+      hiddenSources = previousHidden;
+      starred = previousStarred;
+      pages = allPages.filter((candidate) => !hiddenSources.has(candidate.source));
+      saveLocalPreferences();
+      updateTrashToggle();
+      renderHome();
+      alert(error.message);
+    }
+  }
+
+  async function restorePage(page) {
+    const previousHidden = new Set(hiddenSources);
+    const previousShowingTrash = showingTrash;
+    hiddenSources.delete(page.source);
+    pages = allPages.filter((candidate) => !hiddenSources.has(candidate.source));
+    if (hiddenSources.size === 0) showingTrash = false;
+    try {
+      await savePreferencesNow();
+    } catch (error) {
+      hiddenSources = previousHidden;
+      showingTrash = previousShowingTrash;
+      pages = allPages.filter((candidate) => !hiddenSources.has(candidate.source));
+      saveLocalPreferences();
+      alert(error.message);
+    }
+    updateTrashToggle();
+    renderHome();
+    setStamp();
+  }
+
+  function toggleStar(page) {
+    if (isStarred(page)) starred.delete(page.source);
+    else starred.add(page.source);
+    queuePreferenceSave();
+    renderHome();
+  }
+
+  // ☆ボタンは page-list.js が正本。トップの行もスマホのドロワーも同じものを使う
+  const starButton = (page) => L.starButton(page, { starred, onToggle: toggleStar });
+
+  /** ページを開く */
+  function openPage(page) {
+    // iPhoneで iframe 内をスクロールすると、端末のセーフエリアが本文へ伝わらず、
+    // ステータスバーの「画面上端タップで先頭へ」も効かない。
+    // スマホでは全ページをトップレベルで開き、各ページ固有の背景と
+    // Safari 本来の単一スクロール領域をそのまま使う。
+    if (isNarrow()) {
+      // 遷移してしまうので、サーバーへの保存を待たずに手元へ書く。
+      // 取りこぼしても次回の読み込み時にマージして書き戻される
+      markRead(page);
+      location.href = new URL(page.href, location.href).toString();
+      return;
+    }
+    location.hash = `#/${page.slug}`;
+  }
+
+  /**
+   * 更新の新しい順に並んだページを、テーマ単位の塊へ束ねる。
+   * pages は manifest の時点で新しい順なので、Map の挿入順がそのまま
+   * 「最終更新の新しいテーマ順」になる。
+   */
+  function groupByStream(items) {
+    const streams = new Map();
+    for (const page of items) {
+      const key = pageStream(page);
+      if (!streams.has(key)) streams.set(key, { key, label: pageStreamLabel(page), pages: [] });
+      streams.get(key).pages.push(page);
+    }
+    return [...streams.values()];
+  }
+
+  /** 1 行 = 1 ページ。タイトル・共有マーク・更新時刻・スターだけに絞る */
+  function pageRow(page, { indented, trash = false }) {
+    const wrap = document.createElement('div');
+    wrap.className = `row-wrap${indented ? ' in' : ''}`;
+
+    // button ではなく a。⌘クリック・中クリックで別タブに開けるようにするため。
+    // 削除済みの行は開けないので、ただの div にする
+    const button = document.createElement(trash ? 'div' : 'a');
+    button.className = `row${indented ? ' in' : ''}${trash ? ' off' : ''}`;
+    button.title = page.source;   // ヘッダーを廃したので出典はツールチップで見せる
+
+    const dot = document.createElement('span');
+    const fresh = !trash && isNew(page);
+    dot.className = `dot${fresh ? ' on' : ''}`;
+    if (fresh) {
+      // 行が狭く「新着」の2文字を置けないので、太字と読み上げラベルで色以外の手がかりを残す
+      dot.setAttribute('role', 'img');
+      dot.setAttribute('aria-label', '新着');
+    }
+
+    const title = document.createElement('div');
+    title.className = 't';
+    title.textContent = page.title;
+    button.append(dot, title);
+
+    if (page.sharedHref) {
+      const mark = document.createElement('span');
+      mark.className = 'sh';
+      const isOpen = page.shareMode === 'public';
+      mark.textContent = isOpen ? '🌐' : '🔗';
+      mark.title = isOpen ? 'IP制限なしで公開中' : '社内IP限定の共有リンクあり';
+      button.append(mark);
+    }
+
+    const when = document.createElement('time');
+    when.dateTime = page.date;
+    when.textContent = shortTime(page.date);
+    when.title = `更新 ${fmtDateTime(page.date)}`;
+    button.append(when);
+
+    if (trash) {
+      const restore = document.createElement('button');
+      restore.className = 'restore';
+      restore.type = 'button';
+      restore.textContent = '戻す';
+      restore.addEventListener('click', () => restorePage(page));
+      wrap.append(button, restore);
+      return wrap;
+    }
+
+    L.bindOpen(button, page, openPage);
+    wrap.append(button, starButton(page));
+    return wrap;
+  }
+
+  /** テーマ1つぶんの塊。1件しかないテーマは見出しを付けず、単独の行として置く */
+  function appendStream(parent, stream) {
+    if (stream.pages.length === 1) {
+      const solo = document.createElement('section');
+      solo.className = 'solo';
+      solo.append(pageRow(stream.pages[0], { indented: false }));
+      parent.append(solo);
+      return;
+    }
+
+    const section = document.createElement('section');
+    section.className = 'theme';
+
+    const head = document.createElement('div');
+    head.className = 'th';
+    const name = document.createElement('span');
+    name.className = 'tname';
+    name.textContent = stream.label;
+    head.append(name);
+
+    const unread = stream.pages.filter(isNew).length;
+    if (unread > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'tunread';
+      badge.textContent = `未読 ${unread}`;
+      head.append(badge);
+    }
+    const count = document.createElement('span');
+    count.className = 'tcount';
+    count.textContent = `${stream.pages.length}件`;
+    const last = document.createElement('time');
+    last.className = 'tlast';
+    last.dateTime = stream.pages[0].date;
+    last.textContent = shortTime(stream.pages[0].date);
+    last.title = `更新 ${fmtDateTime(stream.pages[0].date)}`;
+    head.append(count, last);
+    section.append(head);
+
+    // 絞り込み中は「他N件」で隠さない。探している1件が畳まれた中にいると見つけられない
+    const expanded = expandedStreams.has(stream.key) || filterText.trim() !== '';
+    const shown = expanded ? stream.pages : stream.pages.slice(0, STREAM_PREVIEW);
+    for (const page of shown) section.append(pageRow(page, { indented: true }));
+
+    const hidden = stream.pages.length - shown.length;
+    if (filterText.trim() === '' && (hidden > 0 || expanded)) {
+      const more = document.createElement('button');
+      more.className = 'more';
+      more.type = 'button';
+      more.textContent = expanded ? '折りたたむ ‹' : `他 ${hidden} 件を表示 ›`;
+      more.setAttribute('aria-expanded', String(expanded));
+      more.addEventListener('click', () => {
+        if (expanded) expandedStreams.delete(stream.key);
+        else expandedStreams.add(stream.key);
+        renderHome();
+      });
+      section.append(more);
+    }
+    parent.append(section);
+  }
+
+  function appendDateGroup(label, streams) {
+    if (streams.length === 0) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'dgroup';
+
+    const head = document.createElement('div');
+    head.className = 'dhead';
+    const title = document.createElement('span');
+    title.textContent = label;
+    const count = document.createElement('span');
+    count.className = 'dcount';
+    const total = streams.reduce((sum, stream) => sum + stream.pages.length, 0);
+    count.textContent = streams.length === total
+      ? `${total}件`
+      : `${streams.length}テーマ・${total}件`;
+    head.append(title, count);
+    wrap.append(head);
+
+    const body = document.createElement('div');
+    body.className = 'dbody';
+    for (const stream of streams) appendStream(body, stream);
+    wrap.append(body);
+    tilesEl.append(wrap);
+  }
+
+  /** いま並べる対象。削除済み表示か通常かを決めたうえで、検索語で絞る */
+  function visiblePages() {
+    const base = showingTrash
+      ? allPages.filter((page) => hiddenSources.has(page.source))
+      : pages;
+    const needle = filterText.trim().toLowerCase();
+    if (!needle) return base;
+    return base.filter((page) => `${page.title} ${pageRepository(page)} ${page.source}`
+      .toLowerCase().includes(needle));
+  }
+
+  // ── トップ: スター付き → 日付の区切り（中はテーマ単位の塊）
+  function renderHome() {
+    tilesEl.replaceChildren();
+    const items = visiblePages();
+
+    if (items.length === 0) {
+      const none = document.createElement('div');
+      none.className = 'empty';
+      none.textContent = showingTrash
+        ? '削除済みのページはありません'
+        : (filterText.trim() ? `「${filterText.trim()}」に当てはまるページはありません` : 'ページがありません');
+      tilesEl.append(none);
+      return;
+    }
+
+    if (showingTrash) {
+      const wrap = document.createElement('div');
+      wrap.className = 'dgroup';
+      const head = document.createElement('div');
+      head.className = 'dhead';
+      const title = document.createElement('span');
+      title.textContent = '削除済み';
+      const count = document.createElement('span');
+      count.className = 'dcount';
+      count.textContent = `${items.length}件`;
+      head.append(title, count);
+      const body = document.createElement('div');
+      body.className = 'dbody';
+      for (const page of items) {
+        const solo = document.createElement('section');
+        solo.className = 'solo';
+        solo.append(pageRow(page, { indented: false, trash: true }));
+        body.append(solo);
+      }
+      wrap.append(head, body);
+      tilesEl.append(wrap);
+      return;
+    }
+
+    const pinned = items.filter(isStarred);
+    const rest = items.filter((page) => !isStarred(page));
+    if (pinned.length > 0) appendDateGroup('スター', groupByStream(pinned));
+
+    // テーマは最終更新日で区切りが決まる。今日1件でも触ったテーマは、
+    // 過去の版を引き連れて「今日」へ上がってくる
+    const groups = [];
+    for (const stream of groupByStream(rest)) {
+      const label = dateGroup(stream.pages[0].date);
+      const last = groups.at(-1);
+      if (last?.label === label) last.streams.push(stream);
+      else groups.push({ label, streams: [stream] });
+    }
+    for (const group of groups) appendDateGroup(group.label, group.streams);
+  }
+
+  function setStamp() {
+    if (meta) brandMeta.textContent = `${pages.length}ページ ／ ${fmtDateTime(meta.generatedAt)} 更新`;
+  }
+
+  function select(slug) {
+    current = pages.find((p) => p.slug === slug) ?? null;
+    document.body.classList.toggle('page-open', Boolean(current));
+    document.body.classList.remove('page-controls-hidden');
+    closePagePopovers();
+
+    if (!current) {
+      frame.hidden = true;
+      frame.removeAttribute('src');
+      renderHome();
+      home.classList.add('on');
+      document.title = 'HTML共有くん';
+    } else {
+      home.classList.remove('on');
+      frame.hidden = false;
+      frame.src = current.href;
+      document.title = `${current.title}｜HTML共有くん`;
+      // ブックマークやURL直打ちで開いた場合もここを通るので、未読解除はまとめてここで行う
+      markRead(current);
+    }
+    setStamp();
+  }
+
+  async function buildTimedShareUrl(page, mode, days) {
+    const body = JSON.stringify({ slug: page.slug, scope: mode === 'i' ? 'internal' : 'public', days });
+    const response = await fetch('/api/owner/shares', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'content-type': 'application/json' },
+      body,
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error ?? '共有URLを発行できませんでした');
+    return result;
+  }
+
+  function setPageControlsHidden(hidden) {
+    if (!pageMenu.hidden || !pageSharePanel.hidden) hidden = false;
+    document.body.classList.toggle('page-controls-hidden', hidden);
+  }
+
+  function closePagePopovers() {
+    pageMenu.hidden = true;
+    pageSharePanel.hidden = true;
+    pageMore.setAttribute('aria-expanded', 'false');
+  }
+
+  function watchFrameScroll() {
+    const frameWindow = frame.contentWindow;
+    if (!frameWindow) return;
+    let lastY = frameWindow.scrollY;
+    frameWindow.addEventListener('scroll', () => {
+      const nextY = frameWindow.scrollY;
+      if (nextY <= 24 || nextY < lastY - 6) setPageControlsHidden(false);
+      else if (nextY > lastY + 6) setPageControlsHidden(true);
+      lastY = nextY;
+    }, { passive: true });
+  }
+
+  function refreshApp() {
+    document.body.classList.add('refreshing');
+    location.reload();
+  }
+
+  // ── 検索。ふだんは虫めがねだけを置き、押したときだけ入力欄へ広げる ──
+  const searchInput = $('q');
+  function setSearching(open) {
+    document.body.classList.toggle('searching', open);
+    searchToggle.setAttribute('aria-expanded', String(open));
+    searchToggle.setAttribute('aria-label', open ? '検索を閉じる' : '検索する');
+    // 閉じている間は Tab の巡回から外し、虫めがね自体を押させる
+    searchInput.tabIndex = open ? 0 : -1;
+    if (open) searchInput.focus();
+  }
+  function applyFilter(value) {
+    filterText = value;
+    document.body.classList.toggle('has-query', value.trim() !== '');
+    renderHome();
+  }
+  function closeSearch() {
+    if (searchInput.value !== '') {
+      searchInput.value = '';
+      applyFilter('');
+    }
+    setSearching(false);
+    searchInput.blur();
+  }
+  searchToggle.addEventListener('click', () => {
+    if (document.body.classList.contains('searching')) closeSearch();
+    else setSearching(true);
+  });
+  searchClear.addEventListener('click', () => {
+    searchInput.value = '';
+    applyFilter('');
+    searchInput.focus();
+  });
+  searchInput.addEventListener('input', (event) => applyFilter(event.target.value));
+  searchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeSearch();
+  });
+  // 語を入れないまま外れたときだけ畳む。入力済みなら結果を見ながら触れるよう開いておく
+  searchInput.addEventListener('blur', () => {
+    if (searchInput.value.trim() === '') setSearching(false);
+  });
+  // 「/」ですぐ検索へ。文字を打ちに行くとき以外は邪魔をしない
+  addEventListener('keydown', (event) => {
+    if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (document.body.classList.contains('page-open')) return;
+    const tag = event.target?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    event.preventDefault();
+    setSearching(true);
+  });
+
+  // 名前を押したらトップへ戻る
+  $('brand').addEventListener('click', () => {
+    if (location.hash && location.hash !== '#/') location.hash = '#/';
+    else home.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+  $('home-btn').addEventListener('click', () => { location.hash = '#/'; });
+  $('review').addEventListener('click', () => { location.href = '/review/index.html'; });
+  refresh.addEventListener('click', refreshApp);
+  pageRefresh.addEventListener('click', refreshApp);
+  pageMore.addEventListener('click', () => {
+    const willOpen = pageMenu.hidden;
+    closePagePopovers();
+    pageMenu.hidden = !willOpen;
+    pageMore.setAttribute('aria-expanded', String(willOpen));
+    setPageControlsHidden(false);
+  });
+  pageShare.addEventListener('click', () => {
+    pageMenu.hidden = true;
+    pageSharePanel.hidden = false;
+    pageMore.setAttribute('aria-expanded', 'true');
+  });
+  pageDelete.addEventListener('click', () => {
+    closePagePopovers();
+    if (current) hidePage(current);
+  });
+  pageShareIssue.addEventListener('click', async () => {
+    const page = current;
+    if (!page) return;
+    const mode = $('page-share-scope').value;
+    const days = Number($('page-share-days').value);
+    if (!Number.isInteger(days) || days < 1 || days > 90) return;
+    if (
+      mode === 'p' &&
+      !confirm(`「${page.title}」をIP制限なしで${days}日間共有します。よろしいですか？`)
+    ) return;
+
+    pageShareIssue.disabled = true;
+    pageShareIssue.textContent = '発行中…';
+    let generatedUrl = '';
+    try {
+      const { url, expiresAt } = await buildTimedShareUrl(page, mode, days);
+      generatedUrl = url;
+      await navigator.clipboard.writeText(url);
+      const expires = new Date(expiresAt * 1000).toLocaleString('ja-JP', {
+        timeZone: 'Asia/Tokyo', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      });
+      pageShareIssue.textContent = '✓ コピーしました';
+      pageShareIssue.title = `${expires}まで有効`;
+    } catch (error) {
+      console.error(error);
+      pageShareIssue.textContent = generatedUrl ? 'URLを表示しました' : '発行できませんでした';
+      if (generatedUrl) prompt('このURLをコピーしてください', generatedUrl);
+    } finally {
+      setTimeout(() => {
+        pageShareIssue.disabled = false;
+        pageShareIssue.textContent = '発行してコピー';
+      }, 2200);
+    }
+  });
+  trashToggle.addEventListener('click', () => {
+    showingTrash = !showingTrash;
+    updateTrashToggle();
+    renderHome();
+  });
+  frame.addEventListener('load', watchFrameScroll);
+  document.addEventListener('pointerdown', (event) => {
+    if ($('page-actions').contains(event.target)) return;
+    closePagePopovers();
+  });
+
+  addEventListener('hashchange', () => select(location.hash.replace(/^#\//, '')));
+
+  fetch('manifest.json', { cache: 'no-store' })
+    .then((r) => r.json())
+    .then(async (data) => {
+      meta = data;
+      allPages = data.pages ?? [];
+      await loadPreferences();
+      select(location.hash.replace(/^#\//, ''));
+    })
+    .catch((err) => {
+      brandMeta.textContent = '一覧の読み込みに失敗しました';
+      console.error(err);
+    });
+})();
+</script>
 </body>
 </html>
