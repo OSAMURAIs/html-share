@@ -7,7 +7,7 @@ HTML共有くんは、Claude Codeが作ったHTMLをスマホでも見やすく�
 <p align="center">
   <img src="docs/images/dashboard.png" alt="HTML共有くんのメインダッシュボード" width="68%">
   &nbsp;
-  <img src="docs/images/mobile-approval.png" alt="AIから届いた承認依頼をスマホで確認" width="29%">
+  <img src="docs/images/mobile-approval-actions.png" alt="AIから届いた承認依頼をスマホで確認" width="29%">
 </p>
 
 ## できること
