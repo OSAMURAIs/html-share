@@ -1,27 +1,66 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const root = path.resolve(process.argv[2] ?? 'skills/mobile');
-const skill = readFileSync(path.join(root, 'SKILL.md'), 'utf8');
-const match = skill.match(/^---\n([\s\S]*?)\n---\n/);
+const roots = process.argv.slice(2).map((value) => path.resolve(value));
+if (!roots.length) roots.push(path.resolve('skills/mobile'), path.resolve('skills/create-html'));
+
 const failures = [];
 
-if (!match) {
-  failures.push('SKILL.md must start with YAML frontmatter');
-} else {
+for (const root of roots) {
+  const name = path.basename(root);
+  const skillFile = path.join(root, 'SKILL.md');
+  const agentFile = path.join(root, 'agents', 'openai.yaml');
+
+  if (!existsSync(skillFile)) {
+    failures.push(`${name}: SKILL.md is missing`);
+    continue;
+  }
+
+  const skill = readFileSync(skillFile, 'utf8');
+  const match = skill.match(/^---\n([\s\S]*?)\n---\n/);
+  if (!match) {
+    failures.push(`${name}: SKILL.md must start with YAML frontmatter`);
+    continue;
+  }
+
   const keys = [...match[1].matchAll(/^([a-z_]+):/gm)].map((item) => item[1]);
-  if (keys.join(',') !== 'name,description') failures.push('frontmatter must contain only name and description');
-  if (!/^name: mobile$/m.test(match[1])) failures.push('skill name must be mobile');
+  if (keys.join(',') !== 'name,description') failures.push(`${name}: frontmatter must contain only name and description`);
+  if (!new RegExp(`^name: ${name}$`, 'm').test(match[1])) failures.push(`${name}: skill name must match its directory`);
   const description = match[1].match(/^description:\s*(.+)$/m)?.[1] ?? '';
-  if (!description.includes('/mobile') || !description.includes('$mobile')) {
-    failures.push('description must state the explicit /mobile and $mobile triggers');
+  if (description.length < 40) failures.push(`${name}: description must explain what the skill does and when to use it`);
+
+  if (!existsSync(agentFile)) {
+    failures.push(`${name}: agents/openai.yaml is missing`);
+  } else {
+    const agent = readFileSync(agentFile, 'utf8');
+    if (!agent.includes(`$${name}`)) failures.push(`${name}: default_prompt must mention $${name}`);
+  }
+
+  if (name === 'mobile') {
+    if (!description.includes('/mobile') || !description.includes('$mobile')) {
+      failures.push('mobile: description must state the explicit /mobile and $mobile triggers');
+    }
+    if (!skill.includes('html-share review watch')) failures.push('mobile: skill must include the review watcher');
+    if (!skill.includes('Do not include secrets')) failures.push('mobile: skill must include the secret-handling boundary');
+  }
+
+  if (name === 'create-html') {
+    const templateFile = path.join(root, 'assets', 'brief-template.html');
+    if (!existsSync(templateFile)) {
+      failures.push('create-html: assets/brief-template.html is missing');
+    } else {
+      const template = readFileSync(templateFile, 'utf8');
+      for (const token of ['<!doctype html>', 'viewport-fit=cover', 'noindex, nofollow', '--hero-gradient']) {
+        if (!template.includes(token)) failures.push(`create-html: template must include ${token}`);
+      }
+    }
+    if (!skill.includes('Do not invent facts')) failures.push('create-html: skill must protect source accuracy');
+    if (!skill.includes('real IP allowlists')) failures.push('create-html: skill must include the public-safety boundary');
   }
 }
-if (!skill.includes('html-share review watch')) failures.push('skill must include the review watcher');
-if (!skill.includes('Do not include secrets')) failures.push('skill must include the secret-handling boundary');
 
 if (failures.length) {
   console.error(failures.map((failure) => `- ${failure}`).join('\n'));
   process.exit(1);
 }
-console.log('mobile skill is valid');
+console.log(`${roots.length} skill(s) are valid`);

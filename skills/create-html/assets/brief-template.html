@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{PAGE_TITLE}}</title>
+  <style>
+    :root {
+      --blue-deep: #0e0d6a;
+      --blue: #0a4695;
+      --blue-mid: #0862aa;
+      --blue-bright: #0aa0dc;
+      --blue-soft: #eaf2fb;
+      --blue-line: #cfe0f2;
+      --gold: #f0b21f;
+      --gold-deep: #8a5a00;
+      --gold-soft: #fdf5e0;
+      --ink: #172033;
+      --muted: #667085;
+      --surface: #ffffff;
+      --canvas: #f4f7fb;
+      --line: #dfe6ef;
+      --shadow: 0 18px 50px rgba(14, 13, 106, 0.10);
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --hero-gradient: linear-gradient(135deg, #0e0d6a 0%, #0a4695 45%, #0862aa 68%, #01b6ec 100%);
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      min-width: 320px;
+      background: var(--canvas);
+      color-scheme: light;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", "Yu Gothic", sans-serif;
+      font-size: 16px;
+      line-height: 1.85;
+      overflow-wrap: anywhere;
+    }
+
+    a { color: var(--blue); text-underline-offset: 0.2em; }
+    a:hover { color: var(--blue-mid); }
+    a:focus-visible { outline: 3px solid rgba(240, 178, 31, 0.7); outline-offset: 4px; border-radius: 4px; }
+    img, svg { display: block; max-width: 100%; }
+
+    .page {
+      width: min(100% - 32px, 940px);
+      margin: 0 auto;
+      padding: max(24px, env(safe-area-inset-top)) 0 max(48px, env(safe-area-inset-bottom));
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(30px, 6vw, 64px);
+      border-radius: var(--radius-lg);
+      background: var(--hero-gradient);
+      color: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -72px;
+      bottom: -112px;
+      width: 280px;
+      aspect-ratio: 1;
+      border: 48px solid rgba(255, 255, 255, 0.08);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: #ffe39a;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(2rem, 6vw, 3.75rem);
+      line-height: 1.14;
+      letter-spacing: -0.03em;
+    }
+
+    .lead {
+      max-width: 720px;
+      margin: 22px 0 0;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: clamp(1rem, 2.2vw, 1.18rem);
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 28px;
+    }
+
+    .meta span {
+      padding: 5px 11px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.10);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.78rem;
+      font-weight: 650;
+    }
+
+    main { display: grid; gap: 22px; margin-top: 24px; }
+
+    .section {
+      padding: clamp(24px, 5vw, 44px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      background: var(--surface);
+      box-shadow: 0 8px 28px rgba(16, 42, 67, 0.05);
+    }
+
+    .section-heading {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+      margin-bottom: 22px;
+    }
+
+    .section-number {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--hero-gradient);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--blue-deep);
+      font-size: clamp(1.35rem, 3vw, 1.85rem);
+      line-height: 1.4;
+      letter-spacing: -0.015em;
+    }
+
+    h3 { margin: 0 0 8px; color: var(--blue); font-size: 1.05rem; line-height: 1.5; }
+    p { margin: 0 0 1em; }
+    p:last-child { margin-bottom: 0; }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 20px;
+      border: 1px solid var(--blue-line);
+      border-radius: var(--radius-md);
+      background: linear-gradient(180deg, #fff 0%, var(--blue-soft) 100%);
+    }
+
+    .metric strong { display: block; color: var(--blue-deep); font-size: clamp(1.45rem, 4vw, 2.15rem); line-height: 1.2; }
+    .metric span { display: block; margin-top: 8px; color: var(--muted); font-size: 0.86rem; line-height: 1.55; }
+
+    .callout {
+      margin-top: 22px;
+      padding: 18px 20px;
+      border-left: 5px solid var(--gold);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      background: var(--gold-soft);
+      color: #583e08;
+    }
+
+    .callout strong { color: var(--gold-deep); }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--blue-line);
+      border-radius: var(--radius-md);
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table { width: 100%; min-width: 620px; border-collapse: collapse; background: #fff; }
+    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--hero-gradient); color: #fff; font-size: 0.84rem; letter-spacing: 0.02em; }
+    tr:last-child td { border-bottom: 0; }
+
+    .timeline { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+    .timeline li { position: relative; padding: 0 0 24px 32px; }
+    .timeline li:last-child { padding-bottom: 0; }
+    .timeline li::before { content: ""; position: absolute; top: 0.55em; left: 4px; width: 12px; height: 12px; border: 4px solid var(--blue-soft); border-radius: 50%; background: var(--blue-mid); }
+    .timeline li::after { content: ""; position: absolute; top: 1.45em; bottom: 0; left: 9px; width: 2px; background: var(--blue-line); }
+    .timeline li:last-child::after { display: none; }
+    .timeline time { display: block; color: var(--gold-deep); font-size: 0.78rem; font-weight: 800; }
+
+    .pair-list { display: grid; gap: 14px; }
+    .pair { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
+    .pair > div { padding: 18px 20px; }
+    .pair > div:first-child { background: var(--blue-soft); color: var(--blue-deep); font-weight: 750; }
+
+    footer { padding: 22px 4px 0; color: var(--muted); font-size: 0.78rem; text-align: center; }
+
+    @media (max-width: 720px) {
+      .page { width: min(100% - 20px, 940px); padding-top: max(10px, env(safe-area-inset-top)); }
+      .hero, .section { border-radius: 18px; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .pair { grid-template-columns: 1fr; }
+      .pair > div:first-child { border-bottom: 1px solid var(--blue-line); }
+    }
+
+    @media (max-width: 420px) {
+      .hero { padding: 26px 22px 30px; }
+      .section { padding: 24px 20px; }
+      .section-heading { grid-template-columns: 32px minmax(0, 1fr); gap: 11px; }
+      .section-number { width: 32px; height: 32px; border-radius: 10px; }
+      .meta { margin-top: 22px; }
+    }
+
+    @media print {
+      html, body { background: #fff; }
+      .page { width: 100%; padding: 0; }
+      .hero, .section { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <p class="eyebrow">{{EYEBROW}}</p>
+      <h1>{{PAGE_TITLE}}</h1>
+      <p class="lead">{{LEAD}}</p>
+      <div class="meta" aria-label="資料情報">
+        <span>{{META_1}}</span>
+        <span>{{META_2}}</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="section">
+        <div class="section-heading">
+          <span class="section-number" aria-hidden="true">01</span>
+          <h2>{{SECTION_1_TITLE}}</h2>
+        </div>
+        <p>{{SECTION_1_BODY}}</p>
+        <div class="callout"><strong>{{CALLOUT_LABEL}}</strong> {{CALLOUT_BODY}}</div>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <span class="section-number" aria-hidden="true">02</span>
+          <h2>{{SECTION_2_TITLE}}</h2>
+        </div>
+        <div class="summary-grid">
+          <article class="metric"><strong>{{METRIC_1_VALUE}}</strong><span>{{METRIC_1_LABEL}}</span></article>
+          <article class="metric"><strong>{{METRIC_2_VALUE}}</strong><span>{{METRIC_2_LABEL}}</span></article>
+          <article class="metric"><strong>{{METRIC_3_VALUE}}</strong><span>{{METRIC_3_LABEL}}</span></article>
+        </div>
+      </section>
+
+      <!-- Replace this example section with a table, timeline, pair-list, or prose section as the content requires. -->
+    </main>
+
+    <footer>{{FOOTER}}</footer>
+  </div>
+</body>
+</html>

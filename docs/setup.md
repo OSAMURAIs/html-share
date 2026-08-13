@@ -34,10 +34,13 @@ html-share publish
 
 CDKの出力に表示されるCloudFrontドメインへ、設定した2つのホスト名をCNAMEまたはRoute 53エイリアスで向けます。
 
-## `/mobile` スキルの追加
+## スキルの追加
+
+同梱の `create-html` は、メモや調査結果を読みやすいHTMLに整えます。`mobile` は、PC作業の確認依頼をスマホへ送ります。
 
 ```bash
 mkdir -p ~/.claude/skills
+ln -s "$(pwd)/skills/create-html" ~/.claude/skills/create-html
 ln -s "$(pwd)/skills/mobile" ~/.claude/skills/mobile
 ```
 

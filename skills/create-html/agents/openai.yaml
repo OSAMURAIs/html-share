@@ -1,0 +1,4 @@
+interface:
+  display_name: "見やすいHTMLを作る"
+  short_description: "メモや調査結果をモダンで読みやすいHTMLに整える"
+  default_prompt: "Use $create-html to turn this content into a polished, responsive HTML page."

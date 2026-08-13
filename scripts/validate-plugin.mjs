@@ -16,6 +16,9 @@ if (plugin.interface?.displayName !== 'HTML共有くん') failures.push('interfa
 if (!Array.isArray(plugin.interface?.defaultPrompt) || !plugin.interface.defaultPrompt.some((value) => value.includes('$mobile'))) {
   failures.push('interface.defaultPrompt must demonstrate $mobile');
 }
+if (!Array.isArray(plugin.interface?.defaultPrompt) || !plugin.interface.defaultPrompt.some((value) => value.includes('$create-html'))) {
+  failures.push('interface.defaultPrompt must demonstrate $create-html');
+}
 
 if (failures.length) {
   console.error(failures.map((failure) => `- ${failure}`).join('\n'));

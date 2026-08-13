@@ -2,7 +2,7 @@
 
 > Claude Codeの生成結果、ぜんぶ見やすくまとめよう
 
-HTML共有くんは、Claude Codeが作ったHTMLをスマホでも見やすく共有するためのツールです。初回セットアップが済んだら、あとはClaude Codeへ日本語で頼むだけです。
+HTML共有くんは、Claude Codeに頼んで見やすいHTMLを作り、スマホでも確認・共有できるツールです。初回セットアップが済んだら、あとはClaude Codeへ日本語で頼むだけです。
 
 <p align="center">
   <img src="docs/images/dashboard.png" alt="HTML共有くんのメインダッシュボード" width="66%">
@@ -12,6 +12,7 @@ HTML共有くんは、Claude Codeが作ったHTMLをスマホでも見やすく�
 
 ## できること
 
+- メモや調査結果を、見やすいHTMLに整える
 - 作ったHTMLを、自分専用の一覧へまとめる
 - 社内限定や期限付きのURLで共有する
 - AIからの承認依頼をスマホで確認し、コメントを返す
@@ -22,6 +23,8 @@ HTML共有くんは、Claude Codeが作ったHTMLをスマホでも見やすく�
 ## Claude Codeへこう頼む
 
 > このHTMLを共有くんに追加して
+
+> この内容を見やすいHTMLにまとめて
 
 > このページを社内限定で7日間共有して
 
