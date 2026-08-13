@@ -4,7 +4,11 @@
 
 HTML共有くんは、Claude Codeが作ったHTMLをスマホでも見やすく共有するためのツールです。初回セットアップが済んだら、あとはClaude Codeへ日本語で頼むだけです。
 
-![HTML共有くんのメインダッシュボード](docs/images/dashboard.png)
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="HTML共有くんのメインダッシュボード" height="300">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/images/mobile-approval.png" alt="AIから届いた承認依頼をスマホで確認" height="300">
+</p>
 
 ## できること
 
@@ -12,10 +16,6 @@ HTML共有くんは、Claude Codeが作ったHTMLをスマホでも見やすく�
 - 社内限定や期限付きのURLで共有する
 - AIからの承認依頼をスマホで確認し、コメントを返す
 - スマホから返した内容を、PC上の作業へ引き継ぐ
-
-<p align="center">
-  <img src="docs/images/mobile-approval.png" alt="AIから届いた承認依頼をスマホで確認" width="520">
-</p>
 
 作者へページや回答を送らないセルフホスト型です。自分のAWSアカウントで動かせます。
 
