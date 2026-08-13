@@ -1,0 +1,18 @@
+name: 機能提案
+description: HTML共有くんをもっと使いやすくする提案
+title: "[Idea] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 解決したいこと
+      description: 機能名より先に、困っている場面を教えてください。
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: こうなるとうれしい
+    validations:
+      required: true

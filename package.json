@@ -1,0 +1,70 @@
+{
+  "name": "@minorun365/html-share",
+  "version": "0.1.0",
+  "description": "Self-hosted HTML dashboard for Claude Code results",
+  "type": "module",
+  "private": true,
+  "license": "Apache-2.0",
+  "author": "Minoru Onda",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/minorun365/html-share.git"
+  },
+  "homepage": "https://github.com/minorun365/html-share#readme",
+  "bugs": "https://github.com/minorun365/html-share/issues",
+  "keywords": [
+    "claude-code",
+    "codex",
+    "mobile",
+    "review",
+    "aws",
+    "cloudfront"
+  ],
+  "bin": {
+    "html-share": "./dist/src/cli.js"
+  },
+  "files": [
+    "dist/",
+    "web/",
+    "skills/",
+    ".codex-plugin/",
+    "html-share.config.example.yaml",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "validate:skill": "node scripts/validate-skill.mjs skills/mobile",
+    "validate:plugin": "node scripts/validate-plugin.mjs .",
+    "security:scan": "node scripts/security-scan.mjs",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
+    "verify": "npm run check && npm test && npm run validate:skill && npm run validate:plugin && npm run security:scan && npm run audit:prod",
+    "preview": "node scripts/preview.mjs .html-share/build/console",
+    "cdk": "cdk",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy --require-approval broadening --outputs-file .html-share/outputs.json"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1109.0",
+    "@aws-sdk/client-s3": "3.1109.0",
+    "@aws-sdk/client-ssm": "3.1109.0",
+    "@aws-sdk/cloudfront-signer": "3.1108.0",
+    "@aws-sdk/lib-dynamodb": "3.1109.0",
+    "yaml": "2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "aws-cdk": "2.1136.0",
+    "aws-cdk-lib": "2.264.0",
+    "constructs": "10.8.1",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.12",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

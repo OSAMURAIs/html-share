@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#0b55ae">
+  <title>HTML共有くん</title>
+  <link rel="stylesheet" href="/app/app.css">
+  <script src="/app/app.js" defer></script>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">HTML共有くん</p>
+      <h1>Claude Codeの生成結果、<br>ぜんぶ見やすくまとめよう</h1>
+    </div>
+    <nav aria-label="アカウントとAIからの承認依頼">
+      <a class="review-link" href="/app/review.html"><span id="review-count" hidden></span>AIからの承認依頼</a>
+      <a class="quiet-link" href="/auth/logout">ログアウト</a>
+    </nav>
+  </header>
+  <main>
+    <div class="list-heading">
+      <h2>生成結果</h2>
+      <p id="updated"></p>
+    </div>
+    <div id="pages" class="pages" aria-live="polite"></div>
+    <p id="empty" class="empty" hidden>まだHTMLがありません。Claude Codeから <code>/mobile</code> を実行すると、ここへ状況ページが届きます。</p>
+    <p id="error" class="error" hidden></p>
+  </main>
+</body>
+</html>

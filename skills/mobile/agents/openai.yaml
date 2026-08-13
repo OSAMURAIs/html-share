@@ -1,0 +1,6 @@
+interface:
+  display_name: "スマホで確認"
+  short_description: "PC作業の承認依頼をスマホで確認・返信"
+  default_prompt: "Use $mobile to send this task to HTML共有くん for phone review."
+policy:
+  allow_implicit_invocation: false

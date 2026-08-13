@@ -1,0 +1,31 @@
+name: 不具合報告
+description: 再現できる不具合を報告する
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "共有URL、認証情報、実在組織のデータは貼らないでください。脆弱性はSecurity Advisoriesへお願いします。"
+  - type: textarea
+    id: behavior
+    attributes:
+      label: 起きたこと
+      description: 期待した動作と実際の動作を書いてください。
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 再現手順
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: バージョン
+      placeholder: 0.1.0
+  - type: input
+    id: environment
+    attributes:
+      label: 実行環境
+      placeholder: macOS / Node.js 22 / AWSリージョン
