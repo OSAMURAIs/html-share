@@ -184,11 +184,30 @@
     return ['deep', 'mid', 'bright', 'soft'][Math.abs(hash) % 4];
   };
 
-  // 一度も開いていない、または開いたあとに元HTMLが更新されたページ
+  // ── 既読の記録 ───────────────────────────────────────────────────
+  // 値は { v: 読んだ版の更新日時, at: そう決めた時刻 }。v が null なら
+  // 「手で未読へ戻した」印になる。キーを消すのではなく印を残すのは、既読が
+  // MacとiPhoneで別々に進むため。消すだけだと、もう一方のlocalStorageに
+  // 残っている既読印がマージで生き残り、未読へ戻したはずのページが既読に戻る。
+  // 旧形式（ISO文字列そのもの）も読めるようにしてあるので、移行作業は要らない。
+  const isoOrNull = (value) => (
+    typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? value : null
+  );
+
+  /** 保存値を { v, at } へそろえる。読めない値は記録なしとして扱う */
+  function readEntry(value) {
+    const legacy = isoOrNull(value);
+    if (legacy) return { v: legacy, at: legacy };
+    if (!value || typeof value !== 'object') return null;
+    const at = isoOrNull(value.at);
+    return at ? { v: isoOrNull(value.v), at } : null;
+  }
+
+  // 一度も開いていない、手で未読へ戻した、または開いたあとに元HTMLが更新されたページ
   const isUnread = (page, readMarks = {}) => {
-    const readAt = readMarks[page.source];
-    if (!readAt) return true;
-    return Date.parse(page.date) > Date.parse(readAt);
+    const entry = readEntry(readMarks[page.source]);
+    if (!entry || !entry.v) return true;
+    return Date.parse(page.date) > Date.parse(entry.v);
   };
 
   const isNew = (page, readMarks = {}) => {
@@ -200,8 +219,47 @@
   /** そのページを「今の版で読んだ」ことにする。次に元HTMLが更新されれば再び新着に戻る */
   function markRead(page, readMarks) {
     if (!page || !isUnread(page, readMarks)) return false;
-    readMarks[page.source] = page.date;
+    readMarks[page.source] = { v: page.date, at: new Date().toISOString() };
     return true;
+  }
+
+  /** そのページを手で未読へ戻す。開き直すか元HTMLを更新するまで新着のまま残る */
+  function markUnread(page, readMarks) {
+    if (!page || isUnread(page, readMarks)) return false;
+    readMarks[page.source] = { v: null, at: new Date().toISOString() };
+    return true;
+  }
+
+  /**
+   * 既読はMacとiPhoneで別々に進むので、上書きではなく source ごとに
+   * 「あとから決めたほう」を残す。既読へ倒すか未読へ戻すかは at の新しさで決まる。
+   */
+  function mergeReadMarks(base, incoming) {
+    const merged = { ...base };
+    for (const [source, value] of Object.entries(incoming ?? {})) {
+      const next = readEntry(value);
+      if (!next) continue;
+      const current = readEntry(merged[source]);
+      if (!current || Date.parse(next.at) > Date.parse(current.at)) merged[source] = next;
+    }
+    return merged;
+  }
+
+  /** 手元にだけある新しい判断の有無。無ければ書き戻しのPUTを省ける */
+  function hasUnsyncedReadMarks(readMarks, remoteMarks) {
+    return Object.entries(readMarks ?? {}).some(([source, value]) => {
+      const local = readEntry(value);
+      if (!local) return false;
+      const remote = readEntry(remoteMarks?.[source]);
+      return !remote || Date.parse(local.at) > Date.parse(remote.at);
+    });
+  }
+
+  /** 導入直後に全ページが新着になるのを避け、いま並んでいるぶんは読んだことにする */
+  function seedReadMarks(pages, readMarks) {
+    for (const page of pages) {
+      readMarks[page.source] ??= { v: page.date, at: page.date };
+    }
   }
 
   /**
@@ -383,6 +441,10 @@
     isUnread,
     isNew,
     markRead,
+    markUnread,
+    mergeReadMarks,
+    hasUnsyncedReadMarks,
+    seedReadMarks,
     metaRow,
     starButton,
     pageUrl,

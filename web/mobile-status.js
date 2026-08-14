@@ -1,13 +1,13 @@
 (() => {
   if (!matchMedia('(max-width: 46rem)').matches) return;
 
-  // 共有くんが配るページの上端色はここ1か所に固定する。トップ（shell/index.html）と
-  // AIからの承認依頼画面（review/index.html）の --safe-top と同じ値。
+  // 共有くんが配るページの上端色はここ1か所に固定する。ダッシュボード（app/index.html）と
+  // インボックス（review/index.html）の --safe-top と同じ値。
   // ページごとの theme-color を尊重していた頃は、トップ #0a4695 → 個別ページ #0e0d6a と
   // 画面を移った瞬間に Dynamic Island の色が変わって継ぎはぎに見えた（2026-08-13 実機で発覚）。
   const safeTop = '#0a4695';
   const rootStyle = getComputedStyle(document.documentElement);
-  // theme-color は build.mjs がビルド時に同じ値へ揃えている。
+  // theme-color は配信時に同じ値へ揃える。
   // ここでJSから書き換えない（PWAは追加時点のHTMLの値を使うので実行時では間に合わない）。
   const isTransparent = (color) => !color
     || color === 'transparent'
@@ -63,12 +63,12 @@
   style.textContent = `
     @media (max-width: 46rem) {
       /* iOSで上下に引っ張ったとき（オーバースクロール）にのぞくのは html の背景。
-         白のままだと下端でびょんと白が出る。トップ（shell/index.html）と同じく
+         白のままだと下端でびょんと白が出る。ダッシュボード（app/index.html）と同じく
          上端の青にして、引っ張っても地色が変わらないようにする。
          本文末尾までの白は body 側の背景が受け持つので、ここを青にしても本文は白のまま */
       /* ホーム画面Webアプリ（PWA）で下に引っ張ると、上端に body の background-color が広がる。
          html だけ青にしても白のままで、Safariのタブでは再現しない（2026-08-13 実機で確認）。
-         トップ（shell/index.html）はスマホ幅で html と body の両方を --safe-top にしてあり、
+         ダッシュボード（app/index.html）はスマホ幅で html と body の両方を --safe-top にしてあり、
          だから同じ症状が出ていなかった。ここも両方そろえる。
          本文の白は下の background-image（ヒーロー下端から page-bg）が受け持つので、
          background-color を青にしても本文の見た目は変わらない */

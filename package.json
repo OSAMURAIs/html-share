@@ -37,7 +37,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test test/*.test.ts",
-    "validate:skill": "node scripts/validate-skill.mjs skills/mobile skills/create-html",
+    "validate:skill": "node scripts/validate-skill.mjs skills/mobile skills/create-html skills/inbox",
     "validate:plugin": "node scripts/validate-plugin.mjs .",
     "security:scan": "node scripts/security-scan.mjs",
     "audit:prod": "npm audit --omit=dev --audit-level=high",

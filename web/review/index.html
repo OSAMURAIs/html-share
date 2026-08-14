@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="robots" content="noindex, nofollow, noarchive">
-<title>AIからの承認依頼｜HTML共有くん</title>
+<title>インボックス｜HTML共有くん</title>
 <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <meta name="theme-color" content="#0a4695">
@@ -19,8 +19,8 @@
     rgba(150, 226, 250, .52) 28%,
     rgba(1, 182, 236, 0) 64%);
   /* 画面上端に接する色。theme-color と html の背景もこれに合わせること。
-     トップ（shell/index.html）と同じ値にする。ここがずれると、トップから
-     レビュー箱へ移った瞬間に Dynamic Island の色だけ変わって継ぎはぎに見える */
+     ダッシュボード（app/index.html）と同じ値にする。ここがずれると、トップから
+     インボックスへ移った瞬間に Dynamic Island の色だけ変わって継ぎはぎに見える */
   --safe-top: #0a4695;
   /* Dynamic Island / ステータスバーの高さ。env() を直に書かず変数へ通しておくと、
      PCのブラウザでも値を差し込んで iPhone の見え方を再現できる（検証用） */
@@ -136,10 +136,31 @@ main {
   display: flex; align-items: center; justify-content: space-between;
   margin: .25rem 0 .65rem; color: var(--sub); font-size: .82rem; font-weight: 700;
 }
+.section-head.later { margin-top: 1.9rem; padding-top: 1.2rem; border-top: 1px solid var(--line); }
 .count {
   min-width: 1.6rem; padding: .1rem .45rem; border-radius: 999px;
   text-align: center; color: var(--blue-deep); background: var(--blue-soft);
 }
+.count.gold { color: var(--gold-deep); background: var(--gold-soft); }
+.compose {
+  margin: 0 0 .9rem; padding: .8rem;
+  border: 1px solid var(--line); border-radius: .85rem;
+  background: var(--white); box-shadow: 0 1px 6px rgba(26,26,31,.04);
+}
+.compose textarea {
+  display: block; width: 100%; min-height: 3.6rem; resize: vertical;
+  border: 1px solid var(--line); border-radius: .65rem; padding: .6rem .7rem;
+  color: var(--ink); background: var(--white); font: inherit; line-height: 1.6;
+}
+.compose textarea:focus { outline: 2px solid var(--blue-bright); border-color: transparent; }
+.compose-actions { display: flex; align-items: center; gap: .6rem; margin-top: .6rem; }
+.compose-hint { flex: 1; min-width: 0; color: var(--mut); font-size: .72rem; line-height: 1.5; }
+.compose button {
+  flex: none; min-height: 2.6rem; padding: .55rem 1.1rem;
+  border: 0; border-radius: .65rem; color: var(--white); background: var(--blue);
+  font-weight: 700; cursor: pointer;
+}
+.compose button:disabled { opacity: .55; cursor: default; }
 /* 高さのばらつくカードを隙間なく詰めるための多段組み。ダッシュボード（.dbody）と同じ
    作り・同じ寸法にそろえてある。段数ではなく列幅で指定しているので、画面幅に
    そのまま追従して最大3段まで自動で増える。Grid だと行の高さが一番背の高いカードに
@@ -154,6 +175,7 @@ main {
 }
 .card.waiting { border-top: 3px solid var(--gold); }
 .card.answered { border-top: 3px solid var(--blue-bright); }
+.card.request.waiting { border-top-color: var(--blue); }
 .meta { display: flex; align-items: center; justify-content: space-between; gap: .7rem; margin-bottom: .55rem; }
 .title { color: var(--sub); font-size: .78rem; font-weight: 700; overflow-wrap: anywhere; }
 .time { flex: none; color: var(--mut); font-size: .7rem; }
@@ -186,7 +208,7 @@ main {
   margin: .7rem 0 0; padding: .65rem .75rem; border-radius: .55rem;
   color: var(--success); background: var(--success-soft); font-size: .84rem; white-space: pre-wrap;
 }
-.waiting-mac { color: var(--blue); font-size: .72rem; font-weight: 700; }
+.waiting-mac { margin-top: .7rem; color: var(--blue); font-size: .72rem; font-weight: 700; }
 .discard {
   flex: none; min-height: 2rem; border: 1px solid var(--line); border-radius: 999px;
   padding: .1rem .7rem; color: var(--mut); background: transparent;
@@ -280,7 +302,7 @@ footer {
   <div class="topbar-inner">
     <a class="brand" href="/app/index.html" title="HTML共有くんへ戻る">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5.2 8.2 12l6.8 6.8"/></svg>
-      <span class="label">AIからの承認依頼</span>
+      <span class="label">インボックス</span>
     </a>
     <span class="brand-meta" id="summary">読み込み中</span>
     <div class="topbar-actions">
@@ -293,7 +315,18 @@ footer {
 
 <main>
   <div id="toast" role="status"></div>
-  <div class="section-head"><span>いま対応するもの</span><span class="count" id="active-count">0</span></div>
+
+  <div class="section-head"><span>Claudeへの依頼</span><span class="count gold" id="request-count">0</span></div>
+  <form class="compose" id="compose">
+    <textarea id="compose-text" placeholder="やっておいてほしいことを書く" aria-label="Claudeへの依頼"></textarea>
+    <div class="compose-actions">
+      <span class="compose-hint">PCで <strong>/inbox</strong> と打つと、Claudeがここから読み取ります。</span>
+      <button type="submit" id="compose-send">頼む</button>
+    </div>
+  </form>
+  <div class="cards" id="request-cards"></div>
+
+  <div class="section-head later"><span>Claudeからの確認</span><span class="count" id="active-count">0</span></div>
   <div class="cards" id="active-cards"></div>
 
   <section class="history" id="history-section" hidden>
@@ -317,14 +350,16 @@ footer {
 </dialog>
 <!-- mobile-status.js は読み込まない。あれは個別ページ（/pages/** ほか）の下地を補正する
      スクリプトで、`body > header` を「ヒーロー」とみなし padding-top を !important で足す
-     （ホーム画面のWebアプリでは +4.5rem＝72px）。レビュー箱の上バーは body 直下の <header> なので
+     （ホーム画面のWebアプリでは +4.5rem＝72px）。インボックスの上バーは body 直下の <header> なので
      誤爆して、ヘッダーだけが厚くなっていた。トップ（index.html）も読み込んでいない。
      上端の色はこのページの .topbar と html/body の背景で自前に塗っている -->
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
   const activeCards = $('active-cards');
+  const requestCards = $('request-cards');
   const historyCards = $('history-cards');
+  const isRequest = (task) => task.source === 'owner';
   let busy = false;
 
   const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -380,8 +415,9 @@ footer {
   }
 
   function taskCard(task) {
+    const request = isRequest(task);
     const card = document.createElement('article');
-    card.className = `card ${task.status}`;
+    card.className = `card ${task.status}${request ? ' request' : ''}`;
     const recommendation = task.recommendation
       ? `<div class="recommendation"><strong>Claudeの推奨：</strong>${escapeHtml(task.recommendation)}</div>`
       : '';
@@ -389,9 +425,10 @@ footer {
     const response = task.responseText
       ? `<div class="reply">${escapeHtml(task.responseText)}</div>`
       : '';
+    const heading = request ? '' : `<span class="title">${escapeHtml(task.title)}</span>`;
     card.innerHTML = `
       <div class="meta">
-        <span class="title">${escapeHtml(task.title)}</span>
+        ${heading}
         <span class="time">${relativeTime(task.updatedAt)}</span>
       </div>
       <p class="question">${escapeHtml(task.question)}</p>
@@ -437,7 +474,7 @@ footer {
     });
     card.querySelector('.meta').append(discard);
 
-    if (task.status === 'waiting') {
+    if (task.status === 'waiting' && !request) {
       const actions = document.createElement('div');
       actions.className = 'actions';
       const approve = document.createElement('button');
@@ -479,21 +516,51 @@ footer {
     return card;
   }
 
+  function emptyNote(text) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = text;
+    return empty;
+  }
+
   function render(items) {
-    const active = items.filter((item) => item.status === 'waiting' || item.status === 'answered');
+    const open = items.filter((item) => item.status !== 'completed');
     const completed = items.filter((item) => item.status === 'completed');
+    const requests = open.filter(isRequest);
+    const active = open.filter((item) => !isRequest(item));
+
+    requestCards.replaceChildren(...requests.map(taskCard));
     activeCards.replaceChildren(...active.map(taskCard));
     historyCards.replaceChildren(...completed.map(taskCard));
+    $('request-count').textContent = String(requests.length);
     $('active-count').textContent = String(active.length);
     $('history-section').hidden = completed.length === 0;
-    $('summary').textContent = active.length === 0
-      ? '/mobile スキルで、PC作業の承認依頼をスマホでさばけます'
-      : `確認待ち ${active.filter((item) => item.status === 'waiting').length}件`;
-    if (active.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'empty';
-      empty.innerHTML = '<strong>/mobile スキルで、PC作業の承認依頼をスマホでさばけます</strong><span>今、確認待ちはありません。</span>';
-      activeCards.append(empty);
+    $('summary').textContent = requests.length > 0
+      ? `依頼 ${requests.length}件がPC待ち`
+      : (active.length === 0
+        ? 'いま対応するものはありません'
+        : `確認待ち ${active.filter((item) => item.status === 'waiting').length}件`);
+    if (requests.length === 0) requestCards.append(emptyNote('PCへ渡す依頼はありません'));
+    if (active.length === 0) activeCards.append(emptyNote('Claudeからの確認はありません'));
+  }
+
+  async function submitRequest(event) {
+    event.preventDefault();
+    if (busy) return;
+    const field = $('compose-text');
+    const text = field.value.trim();
+    if (!text) { field.focus(); return; }
+    const send = $('compose-send');
+    busy = true; send.disabled = true; field.disabled = true;
+    try {
+      await api('/owner/reviews', { method: 'POST', body: JSON.stringify({ question: text }) });
+      field.value = '';
+      toast('Claudeへの依頼を置きました');
+      await load();
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      busy = false; send.disabled = false; field.disabled = false;
     }
   }
 
@@ -509,8 +576,11 @@ footer {
   }
 
   $('refresh').addEventListener('click', load);
+  $('compose').addEventListener('submit', submitRequest);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
-  setInterval(() => { if (!document.hidden && !busy) load(); }, 60_000);
+  setInterval(() => {
+    if (!document.hidden && !busy && !$('compose-text').value.trim()) load();
+  }, 60_000);
 
   const pairing = $('pairing');
   $('pair-button').addEventListener('click', async () => {

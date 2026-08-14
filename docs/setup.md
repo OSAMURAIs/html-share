@@ -36,12 +36,13 @@ CDKの出力に表示されるCloudFrontドメインへ、設定した2つのホ
 
 ## スキルの追加
 
-同梱の `create-html` は、メモや調査結果を読みやすいHTMLに整えます。`mobile` は、PC作業の確認依頼をスマホへ送ります。
+同梱の `create-html` は、メモや調査結果を読みやすいHTMLに整えます。`mobile` は、PC作業の確認依頼をスマホへ送ります。`inbox` は、スマホから置いた依頼をPCで引き取ります。
 
 ```bash
 mkdir -p ~/.claude/skills
 ln -s "$(pwd)/skills/create-html" ~/.claude/skills/create-html
 ln -s "$(pwd)/skills/mobile" ~/.claude/skills/mobile
+ln -s "$(pwd)/skills/inbox" ~/.claude/skills/inbox
 ```
 
 複数のプロジェクトで使う場合は、設定を `~/.config/html-share/config.yaml` へ置くか、`HTML_SHARE_CONFIG` で場所を指定します。

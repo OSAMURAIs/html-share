@@ -96,12 +96,16 @@
       }
       .action {
         width: 100%; min-height: 2.75rem; padding: .55rem .7rem;
-        display: flex; align-items: center; gap: .7rem;
+        display: flex; align-items: center; justify-content: flex-start; gap: .7rem;
         border: 0; border-radius: .72rem; background: transparent; color: var(--ink); text-align: left;
+        font: inherit; font-size: .82rem; line-height: 1.35;
       }
       .action + .action { border-top: 1px solid rgba(229, 229, 234, .72); border-radius: 0; }
       .action svg { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
       .action:active { background: rgba(10, 70, 149, .08); }
+      .action.starred { color: var(--gold-deep); }
+      .action.starred svg { fill: currentColor; }
+      .action:disabled { opacity: .5; }
       .action.delete { color: var(--danger); }
       .share-panel {
         width: min(21rem, calc(100vw - 1.1rem));
@@ -132,6 +136,12 @@
       </button>
     </div>
     <div class="action-menu" role="menu" aria-label="ページ操作" hidden>
+      <button class="action star-action" type="button" role="menuitem" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg><span>スターを付ける</span>
+      </button>
+      <button class="action unread-action" type="button" role="menuitem" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5h17v11h-17zM3.5 7.5 12 14l8.5-6.5"/></svg><span>未読に戻す</span>
+      </button>
       <button class="action refresh" type="button" role="menuitem">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M19 11a7 7 0 1 0 .2 5"/></svg><span>更新</span>
       </button>
@@ -167,6 +177,7 @@
   let currentPage = null;
   let starredSources = [];
   let hiddenSources = new Set();
+  let preferencesReady = false;
   // { ページの source: 開いたときの更新日時 }。更新日時ごと持つので、再更新で自動的に未読へ戻る
   let readMarks = {};
   let knowsReadMarks = false;
@@ -200,21 +211,8 @@
     } catch { /* noop */ }
   }
 
-  // 既読はMacとスマホで別々に進むので、上書きではなく source ごとに新しい方を残す
-  function mergeReadMarks(base, incoming) {
-    const merged = { ...base };
-    for (const [source, readAt] of Object.entries(incoming ?? {})) {
-      if (typeof readAt !== 'string' || Number.isNaN(Date.parse(readAt))) continue;
-      const current = merged[source];
-      if (!current || Date.parse(readAt) > Date.parse(current)) merged[source] = readAt;
-    }
-    return merged;
-  }
-
-  /** 導入直後に全ページが新着になるのを避け、いま並んでいるぶんは読んだことにする */
-  function seedReadMarks() {
-    for (const page of allPages) readMarks[page.source] ??= page.date;
-  }
+  // 既読の記録・マージ・書き戻し判定はすべて page-list.js が正本。ここは呼ぶだけにする
+  const seedReadMarks = () => L.seedReadMarks(allPages, readMarks);
 
   async function sha256(value) {
     const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
@@ -234,18 +232,21 @@
     return payload;
   }
 
-  async function persistPreferences() {
+  let pendingSync = Promise.resolve();
+
+  function persistPreferences() {
     saveLocalPreferences();
-    if (!CAN_SYNC) return;
-    // PUT は項目まるごとの上書きなので、既読も必ず一緒に送る。
-    // 省くと保存済みの既読が消え、全ページが新着へ戻ってしまう
-    const body = JSON.stringify({
-      starredSources,
-      recentSources: [],
-      hiddenSources: [...hiddenSources],
-      readMarks,
+    if (!CAN_SYNC) return Promise.resolve();
+    pendingSync = pendingSync.catch(() => {}).then(() => {
+      const body = JSON.stringify({
+        starredSources,
+        recentSources: [],
+        hiddenSources: [...hiddenSources],
+        readMarks,
+      });
+      return preferencesApi({ method: 'PUT', body });
     });
-    await preferencesApi({ method: 'PUT', body });
+    return pendingSync;
   }
 
   function setToolbarHidden(hidden) {
@@ -259,14 +260,57 @@
     more.setAttribute('aria-expanded', 'false');
   }
 
+  function syncMenu() {
+    const button = $('.star-action');
+    const on = Boolean(currentPage && starredSources.includes(currentPage.source));
+    button.disabled = !currentPage || !preferencesReady;
+    button.classList.toggle('starred', on);
+    button.querySelector('span').textContent = on ? 'スターを外す' : 'スターを付ける';
+    $('.unread-action').disabled = !currentPage || !preferencesReady;
+  }
+
   nav.addEventListener('click', () => { location.href = '/app/index.html'; });
 
   more.addEventListener('click', () => {
     const willOpen = actionMenu.hidden;
     closePopovers();
+    syncMenu();
     actionMenu.hidden = !willOpen;
     more.setAttribute('aria-expanded', String(willOpen));
     setToolbarHidden(false);
+  });
+  $('.star-action').addEventListener('click', async () => {
+    if (!currentPage) return;
+    const previousStarred = [...starredSources];
+    const on = starredSources.includes(currentPage.source);
+    starredSources = on
+      ? starredSources.filter((sourceValue) => sourceValue !== currentPage.source)
+      : [...starredSources, currentPage.source];
+    syncMenu();
+    closePopovers();
+    try {
+      await persistPreferences();
+    } catch (error) {
+      starredSources = previousStarred;
+      saveLocalPreferences();
+      syncMenu();
+      alert(error.message);
+    }
+  });
+  $('.unread-action').addEventListener('click', async () => {
+    if (!currentPage) return;
+    closePopovers();
+    const previousMark = readMarks[currentPage.source];
+    if (!L.markUnread(currentPage, readMarks)) return;
+    try {
+      await persistPreferences();
+      location.href = '/app/index.html';
+    } catch (error) {
+      if (previousMark === undefined) delete readMarks[currentPage.source];
+      else readMarks[currentPage.source] = previousMark;
+      saveLocalPreferences();
+      alert(error.message);
+    }
   });
   $('.refresh').addEventListener('click', () => location.reload());
   $('.share').addEventListener('click', () => {
@@ -356,11 +400,6 @@
         Object.entries(readMarks).filter(([sourceValue]) => validSources.has(sourceValue)),
       );
     };
-    /** 手元にだけある新しい既読印の有無。無ければ書き戻しのPUTを省ける */
-    const hasUnsyncedReadMarks = (remoteMarks) => Object.entries(readMarks).some(([sourceValue, readAt]) => {
-      const remote = remoteMarks?.[sourceValue];
-      return !remote || Date.parse(readAt) > Date.parse(remote);
-    });
     let needsPush = false;
     pruneReadMarks();
 
@@ -370,10 +409,9 @@
         if (saved.exists) {
           starredSources = (saved.starredSources ?? []).filter((value) => validSources.has(value));
           hiddenSources = new Set((saved.hiddenSources ?? []).filter((value) => validSources.has(value)));
-          needsPush = hasUnsyncedReadMarks(saved.readMarks);
-          readMarks = mergeReadMarks(readMarks, saved.readMarks ?? {});
+          needsPush = L.hasUnsyncedReadMarks(readMarks, saved.readMarks);
+          readMarks = L.mergeReadMarks(readMarks, saved.readMarks ?? {});
           pruneReadMarks();
-          // どちらにも既読の記録が無ければ、この機能を使い始めた回。全ページを既読から始める
           if (!hadLocalReadMarks && saved.readMarks === null) {
             seedReadMarks();
             needsPush = true;
@@ -389,11 +427,11 @@
       seedReadMarks();
     }
 
-    // いま開いている当のページは読んだ状態にする。トップを経由せず
-    // 共有URLやホーム画面から直接来たときも、これで新着が外れる
     if (L.markRead(currentPage, readMarks)) needsPush = true;
     saveLocalPreferences();
     if (needsPush) persistPreferences().catch((error) => console.warn(error));
+    preferencesReady = true;
+    syncMenu();
   }).catch((error) => {
     console.error(error);
   });

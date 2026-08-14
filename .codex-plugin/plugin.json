@@ -22,6 +22,7 @@
     "defaultPrompt": [
       "Turn these notes into a polished HTML briefing with $create-html.",
       "Send this task to my phone with $mobile.",
+      "Pick up phone requests with $inbox.",
       "Check AI approval requests on my phone with $mobile.",
       "Stop mobile monitoring with $mobile stop."
     ]

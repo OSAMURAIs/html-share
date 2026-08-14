@@ -19,6 +19,8 @@ const ssm = new SSMClient({});
 const TASK_TTL_SECONDS = 90 * 24 * 60 * 60;
 const PAIR_TTL_SECONDS = 10 * 60;
 const PREFERENCES_KEY = { pk: 'OWNER', sk: 'PREFERENCES' };
+const OWNER_DEVICE_ID = 'OWNER';
+const INBOX_SESSION_ID = 'inbox';
 let privateKeyPromise: Promise<string> | undefined;
 
 function required(name: string): string {
@@ -81,18 +83,41 @@ function cleanSourceList(value: unknown, name: string, maximum: number): string[
   return [...new Set(value.map((item) => clean(item, name, 500, true)))];
 }
 
-function cleanReadMarks(value: unknown, maximum: number): Record<string, string> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+function isoOrNull(value: unknown): string | null {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text && !Number.isNaN(Date.parse(text)) ? text : null;
+}
+
+export function cleanReadMark(value: unknown): { v: string | null; at: string } | null {
+  const legacy = typeof value === 'string' ? isoOrNull(value) : null;
+  if (legacy) return { v: legacy, at: legacy };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as { v?: unknown; at?: unknown };
+  const at = isoOrNull(record.at);
+  return at ? { v: isoOrNull(record.v), at } : null;
+}
+
+export function cleanReadMarks(value: unknown, maximum: number): Record<string, { v: string | null; at: string }> {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== 'object' || Array.isArray(value)) {
     throw Object.assign(new Error('readMarks is invalid'), { statusCode: 400 });
   }
   const entries = Object.entries(value as Record<string, unknown>);
   if (entries.length > maximum) throw Object.assign(new Error('readMarks is too large'), { statusCode: 400 });
-  return Object.fromEntries(entries.map(([source, readAt]) => {
-    const key = clean(source, 'source', 500, true);
-    const timestamp = clean(readAt, 'readAt', 40, true);
-    if (Number.isNaN(Date.parse(timestamp))) throw Object.assign(new Error('readAt is invalid'), { statusCode: 400 });
-    return [key, timestamp];
-  }));
+  const marks: Record<string, { v: string | null; at: string }> = {};
+  for (const [source, mark] of entries) {
+    const key = clean(source, 'source', 500);
+    const cleaned = cleanReadMark(mark);
+    if (!key || !cleaned) continue;
+    marks[key] = cleaned;
+  }
+  return marks;
+}
+
+function titleFromBody(text: string): string {
+  const firstLine = text.split('\n').find((line) => line.trim()) ?? '';
+  const trimmed = firstLine.trim();
+  return trimmed.length > 28 ? `${trimmed.slice(0, 28)}…` : trimmed;
 }
 
 function internalCidrs(): string[] {
@@ -207,6 +232,28 @@ export async function handler(event: any): Promise<any> {
           .map(publicTask);
         return json(200, { items });
       }
+      if (verb === 'POST' && path === '/api/owner/reviews') {
+        const body = parseBody(event);
+        const question = clean(body.question, 'question', 2000, true);
+        const id = randomUUID();
+        const iso = new Date().toISOString();
+        const item = {
+          pk: 'TASK', sk: id, id,
+          source: 'owner',
+          deviceId: OWNER_DEVICE_ID,
+          sessionId: INBOX_SESSION_ID,
+          title: clean(body.title, 'title', 120) || titleFromBody(question),
+          question,
+          context: '',
+          recommendation: '',
+          status: 'waiting',
+          createdAt: iso,
+          updatedAt: iso,
+          expiresAt: now + TASK_TTL_SECONDS,
+        };
+        await ddb.send(new PutCommand({ TableName: table, Item: item, ConditionExpression: 'attribute_not_exists(pk)' }));
+        return json(201, { item: publicTask(item) });
+      }
       if (verb === 'GET' && path === '/api/owner/preferences') {
         const result = await ddb.send(new GetCommand({
           TableName: table,
@@ -309,6 +356,7 @@ export async function handler(event: any): Promise<any> {
         const id = randomUUID();
         const item = {
           pk: 'TASK', sk: id, id, deviceId: current.id,
+          source: 'claude-code',
           sessionId: clean(body.sessionId, 'sessionId', 180, true),
           title: clean(body.title, 'title', 160, true),
           question: clean(body.question, 'question', 1000, true),
@@ -326,7 +374,7 @@ export async function handler(event: any): Promise<any> {
         const status = event.queryStringParameters?.status;
         const sessionId = event.queryStringParameters?.sessionId;
         const items = (await tasks())
-          .filter((item) => item.deviceId === current.id)
+          .filter((item) => item.deviceId === current.id || item.deviceId === OWNER_DEVICE_ID)
           .filter((item) => !status || item.status === status)
           .filter((item) => !sessionId || item.sessionId === sessionId)
           .map(publicTask);
@@ -338,9 +386,14 @@ export async function handler(event: any): Promise<any> {
           TableName: table,
           Key: { pk: 'TASK', sk: complete[1] },
           UpdateExpression: 'SET #status = :completed, completedAt = :now, updatedAt = :now',
-          ConditionExpression: 'attribute_exists(pk) AND deviceId = :deviceId',
+          ConditionExpression: 'attribute_exists(pk) AND (deviceId = :deviceId OR deviceId = :owner)',
           ExpressionAttributeNames: { '#status': 'status' },
-          ExpressionAttributeValues: { ':completed': 'completed', ':deviceId': current.id, ':now': new Date().toISOString() },
+          ExpressionAttributeValues: {
+            ':completed': 'completed',
+            ':deviceId': current.id,
+            ':owner': OWNER_DEVICE_ID,
+            ':now': new Date().toISOString(),
+          },
         }));
         return json(200, { ok: true });
       }

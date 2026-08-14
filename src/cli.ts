@@ -5,6 +5,7 @@ import { initializeKeys, storePrivateKey } from './keys.js';
 import { addPageToConfig, loadConfig } from './config.js';
 import {
   completeReviews,
+  listInbox,
   pair,
   pullReviews,
   pushReviews,
@@ -41,6 +42,7 @@ Usage:
   html-share review pair <code> [--name name]
   html-share review push --session <id> [--file cards.json]
   html-share review pull [--session <id>]
+  html-share review inbox
   html-share review complete <id...>
   html-share review watch --session <id> [--timeout-minutes 240]
   html-share review stop --session <id>`);
@@ -109,6 +111,10 @@ async function main(): Promise<void> {
     }
     if (action === 'pull') {
       console.log(JSON.stringify({ ok: true, items: await pullReviews(config, option('--session')) }, null, 2));
+      return;
+    }
+    if (action === 'inbox') {
+      console.log(JSON.stringify({ ok: true, requests: await listInbox(config) }, null, 2));
       return;
     }
     if (action === 'complete') {

@@ -1,0 +1,6 @@
+interface:
+  display_name: "インボックス"
+  short_description: "スマホから置いた依頼をPCで引き取る"
+  default_prompt: "Use $inbox to pick up requests I placed from my phone."
+policy:
+  allow_implicit_invocation: false

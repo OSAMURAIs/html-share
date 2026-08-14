@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const roots = process.argv.slice(2).map((value) => path.resolve(value));
-if (!roots.length) roots.push(path.resolve('skills/mobile'), path.resolve('skills/create-html'));
+if (!roots.length) roots.push(path.resolve('skills/mobile'), path.resolve('skills/create-html'), path.resolve('skills/inbox'));
 
 const failures = [];
 
@@ -42,6 +42,14 @@ for (const root of roots) {
     }
     if (!skill.includes('html-share review watch')) failures.push('mobile: skill must include the review watcher');
     if (!skill.includes('Do not include secrets')) failures.push('mobile: skill must include the secret-handling boundary');
+  }
+
+  if (name === 'inbox') {
+    if (!description.includes('/inbox') || !description.includes('$inbox')) {
+      failures.push('inbox: description must state the explicit /inbox and $inbox triggers');
+    }
+    if (!skill.includes('html-share review inbox')) failures.push('inbox: skill must read requests with the CLI');
+    if (!skill.includes('html-share review complete')) failures.push('inbox: skill must close finished requests with the CLI');
   }
 
   if (name === 'create-html') {

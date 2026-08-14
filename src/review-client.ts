@@ -18,6 +18,7 @@ export interface ReviewCard {
   context?: string;
   recommendation?: string;
   status?: string;
+  source?: string;
   responseText?: string;
   updatedAt?: string;
 }
@@ -105,6 +106,13 @@ export async function pullReviews(config: HtmlShareConfig, sessionId?: string): 
   if (sessionId) query.set('sessionId', sessionId);
   const result = await request(config, `/device/reviews?${query}`);
   return result.items ?? [];
+}
+
+export async function listInbox(config: HtmlShareConfig): Promise<ReviewCard[]> {
+  const result = await request(config, `/device/reviews?${new URLSearchParams({ status: 'waiting', sessionId: 'inbox' })}`);
+  return [...(result.items ?? [])]
+    .filter((item) => item.source === 'owner' || item.sessionId === 'inbox')
+    .sort((left, right) => String(left.updatedAt ?? '').localeCompare(String(right.updatedAt ?? '')));
 }
 
 export async function completeReviews(config: HtmlShareConfig, ids: string[]): Promise<void> {

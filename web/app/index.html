@@ -356,6 +356,9 @@ body.page-open #page-actions { display: block; }
 .page-action + .page-action { border-top: 1px solid rgba(229, 229, 234, .72); border-radius: 0; }
 .page-action:hover { background: rgba(10, 70, 149, .07); }
 .page-action svg { width: 1.05rem; height: 1.05rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.page-action.starred { color: var(--gold-deep); }
+.page-action.starred svg { fill: currentColor; }
+.page-action:disabled { opacity: .5; }
 .page-action.delete { color: #d92d20; }
 #page-share-panel {
   width: min(21rem, calc(100vw - 1.1rem)); padding: .75rem;
@@ -497,9 +500,9 @@ body.page-controls-hidden #page-actions {
               <input id="q" type="search" placeholder="タイトル・リポジトリで絞り込み" autocomplete="off" tabindex="-1">
               <button id="search-clear" type="button" aria-label="検索語を消す">×</button>
             </div>
-            <button class="tb-btn" id="review" type="button" title="AIからの承認依頼">
+            <button class="tb-btn" id="review" type="button" title="インボックス">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h4l1.4 2.4h5.2L16 13h4M4 13l2.6-7h10.8L20 13v5H4z"/></svg>
-              <span class="label">AIからの承認依頼</span>
+              <span class="label">インボックス</span>
             </button>
             <button class="tb-btn icon" id="refresh" type="button" aria-label="一覧を更新" title="一覧を更新">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M19 11a7 7 0 1 0 .2 5"/></svg>
@@ -525,6 +528,12 @@ body.page-controls-hidden #page-actions {
     <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
   </button>
   <div id="page-menu" role="menu" aria-label="ページ操作" hidden>
+    <button class="page-action" id="page-star" type="button" role="menuitem" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg><span>スターを付ける</span>
+    </button>
+    <button class="page-action" id="page-unread" type="button" role="menuitem" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5h17v11h-17zM3.5 7.5 12 14l8.5-6.5"/></svg><span>未読に戻す</span>
+    </button>
     <button class="page-action" id="page-refresh" type="button" role="menuitem">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M19 11a7 7 0 1 0 .2 5"/></svg><span>更新</span>
     </button>
@@ -549,7 +558,7 @@ body.page-controls-hidden #page-actions {
   const searchBox = $('search'), searchToggle = $('search-toggle'), searchClear = $('search-clear');
   const refresh = $('refresh'), pageRefresh = $('page-refresh');
   const pageMore = $('page-more'), pageMenu = $('page-menu'), pageSharePanel = $('page-share-panel');
-  const pageShare = $('page-share'), pageDelete = $('page-delete'), pageShareIssue = $('page-share-issue');
+  const pageStar = $('page-star'), pageUnread = $('page-unread'), pageShare = $('page-share'), pageDelete = $('page-delete'), pageShareIssue = $('page-share-issue');
   const trashToggle = $('trash-toggle'), trashLabel = $('trash-label');
   const STAR_KEY = 'mb_starred_pages';
   const HIDDEN_KEY = 'mb_hidden_pages';
@@ -611,20 +620,16 @@ body.page-controls-hidden #page-actions {
     } catch { /* noop */ }
   }
 
-  // 既読はMacとスマホで別々に進むので、上書きではなく source ごとに新しい方を残す
-  function mergeReadMarks(base, incoming) {
-    const merged = { ...base };
-    for (const [source, readAt] of Object.entries(incoming ?? {})) {
-      if (typeof readAt !== 'string' || Number.isNaN(Date.parse(readAt))) continue;
-      const current = merged[source];
-      if (!current || Date.parse(readAt) > Date.parse(current)) merged[source] = readAt;
-    }
-    return merged;
-  }
-
   /** そのページを「今の版で読んだ」ことにする。次に元HTMLが更新されれば再び新着に戻る */
   function markRead(page) {
     if (!L.markRead(page, readMarks)) return false;
+    queuePreferenceSave();
+    return true;
+  }
+
+  /** ページ操作メニューの「未読に戻す」。あとで読み直したいページを新着へ戻す */
+  function markUnread(page) {
+    if (!L.markUnread(page, readMarks)) return false;
     queuePreferenceSave();
     return true;
   }
@@ -681,18 +686,8 @@ body.page-controls-hidden #page-actions {
     );
   }
 
-  /** 導入直後に全ページが新着になるのを避け、いま並んでいるぶんは読んだことにする */
-  function seedReadMarks() {
-    for (const page of allPages) readMarks[page.source] ??= page.date;
-  }
-
-  /** 手元にだけある新しい既読印の有無。無ければ書き戻しのPUTを省ける */
-  function hasUnsyncedReadMarks(remoteMarks) {
-    return Object.entries(readMarks).some(([source, readAt]) => {
-      const remote = remoteMarks?.[source];
-      return !remote || Date.parse(readAt) > Date.parse(remote);
-    });
-  }
+  const seedReadMarks = () => L.seedReadMarks(allPages, readMarks);
+  const hasUnsyncedReadMarks = (remoteMarks) => L.hasUnsyncedReadMarks(readMarks, remoteMarks);
 
   async function loadPreferences() {
     const hadLocalReadMarks = knowsReadMarks;
@@ -715,7 +710,7 @@ body.page-controls-hidden #page-actions {
         starred = new Set((saved.starredSources ?? []).filter((source) => validSources.has(source)));
         hiddenSources = new Set((saved.hiddenSources ?? []).filter((source) => validSources.has(source)));
         const needsPush = hasUnsyncedReadMarks(saved.readMarks);
-        readMarks = mergeReadMarks(readMarks, saved.readMarks ?? {});
+        readMarks = L.mergeReadMarks(readMarks, saved.readMarks ?? {});
         pruneReadMarks(validSources);
         // どちらにも既読の記録が無ければ、この機能を使い始めた回。全ページを既読から始める
         const firstRun = !hadLocalReadMarks && saved.readMarks === null;
@@ -793,6 +788,7 @@ body.page-controls-hidden #page-actions {
     else starred.add(page.source);
     queuePreferenceSave();
     renderHome();
+    syncPageMenu();
   }
 
   // ☆ボタンは page-list.js が正本。トップの行もスマホのドロワーも同じものを使う
@@ -1086,6 +1082,14 @@ body.page-controls-hidden #page-actions {
     pageMore.setAttribute('aria-expanded', 'false');
   }
 
+  function syncPageMenu() {
+    const on = Boolean(current && isStarred(current));
+    pageStar.disabled = !current;
+    pageStar.classList.toggle('starred', on);
+    pageStar.querySelector('span').textContent = on ? 'スターを外す' : 'スターを付ける';
+    pageUnread.disabled = !current;
+  }
+
   function watchFrameScroll() {
     const frameWindow = frame.contentWindow;
     if (!frameWindow) return;
@@ -1165,9 +1169,21 @@ body.page-controls-hidden #page-actions {
   pageMore.addEventListener('click', () => {
     const willOpen = pageMenu.hidden;
     closePagePopovers();
+    syncPageMenu();
     pageMenu.hidden = !willOpen;
     pageMore.setAttribute('aria-expanded', String(willOpen));
     setPageControlsHidden(false);
+  });
+  pageStar.addEventListener('click', () => {
+    if (!current) return;
+    toggleStar(current);
+    closePagePopovers();
+  });
+  pageUnread.addEventListener('click', () => {
+    const page = current;
+    closePagePopovers();
+    if (!markUnread(page)) return;
+    location.hash = '#/';
   });
   pageShare.addEventListener('click', () => {
     pageMenu.hidden = true;
