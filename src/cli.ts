@@ -114,7 +114,15 @@ async function main(): Promise<void> {
       return;
     }
     if (action === 'inbox') {
-      console.log(JSON.stringify({ ok: true, requests: await listInbox(config) }, null, 2));
+      const requests = await listInbox(config);
+      // The hint travels with the data so an agent that skipped the skill still closes what it
+      // picked up. A request left open is indistinguishable from one no computer has taken yet.
+      const next = requests.length
+        ? 'Oldest first. Close them all with `html-share review complete <id...>` before starting,'
+          + ' then work through them in order. The inbox is a handover box, not a progress tracker,'
+          + ' so do not wait for the work to finish. Report progress and results in chat.'
+        : undefined;
+      console.log(JSON.stringify({ ok: true, requests, ...(next ? { next } : {}) }, null, 2));
       return;
     }
     if (action === 'complete') {
