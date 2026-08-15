@@ -244,6 +244,8 @@ export async function handler(event: any): Promise<any> {
           sessionId: INBOX_SESSION_ID,
           title: clean(body.title, 'title', 120) || titleFromBody(question),
           question,
+          // Nickname hint for the starting project. The ingesting agent resolves it to a path.
+          target: clean(body.target, 'target', 60),
           context: '',
           recommendation: '',
           status: 'waiting',

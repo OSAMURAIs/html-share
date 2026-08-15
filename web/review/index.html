@@ -153,6 +153,54 @@ main {
   color: var(--ink); background: var(--white); font: inherit; line-height: 1.6;
 }
 .compose textarea:focus { outline: 2px solid var(--blue-bright); border-color: transparent; }
+/* プロジェクト名は任意。固定の選択肢を持たず、過去に打った値を候補に出すだけなので、
+   案件が増えても手入れが要らない。自由入力もできるプルダウンとして、入力欄＋▼＋候補リストを
+   自前で持つ（datalist はiOS Safariだと▼が出ず、候補があること自体に気づけない） */
+.compose-target-wrap { position: relative; margin-top: .5rem; }
+.compose-target {
+  display: block; width: 100%;
+  border: 1px solid var(--line); border-radius: .65rem;
+  padding: .5rem 2.5rem .5rem .7rem;
+  color: var(--ink); background: var(--white); font: inherit; font-size: .86rem;
+}
+.compose-target:focus { outline: 2px solid var(--blue-bright); border-color: transparent; }
+/* ⚠️ .target-open / .target-option には必ず .compose を前に付ける。下の `.compose button`
+   （送るボタン）は詳細度で勝つので、外すと濃い青の塗りに化ける */
+.compose .target-open {
+  position: absolute; right: .3rem; top: 50%; transform: translateY(-50%);
+  width: 2rem; height: 2rem; min-height: 0; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: .5rem; background: transparent; color: var(--mut);
+  font: inherit; font-weight: 400; cursor: pointer;
+}
+.compose .target-open:hover { background: var(--soft); color: var(--sub); }
+.compose .target-open svg {
+  width: .8rem; height: .8rem;
+  fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.target-list {
+  position: absolute; left: 0; right: 0; top: calc(100% + .3rem); z-index: 20;
+  max-height: 12rem; overflow-y: auto; margin: 0; padding: .25rem; list-style: none;
+  border: 1px solid var(--line); border-radius: .65rem; background: var(--white);
+  box-shadow: 0 8px 24px rgba(26, 26, 31, .14);
+}
+.target-list[hidden] { display: none; }
+.target-list li { margin: 0; }
+.compose .target-option {
+  display: block; width: 100%; min-height: 2.4rem; padding: .45rem .7rem;
+  border: 0; border-radius: .5rem; background: transparent;
+  color: var(--ink); font: inherit; font-size: .86rem; font-weight: 400;
+  text-align: left; cursor: pointer;
+}
+.compose .target-option:hover { background: var(--soft); }
+/* 依頼カードに出すプロジェクト名。指定なしの依頼には出さない（未指定が既定なので、
+   毎回「おまかせ」と書くとカードが賑やかになるだけで情報が増えない） */
+.target-badge {
+  display: inline-block; margin: 0 0 .4rem; padding: .15rem .6rem;
+  border-radius: 999px; background: var(--blue-soft); color: var(--blue-deep);
+  font-size: .72rem; font-weight: 700;
+}
 .compose-actions { display: flex; align-items: center; gap: .6rem; margin-top: .6rem; }
 .compose-hint { flex: 1; min-width: 0; color: var(--mut); font-size: .72rem; line-height: 1.5; }
 .compose button {
@@ -319,6 +367,15 @@ footer {
   <div class="section-head"><span>Claudeへの依頼</span><span class="count gold" id="request-count">0</span></div>
   <form class="compose" id="compose">
     <textarea id="compose-text" placeholder="やっておいてほしいことを書く" aria-label="Claudeへの依頼"></textarea>
+    <div class="compose-target-wrap">
+      <input class="compose-target" id="compose-target" type="text" autocomplete="off"
+             placeholder="プロジェクト名（任意）" aria-label="依頼のプロジェクト名">
+      <button class="target-open" id="target-open" type="button" hidden
+              aria-label="過去に使ったプロジェクト名から選ぶ" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <ul class="target-list" id="target-list" hidden></ul>
+    </div>
     <div class="compose-actions">
       <span class="compose-hint">PCで <strong>/inbox</strong> と打つと、Claudeがここから読み取ります。</span>
       <button type="submit" id="compose-send">頼む</button>
@@ -359,6 +416,7 @@ footer {
   const activeCards = $('active-cards');
   const requestCards = $('request-cards');
   const historyCards = $('history-cards');
+  const targetList = $('target-list');
   const isRequest = (task) => task.source === 'owner';
   let busy = false;
 
@@ -426,11 +484,15 @@ footer {
       ? `<div class="reply">${escapeHtml(task.responseText)}</div>`
       : '';
     const heading = request ? '' : `<span class="title">${escapeHtml(task.title)}</span>`;
+    const target = request && task.target
+      ? `<span class="target-badge">${escapeHtml(task.target)}</span>`
+      : '';
     card.innerHTML = `
       <div class="meta">
         ${heading}
         <span class="time">${relativeTime(task.updatedAt)}</span>
       </div>
+      ${target}
       <p class="question">${escapeHtml(task.question)}</p>
       ${context}${recommendation}${response}
     `;
@@ -542,6 +604,58 @@ footer {
         : `確認待ち ${active.filter((item) => item.status === 'waiting').length}件`);
     if (requests.length === 0) requestCards.append(emptyNote('PCへ渡す依頼はありません'));
     if (active.length === 0) activeCards.append(emptyNote('Claudeからの確認はありません'));
+
+    renderTargetOptions(items);
+  }
+
+  // プロジェクト名の候補は、過去に自分が実際に打った値だけから作る。決め打ちの一覧を持たないので、
+  // 案件が増えても手入れが要らず、使わなくなった名前は自然に落ちていく。
+  // 並びは「よく使う順、同数なら新しい順」。完了済みも数えるのは、
+  // 取り込み済みの依頼こそ実績として候補に残したいため。
+  function renderTargetOptions(items) {
+    const used = new Map();
+    for (const item of items) {
+      if (!isRequest(item)) continue;
+      const value = String(item.target ?? '').trim();
+      if (!value) continue;
+      const prev = used.get(value) ?? { count: 0, at: '' };
+      used.set(value, {
+        count: prev.count + 1,
+        at: String(item.createdAt ?? '') > prev.at ? String(item.createdAt ?? '') : prev.at,
+      });
+    }
+    const top = [...used.entries()]
+      .sort((a, b) => b[1].count - a[1].count || b[1].at.localeCompare(a[1].at))
+      .slice(0, 8)
+      .map(([value]) => value);
+
+    $('target-open').hidden = top.length === 0;
+    if (top.length === 0) closeTargetList();
+
+    targetList.replaceChildren(...top.map((value) => {
+      const option = document.createElement('button');
+      option.className = 'target-option';
+      option.type = 'button';
+      option.textContent = value;
+      option.addEventListener('click', () => {
+        $('compose-target').value = value;
+        closeTargetList();
+      });
+      const row = document.createElement('li');
+      row.append(option);
+      return row;
+    }));
+  }
+
+  function closeTargetList() {
+    targetList.hidden = true;
+    $('target-open').setAttribute('aria-expanded', 'false');
+  }
+
+  function toggleTargetList() {
+    const open = targetList.hidden;
+    targetList.hidden = !open;
+    $('target-open').setAttribute('aria-expanded', String(open));
   }
 
   async function submitRequest(event) {
@@ -550,12 +664,17 @@ footer {
     const field = $('compose-text');
     const text = field.value.trim();
     if (!text) { field.focus(); return; }
+    const targetField = $('compose-target');
+    const target = targetField.value.trim();
     const send = $('compose-send');
     busy = true; send.disabled = true; field.disabled = true;
     try {
-      await api('/owner/reviews', { method: 'POST', body: JSON.stringify({ question: text }) });
+      await api('/owner/reviews', { method: 'POST', body: JSON.stringify({ question: text, target }) });
       field.value = '';
-      toast('Claudeへの依頼を置きました');
+      // プロジェクト名は毎回消す。連続で投げる依頼が同じ案件とは限らず、
+      // 前の指定が残っていると気づかないまま別案件へ付いてしまう
+      targetField.value = '';
+      toast(target ? `Claudeへの依頼を置きました（${target}）` : 'Claudeへの依頼を置きました');
       await load();
     } catch (error) {
       toast(error.message);
@@ -577,6 +696,10 @@ footer {
 
   $('refresh').addEventListener('click', load);
   $('compose').addEventListener('submit', submitRequest);
+  $('target-open').addEventListener('click', toggleTargetList);
+  document.addEventListener('click', (event) => {
+    if (!targetList.hidden && !event.target.closest('.compose-target-wrap')) closeTargetList();
+  });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
   setInterval(() => {
     if (!document.hidden && !busy && !$('compose-text').value.trim()) load();

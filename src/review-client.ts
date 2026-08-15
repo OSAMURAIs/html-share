@@ -19,8 +19,10 @@ export interface ReviewCard {
   recommendation?: string;
   status?: string;
   source?: string;
+  target?: string | null;
   responseText?: string;
   updatedAt?: string;
+  createdAt?: string;
 }
 
 function credentialsPath(): string {
@@ -112,7 +114,11 @@ export async function listInbox(config: HtmlShareConfig): Promise<ReviewCard[]> 
   const result = await request(config, `/device/reviews?${new URLSearchParams({ status: 'waiting', sessionId: 'inbox' })}`);
   return [...(result.items ?? [])]
     .filter((item) => item.source === 'owner' || item.sessionId === 'inbox')
-    .sort((left, right) => String(left.updatedAt ?? '').localeCompare(String(right.updatedAt ?? '')));
+    .sort((left, right) => String(left.updatedAt ?? '').localeCompare(String(right.updatedAt ?? '')))
+    .map((item) => ({
+      ...item,
+      target: item.target || null,
+    }));
 }
 
 export async function completeReviews(config: HtmlShareConfig, ids: string[]): Promise<void> {

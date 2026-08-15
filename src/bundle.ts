@@ -9,8 +9,18 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { HtmlShareConfig, PageConfig } from './config.js';
 import { resolveFromConfig, validatedRoots } from './config.js';
+
+function packageRoot(): string {
+  let directory = path.dirname(fileURLToPath(import.meta.url));
+  while (directory !== path.dirname(directory)) {
+    if (existsSync(path.join(directory, 'package.json'))) return directory;
+    directory = path.dirname(directory);
+  }
+  throw new Error('package.json not found');
+}
 
 const MIME: Record<string, string> = {
   '.css': 'text/css',
@@ -105,7 +115,16 @@ export function bundleHtml(sourceFile: string, roots: string[], maxAssetBytes: n
     if (!inside(resolved, roots)) throw new Error(`Local asset escapes content.roots: ${value}`);
     return `${attribute}=${quote}${dataUrl(resolved, maxAssetBytes)}${quote}`;
   });
-  return addMeta(html);
+  return injectMobileTables(addMeta(html));
+}
+
+function injectMobileTables(html: string): string {
+  // 閲覧面は script-src が 'unsafe-inline' data: だけなので、相対パスのJSは読めない。
+  // 表の畳み込みはAPIを呼ばない（connect-src 'none' のまま）ので、中身をインラインで埋め込む。
+  const source = readFileSync(path.join(packageRoot(), 'web', 'mobile-tables.js'), 'utf8').trim();
+  const tag = `<script>${source}</script>`;
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${tag}\n</body>`);
+  return `${html}\n${tag}\n`;
 }
 
 function pagePath(config: HtmlShareConfig, page: PageConfig): string {

@@ -14,6 +14,7 @@ html-share review inbox
 ```
 
 - `requests` are unfinished owner requests, oldest first
+- `target` is a project nickname the owner typed on the phone. It may be `null`. Treat it as a hint, not a filesystem path
 - If the array is empty, say there are no inbox requests and stop
 - If the CLI says this computer is not paired, ask the owner to tap "Macを登録" in the inbox and run `/mobile pair <code>`
 
@@ -31,12 +32,23 @@ html-share review complete <id...>
   say so in chat — it is no longer in the inbox to remind anyone
 - Requests expire after 90 days, so do not leave them unread either
 
-## 3. Start the work
+## 3. Identify the starting folder
+
+Requests from a phone often belong to different projects. Do not start everything in the current working directory.
+
+- Pull 1–3 distinctive words from the request text. If `target` is present, search for that nickname first
+- Look in nearby README / AGENTS.md files. Do not keep a hardcoded map of nicknames to folders
+- If the folder is the current working directory, start here
+- If it is a different folder, start a new session there and tell the owner you did so
+- If one request spans two places, start from the folder you will write to
+- If you cannot tell, ask with 2–3 candidates. Do not guess from recency or a similar name
+
+## 4. Start the work
 
 Treat each request as a normal user instruction.
 
 - If there is one request, start it without asking which to do first
-- If there are several, list them in one line each, then start from the oldest
+- If there are several, list them in one line each with the folder you chose, then start from the oldest
 - Still confirm before sending, publishing, deleting, or spending money
 
 ## Related

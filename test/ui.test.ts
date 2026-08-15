@@ -24,6 +24,25 @@ test('ships the full dashboard UI and inbox wording', () => {
   assert.match(review, /Claudeへの依頼/);
   assert.match(review, /\/inbox/);
   assert.match(review, /PCへ渡す依頼はありません/);
+  assert.match(review, /id="compose-target" type="text"/);
+  assert.doesNotMatch(review, /<select[^>]*id="compose-target"/);
+  assert.match(review, /id="target-list"/);
+  assert.match(review, /function renderTargetOptions/);
+  assert.match(review, /JSON\.stringify\(\{ question: text, target \}\)/);
+  assert.match(review, /targetField\.value = '';/);
+  assert.match(dashboard, /id="review-dot"/);
+  assert.match(dashboard, /function refreshInboxDot/);
+  assert.match(dashboard, /\/api\/owner\/reviews/);
+});
+
+test('folds overflowing tables on the viewing origin without network access', () => {
+  const tables = readFileSync(path.join(root, 'web', 'mobile-tables.js'), 'utf8');
+  const handler = readFileSync(path.join(root, 'functions', 'review-handler.ts'), 'utf8');
+  assert.match(tables, /data-mb-tables="off"/);
+  assert.doesNotMatch(tables, /\bfetch\s*\(/);
+  assert.doesNotMatch(tables, /XMLHttpRequest/);
+  assert.match(handler, /target: clean\(body\.target, 'target', 60\)/);
+  assert.doesNotMatch(handler, /target: clean\(body\.target[\s\S]{0,80}device/);
 });
 
 test('does not ship the discarded simplified dashboard files', () => {

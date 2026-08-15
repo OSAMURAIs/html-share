@@ -119,8 +119,10 @@ async function main(): Promise<void> {
       // picked up. A request left open is indistinguishable from one no computer has taken yet.
       const next = requests.length
         ? 'Oldest first. Close them all with `html-share review complete <id...>` before starting,'
-          + ' then work through them in order. The inbox is a handover box, not a progress tracker,'
-          + ' so do not wait for the work to finish. Report progress and results in chat.'
+          + ' then identify each request\'s working folder and work through them in order.'
+          + ' `target` is a nickname hint, not a filesystem path — verify it before using it.'
+          + ' The inbox is a handover box, not a progress tracker, so do not wait for the work to finish.'
+          + ' Report progress and results in chat.'
         : undefined;
       console.log(JSON.stringify({ ok: true, requests, ...(next ? { next } : {}) }, null, 2));
       return;
