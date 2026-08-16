@@ -1264,6 +1264,12 @@ body.page-controls-hidden #page-actions {
   });
   frame.addEventListener('load', watchFrameScroll);
   addEventListener('message', (event) => {
+    const external = window.HtmlShareNavigation.externalUrl(event, frame, current);
+    if (external) {
+      const popup = window.open(external, '_blank', 'noopener,noreferrer');
+      if (popup) popup.opener = null;
+      return;
+    }
     const slug = window.HtmlShareNavigation.navigationSlug(event, frame, current, allPages);
     if (slug) location.hash = `#/${slug}`;
   });

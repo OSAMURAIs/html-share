@@ -14,6 +14,9 @@ vm.runInNewContext(source, {
 const navigationSlug = (windowObject.HtmlShareNavigation as {
   navigationSlug: (event: unknown, frame: unknown, currentPage: unknown, manifestPages: unknown[]) => string | null;
 }).navigationSlug;
+const externalUrl = (windowObject.HtmlShareNavigation as {
+  externalUrl: (event: unknown, frame: unknown, currentPage: unknown) => string | null;
+}).externalUrl;
 
 const contentWindow = {};
 const frame = { contentWindow };
@@ -44,4 +47,20 @@ test('rejects unknown slugs, URL payloads, and malformed payloads', () => {
   assert.equal(navigationSlug({ ...validEvent, data: { type: 'html-share:navigate', slug: 7, token: 'current-page-token' } }, frame, currentPage, manifestPages), null);
   assert.equal(navigationSlug({ ...validEvent, data: { type: 'html-share:navigate', slug: 'knowledge-review', token: 'wrong-token' } }, frame, currentPage, manifestPages), null);
   assert.equal(navigationSlug({ ...validEvent, data: null }, frame, currentPage, manifestPages), null);
+});
+
+test('accepts validated external HTTP(S) navigation from the active iframe', () => {
+  const event = { source: contentWindow, origin: 'null', data: { type: 'html-share:external', url: 'https://www.notion.so/example', token: 'current-page-token' } };
+  assert.equal(externalUrl(event, frame, currentPage), 'https://www.notion.so/example');
+  assert.equal(externalUrl({ ...event, data: { ...event.data, url: 'http://example.com/path' } }, frame, currentPage), 'http://example.com/path');
+});
+
+test('rejects unsafe, malformed, wrong-source, and wrong-token external navigation', () => {
+  const valid = { source: contentWindow, origin: 'null', data: { type: 'html-share:external', url: 'https://example.com', token: 'current-page-token' } };
+  for (const url of ['javascript:alert(1)', 'data:text/html,payload', 'file:///tmp/private', 'blob:https://example.com/id', 'not a url']) {
+    assert.equal(externalUrl({ ...valid, data: { ...valid.data, url } }, frame, currentPage), null);
+  }
+  assert.equal(externalUrl({ ...valid, source: {} }, frame, currentPage), null);
+  assert.equal(externalUrl({ ...valid, data: { ...valid.data, token: 'wrong-token' } }, frame, currentPage), null);
+  assert.equal(externalUrl({ ...valid, data: { ...valid.data, extra: true } }, frame, currentPage), null);
 });

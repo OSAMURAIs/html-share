@@ -56,6 +56,7 @@ export interface BuiltPage {
   repository: string;
   stream: string;
   streamLabel: string;
+  share_policy: 'owner_only' | 'shareable';
   objectKey: string;
 }
 
@@ -170,6 +171,14 @@ function injectPageNavigation(html: string, consoleOrigin: string, navigationTok
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const target = event.target;
     if (!(target instanceof Element)) return;
+    const external = target.closest('a[data-html-share-external]');
+    if (external && window.parent !== window) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const url = external.href;
+      event.preventDefault();
+      window.parent.postMessage({ type: 'html-share:external', url, token: navigationToken }, consoleOrigin);
+      return;
+    }
     const anchor = target.closest('a[data-html-share-page]');
     if (!anchor || window.parent === window) return;
     const slug = anchor.dataset.htmlSharePage;
@@ -252,6 +261,7 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
       repository,
       stream,
       streamLabel: page.streamLabel || stream,
+      share_policy: page.sharePolicy || 'owner_only',
       objectKey: `pages/${slug}/index.html`,
     };
   });

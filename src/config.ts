@@ -10,6 +10,7 @@ export interface PageConfig {
   repository?: string;
   stream?: string;
   streamLabel?: string;
+  sharePolicy?: 'owner_only' | 'shareable';
 }
 
 export interface HtmlShareConfig {
@@ -126,6 +127,11 @@ export function loadConfig(file?: string): HtmlShareConfig {
           repository: typeof page.repository === 'string' ? page.repository.trim() : undefined,
           stream: typeof page.stream === 'string' ? page.stream.trim() : undefined,
           streamLabel: typeof page.streamLabel === 'string' ? page.streamLabel.trim() : undefined,
+          sharePolicy: page.share_policy === undefined
+            ? undefined
+            : page.share_policy === 'owner_only' || page.share_policy === 'shareable'
+              ? page.share_policy
+              : (() => { throw new Error(`content.pages[${index}].share_policy must be owner_only or shareable`); })(),
         };
       }),
       ownerLinkDays: positiveInteger(content.ownerLinkDays, 30, 'content.ownerLinkDays'),

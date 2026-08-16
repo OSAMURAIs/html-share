@@ -79,6 +79,8 @@ test('marks configured page links and injects postMessage navigation', () => {
   assert.doesNotMatch(pulse, /target="_top"/);
   assert.match(pulse, /data-html-share-nav="postmessage-v1"/);
   assert.match(pulse, /window\.parent\.postMessage\(\{ type: 'html-share:navigate', slug, token: navigationToken \}, consoleOrigin\)/);
+  assert.match(pulse, /window\.parent\.postMessage\(\{ type: 'html-share:external', url, token: navigationToken \}, consoleOrigin\)/);
+  assert.match(pulse, /data-html-share-external/);
   assert.match(pulse, /const consoleOrigin = "https:\/\/share\.example\.com"/);
   assert.match(pulse, new RegExp(`const navigationToken = "${manifest.pages[0].navigationToken}"`));
   assert.match(manifest.pages[0].navigationToken, /^[A-Za-z0-9_-]{24}$/);

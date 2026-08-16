@@ -23,5 +23,28 @@
     return manifestPages.some((page) => page.slug === data.slug) ? data.slug : null;
   };
 
-  window.HtmlShareNavigation = Object.freeze({ navigationSlug });
+  const externalUrl = (event, frame, currentPage) => {
+    if (!event || event.source !== frame.contentWindow || !currentPage) return null;
+
+    let contentOrigin;
+    try {
+      contentOrigin = new URL(currentPage.href, location.href).origin;
+    } catch {
+      return null;
+    }
+    if (event.origin !== contentOrigin && event.origin !== 'null') return null;
+
+    const data = event.data;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    if (Object.keys(data).sort().join(',') !== 'token,type,url') return null;
+    if (data.type !== 'html-share:external' || typeof data.token !== 'string' || data.token !== currentPage.navigationToken || typeof data.url !== 'string') return null;
+    try {
+      const url = new URL(data.url);
+      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+    } catch {
+      return null;
+    }
+  };
+
+  window.HtmlShareNavigation = Object.freeze({ navigationSlug, externalUrl });
 })();

@@ -28,6 +28,7 @@ content:
       repository: examples
       stream: release-notes
       streamLabel: リリースノート
+      share_policy: owner_only
   ownerLinkDays: 7
   maximumShareDays: 30
   maximumAssetBytes: 1024
@@ -43,6 +44,7 @@ test('loads a valid config and resolves its base directory', () => {
   assert.equal(loaded.content.pages[0].repository, 'examples');
   assert.equal(loaded.content.pages[0].stream, 'release-notes');
   assert.equal(loaded.content.pages[0].streamLabel, 'リリースノート');
+  assert.equal(loaded.content.pages[0].sharePolicy, 'owner_only');
   assert.deepEqual(loaded.content.allowedInternalCidrs, ['203.0.113.0/24']);
 });
 
