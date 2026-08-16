@@ -173,6 +173,11 @@ export class HtmlShareStack extends Stack {
       cognitoDomain: { domainPrefix: props.cognitoDomainPrefix },
       managedLoginVersion: cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
     });
+    new cognito.CfnManagedLoginBranding(this, 'OwnerManagedLoginBranding', {
+      userPoolId: userPool.userPoolId,
+      clientId: userPoolClient.userPoolClientId,
+      useCognitoProvidedValues: true,
+    });
 
     const privateKeyParameter = ssm.StringParameter.fromSecureStringParameterAttributes(
       this,
