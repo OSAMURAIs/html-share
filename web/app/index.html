@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja">
+<html lang="ja" data-html-share-nav="postmessage-v1">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -18,6 +18,7 @@
 <meta name="theme-color" content="#0a4695">
 <!-- 一覧の見た目と描画の正本。スマホの個別ページ側も同じものを読む -->
 <script src="/page-list.js"></script>
+<script src="/app/navigation.js"></script>
 <script>MyBriefsList.injectIntoHead();</script>
 <style>
 :root {
@@ -618,7 +619,6 @@ body.page-controls-hidden #page-actions {
   const dateGroup = L.dateGroup;
   const shortTime = L.shortTime;
 
-  const isNarrow = () => matchMedia('(max-width: 46rem)').matches;
   const isStarred = (page) => starred.has(page.source);
   // 一度も開いていない、または開いたあとに元HTMLが更新されたページ
   const isUnread = (page) => L.isUnread(page, readMarks);
@@ -830,17 +830,6 @@ body.page-controls-hidden #page-actions {
 
   /** ページを開く */
   function openPage(page) {
-    // iPhoneで iframe 内をスクロールすると、端末のセーフエリアが本文へ伝わらず、
-    // ステータスバーの「画面上端タップで先頭へ」も効かない。
-    // スマホでは全ページをトップレベルで開き、各ページ固有の背景と
-    // Safari 本来の単一スクロール領域をそのまま使う。
-    if (isNarrow()) {
-      // 遷移してしまうので、サーバーへの保存を待たずに手元へ書く。
-      // 取りこぼしても次回の読み込み時にマージして書き戻される
-      markRead(page);
-      location.href = new URL(page.href, location.href).toString();
-      return;
-    }
     location.hash = `#/${page.slug}`;
   }
 
@@ -1127,13 +1116,19 @@ body.page-controls-hidden #page-actions {
   function watchFrameScroll() {
     const frameWindow = frame.contentWindow;
     if (!frameWindow) return;
-    let lastY = frameWindow.scrollY;
-    frameWindow.addEventListener('scroll', () => {
-      const nextY = frameWindow.scrollY;
-      if (nextY <= 24 || nextY < lastY - 6) setPageControlsHidden(false);
-      else if (nextY > lastY + 6) setPageControlsHidden(true);
-      lastY = nextY;
-    }, { passive: true });
+    try {
+      let lastY = frameWindow.scrollY;
+      frameWindow.addEventListener('scroll', () => {
+        const nextY = frameWindow.scrollY;
+        if (nextY <= 24 || nextY < lastY - 6) setPageControlsHidden(false);
+        else if (nextY > lastY + 6) setPageControlsHidden(true);
+        lastY = nextY;
+      }, { passive: true });
+    } catch {
+      // Signed content is cross-origin and CSP-sandboxed. Keep controls visible
+      // when the browser correctly blocks reading the iframe scroll position.
+      setPageControlsHidden(false);
+    }
   }
 
   function refreshApp() {
@@ -1268,6 +1263,10 @@ body.page-controls-hidden #page-actions {
     renderHome();
   });
   frame.addEventListener('load', watchFrameScroll);
+  addEventListener('message', (event) => {
+    const slug = window.HtmlShareNavigation.navigationSlug(event, frame, current, allPages);
+    if (slug) location.hash = `#/${slug}`;
+  });
   document.addEventListener('pointerdown', (event) => {
     if ($('page-actions').contains(event.target)) return;
     closePagePopovers();
