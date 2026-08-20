@@ -208,8 +208,8 @@ async function verifyBaseline(client: S3Client, bucket: BucketJournal): Promise<
   }
 }
 
-export async function recoverPublish(config: HtmlShareConfig, transactionId?: string): Promise<{ recovered: string }> {
-  const client = new S3Client({ region: config.aws.region });
+export async function recoverPublish(config: HtmlShareConfig, transactionId?: string, providedClient?: S3Client): Promise<{ recovered: string }> {
+  const client = providedClient ?? new S3Client({ region: config.aws.region });
   const id = transactionId ?? (() => {
     const candidates = readdirSync(journalDir(config), { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith('.json'));
     const active = candidates.map((entry) => loadJournal(config, entry.name.slice(0, -5))).filter((journal) => !['committed', 'rolled_back'].includes(journal.state));
