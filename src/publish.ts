@@ -6,7 +6,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
-import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { BuildManifest, BuiltPage } from './bundle.js';
@@ -15,7 +15,10 @@ import type { HtmlShareConfig, StackOutputs } from './config.js';
 import { loadOutputs, resolveFromConfig } from './config.js';
 import { signUrl } from './sign.js';
 
-const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const PACKAGE_ROOT = (() => {
+  const fromSource = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  return existsSync(path.join(fromSource, 'web')) ? fromSource : path.resolve(fromSource, '..');
+})();
 const JOURNAL_VERSION = 1;
 const TRANSACTION_METADATA = 'html-share-transaction';
 const TYPES: Record<string, string> = {
@@ -230,15 +233,53 @@ export async function recoverPublish(config: HtmlShareConfig, transactionId?: st
   }
 }
 
+export interface PublicManifestPage {
+  slug: string;
+  navigationToken: string;
+  title: string;
+  updatedAt: string;
+  date: string;
+  repository: string;
+  stream: string;
+  streamLabel: string;
+  share_policy: 'owner_only' | 'shareable';
+  objectKey: string;
+  href: string | null;
+}
+
+export function toConsoleManifestPage(page: BuiltPage, href: string | null): PublicManifestPage {
+  return {
+    slug: page.slug,
+    navigationToken: page.navigationToken,
+    title: page.title,
+    updatedAt: page.updatedAt,
+    date: page.date,
+    repository: page.repository,
+    stream: page.stream,
+    streamLabel: page.streamLabel,
+    share_policy: page.share_policy,
+    objectKey: page.objectKey,
+    href,
+  };
+}
+
 function ownerManifest(manifest: BuildManifest, outputs: StackOutputs, config: HtmlShareConfig): object {
   const privateKeyPath = resolveFromConfig(config, config.aws.privateKeyPath);
-  return { generatedAt: manifest.generatedAt, pages: manifest.pages.map((page: BuiltPage) => ({ ...page, href: signUrl({ url: `${outputs.ContentUrl}/${page.objectKey}`, keyPairId: outputs.CloudFrontPublicKeyId, privateKeyPath, days: config.content.ownerLinkDays }) })) };
+  return {
+    generatedAt: manifest.generatedAt,
+    pages: manifest.pages.map((page: BuiltPage) => toConsoleManifestPage(page, signUrl({
+      url: `${outputs.ContentUrl}/${page.objectKey}`,
+      keyPairId: outputs.CloudFrontPublicKeyId,
+      privateKeyPath,
+      days: config.content.ownerLinkDays,
+    }))),
+  };
 }
 
 export function buildOnly(config: HtmlShareConfig): { buildRoot: string; manifest: BuildManifest } {
   const buildRoot = path.resolve(config.baseDir, '.html-share', 'build');
   const manifest = buildSite(config, buildRoot);
-  copyConsole(buildRoot, { generatedAt: manifest.generatedAt, pages: manifest.pages.map((page) => ({ ...page, href: null })) });
+  copyConsole(buildRoot, { generatedAt: manifest.generatedAt, pages: manifest.pages.map((page) => toConsoleManifestPage(page, null)) });
   return { buildRoot, manifest };
 }
 
