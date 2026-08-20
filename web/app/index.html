@@ -619,7 +619,8 @@ body.page-controls-hidden #page-actions {
   const dateGroup = L.dateGroup;
   const shortTime = L.shortTime;
 
-  const isStarred = (page) => starred.has(page.source);
+  const pageIdentity = (page) => page.objectKey ?? page.source ?? page.slug;
+  const isStarred = (page) => starred.has(pageIdentity(page));
   // 一度も開いていない、または開いたあとに元HTMLが更新されたページ
   const isUnread = (page) => L.isUnread(page, readMarks);
   const isNew = (page) => L.isNew(page, readMarks);
@@ -725,11 +726,11 @@ body.page-controls-hidden #page-actions {
 
   async function loadPreferences() {
     const hadLocalReadMarks = knowsReadMarks;
-    const validSources = new Set(allPages.map((page) => page.source));
+    const validSources = new Set(allPages.map(pageIdentity));
     starred = new Set([...starred].filter((source) => validSources.has(source)));
     hiddenSources = new Set([...hiddenSources].filter((source) => validSources.has(source)));
     pruneReadMarks(validSources);
-    pages = allPages.filter((page) => !hiddenSources.has(page.source));
+    pages = allPages.filter((page) => !hiddenSources.has(pageIdentity(page)));
     updateTrashToggle();
     if (!CAN_SYNC) {
       if (!hadLocalReadMarks) seedReadMarks();
@@ -759,7 +760,7 @@ body.page-controls-hidden #page-actions {
     } catch (error) {
       console.warn(error);
     }
-    pages = allPages.filter((page) => !hiddenSources.has(page.source));
+    pages = allPages.filter((page) => !hiddenSources.has(pageIdentity(page)));
     updateTrashToggle();
   }
 
@@ -779,9 +780,9 @@ body.page-controls-hidden #page-actions {
     if (!confirm(`「${page.title}」を共有くんの一覧から削除します。\n\n原本と発行済みURLは残り、一覧の末尾の「削除済み」から戻せます。`)) return;
     const previousHidden = new Set(hiddenSources);
     const previousStarred = new Set(starred);
-    hiddenSources.add(page.source);
-    starred.delete(page.source);
-    pages = allPages.filter((candidate) => !hiddenSources.has(candidate.source));
+    hiddenSources.add(pageIdentity(page));
+    starred.delete(pageIdentity(page));
+    pages = allPages.filter((candidate) => !hiddenSources.has(pageIdentity(candidate)));
     updateTrashToggle();
     try {
       await savePreferencesNow();
@@ -789,7 +790,7 @@ body.page-controls-hidden #page-actions {
     } catch (error) {
       hiddenSources = previousHidden;
       starred = previousStarred;
-      pages = allPages.filter((candidate) => !hiddenSources.has(candidate.source));
+      pages = allPages.filter((candidate) => !hiddenSources.has(pageIdentity(candidate)));
       saveLocalPreferences();
       updateTrashToggle();
       renderHome();
@@ -800,15 +801,15 @@ body.page-controls-hidden #page-actions {
   async function restorePage(page) {
     const previousHidden = new Set(hiddenSources);
     const previousShowingTrash = showingTrash;
-    hiddenSources.delete(page.source);
-    pages = allPages.filter((candidate) => !hiddenSources.has(candidate.source));
+      hiddenSources.delete(pageIdentity(page));
+    pages = allPages.filter((candidate) => !hiddenSources.has(pageIdentity(candidate)));
     if (hiddenSources.size === 0) showingTrash = false;
     try {
       await savePreferencesNow();
     } catch (error) {
       hiddenSources = previousHidden;
       showingTrash = previousShowingTrash;
-      pages = allPages.filter((candidate) => !hiddenSources.has(candidate.source));
+      pages = allPages.filter((candidate) => !hiddenSources.has(pageIdentity(candidate)));
       saveLocalPreferences();
       alert(error.message);
     }
@@ -818,8 +819,8 @@ body.page-controls-hidden #page-actions {
   }
 
   function toggleStar(page) {
-    if (isStarred(page)) starred.delete(page.source);
-    else starred.add(page.source);
+    if (isStarred(page)) starred.delete(pageIdentity(page));
+    else starred.add(pageIdentity(page));
     queuePreferenceSave();
     renderHome();
     syncPageMenu();
@@ -857,7 +858,7 @@ body.page-controls-hidden #page-actions {
     // 削除済みの行は開けないので、ただの div にする
     const button = document.createElement(trash ? 'div' : 'a');
     button.className = `row${indented ? ' in' : ''}${trash ? ' off' : ''}`;
-    button.title = page.source;   // ヘッダーを廃したので出典はツールチップで見せる
+    button.title = pageIdentity(page);   // ヘッダーを廃したので安定キーをツールチップで見せる
 
     const dot = document.createElement('span');
     const fresh = !trash && isNew(page);
@@ -991,11 +992,11 @@ body.page-controls-hidden #page-actions {
   /** いま並べる対象。削除済み表示か通常かを決めたうえで、検索語で絞る */
   function visiblePages() {
     const base = showingTrash
-      ? allPages.filter((page) => hiddenSources.has(page.source))
+      ? allPages.filter((page) => hiddenSources.has(pageIdentity(page)))
       : pages;
     const needle = filterText.trim().toLowerCase();
     if (!needle) return base;
-    return base.filter((page) => `${page.title} ${pageRepository(page)} ${page.source}`
+    return base.filter((page) => `${page.title} ${pageRepository(page)} ${pageIdentity(page)}`
       .toLowerCase().includes(needle));
   }
 

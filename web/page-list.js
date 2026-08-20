@@ -178,6 +178,7 @@
   const NEW_WINDOW_DAYS = 30;
 
   const pageRepository = (page) => page.repository ?? page.category ?? 'unknown';
+  const pageIdentity = (page) => page.objectKey ?? page.source ?? page.slug;
 
   const repositoryTone = (repository = '') => {
     const hash = [...repository].reduce((value, char) => value * 31 + char.charCodeAt(0), 0);
@@ -205,7 +206,7 @@
 
   // 一度も開いていない、手で未読へ戻した、または開いたあとに元HTMLが更新されたページ
   const isUnread = (page, readMarks = {}) => {
-    const entry = readEntry(readMarks[page.source]);
+    const entry = readEntry(readMarks[pageIdentity(page)]);
     if (!entry || !entry.v) return true;
     return Date.parse(page.date) > Date.parse(entry.v);
   };
@@ -219,14 +220,14 @@
   /** そのページを「今の版で読んだ」ことにする。次に元HTMLが更新されれば再び新着に戻る */
   function markRead(page, readMarks) {
     if (!page || !isUnread(page, readMarks)) return false;
-    readMarks[page.source] = { v: page.date, at: new Date().toISOString() };
+    readMarks[pageIdentity(page)] = { v: page.date, at: new Date().toISOString() };
     return true;
   }
 
   /** そのページを手で未読へ戻す。開き直すか元HTMLを更新するまで新着のまま残る */
   function markUnread(page, readMarks) {
     if (!page || isUnread(page, readMarks)) return false;
-    readMarks[page.source] = { v: null, at: new Date().toISOString() };
+    readMarks[pageIdentity(page)] = { v: null, at: new Date().toISOString() };
     return true;
   }
 
@@ -258,7 +259,7 @@
   /** 導入直後に全ページが新着になるのを避け、いま並んでいるぶんは読んだことにする */
   function seedReadMarks(pages, readMarks) {
     for (const page of pages) {
-      readMarks[page.source] ??= { v: page.date, at: page.date };
+      readMarks[pageIdentity(page)] ??= { v: page.date, at: page.date };
     }
   }
 
@@ -268,7 +269,7 @@
    */
   function starButton(page, { starred, onToggle }) {
     const button = document.createElement('button');
-    const on = starred.has(page.source);
+    const on = starred.has(pageIdentity(page));
     button.className = `star${on ? ' on' : ''}`;
     button.type = 'button';
     button.textContent = on ? '★' : '☆';
@@ -353,7 +354,7 @@
 
     const needle = filter.trim().toLowerCase();
     const hits = needle
-      ? pages.filter((page) => `${page.title} ${pageRepository(page)} ${page.source}`
+      ? pages.filter((page) => `${page.title} ${pageRepository(page)} ${pageIdentity(page)}`
         .toLowerCase().includes(needle))
       : pages;
 
@@ -366,7 +367,7 @@
       return;
     }
 
-    const isStarred = (page) => starred.has(page.source);
+    const isStarred = (page) => starred.has(pageIdentity(page));
     const ordered = showingTrash
       ? hits
       : [...hits.filter(isStarred), ...hits.filter((page) => !isStarred(page))];
@@ -390,7 +391,7 @@
       // 削除済み表示は開けないので button のまま。ふつうの一覧は a にして⌘クリックを効かせる
       const item = document.createElement(showingTrash ? 'button' : 'a');
       item.className = 'item';
-      item.title = page.source;   // ヘッダーを廃したので出典はツールチップで見せる
+      item.title = pageIdentity(page);   // ヘッダーを廃したので安定キーをツールチップで見せる
       item.setAttribute('aria-current', String(!showingTrash && page.slug === currentSlug));
       const title = document.createElement('div');
       title.className = 't';
@@ -437,6 +438,7 @@
     fmtDateTime,
     shortTime,
     pageRepository,
+    pageIdentity,
     repositoryTone,
     isUnread,
     isNew,
