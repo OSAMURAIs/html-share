@@ -27,18 +27,37 @@ const TYPES: Record<string, string> = {
   '.png': 'image/png', '.ico': 'image/x-icon',
 };
 
-type VersionRef = { key: string; versionId: string };
+export type VersionRef = { key: string; versionId: string };
 type DeleteIdentifier = { Key: string; VersionId?: string };
 type DeletedIdentifier = { Key?: string; VersionId?: string; DeleteMarkerVersionId?: string };
 type BaselineObject = { key: string; versionId: string | null; deleteMarker: boolean };
-type BucketJournal = {
+export type BucketJournal = {
   bucket: string; kind: 'content' | 'console'; desiredKeys: string[]; managedKeys: string[];
   baseline: BaselineObject[]; uploaded: VersionRef[]; cleanup: VersionRef[];
 };
-type Journal = {
+export type PublicationJournal = {
   version: number; transactionId: string; startedAt: string;
   state: 'prepared' | 'uploading' | 'cleaning' | 'verifying' | 'committed' | 'rolled_back';
   buckets: BucketJournal[];
+};
+
+type Journal = PublicationJournal;
+
+export type ProductionCheck = {
+  bucket: string;
+  kind: 'content' | 'console';
+  check: 'versioning' | 'desired-object' | 'stale-object';
+  key?: string;
+  expectedVersionId?: string;
+  actualVersionId?: string | null;
+  ok: boolean;
+  message: string;
+};
+
+export type ProductionVerificationResult = {
+  ok: boolean;
+  transactionId?: string;
+  checks: ProductionCheck[];
 };
 
 function files(root: string, current = root): string[] {
@@ -126,6 +145,51 @@ async function requireVersioning(client: S3Client, bucket: string): Promise<void
   if (status.Status !== 'Enabled') throw new Error(`Rollback safety requires S3 Versioning Enabled for ${bucket}`);
 }
 
+function journalError(message: string): Error {
+  return new Error(`Production verification rejected publication journal: ${message}`);
+}
+
+function validateJournal(journal: unknown): asserts journal is Journal {
+  if (!journal || typeof journal !== 'object') throw journalError('journal is not an object');
+  const candidate = journal as Partial<Journal>;
+  if (candidate.version !== JOURNAL_VERSION || typeof candidate.transactionId !== 'string' || !candidate.transactionId
+    || typeof candidate.startedAt !== 'string' || !Array.isArray(candidate.buckets)
+    || !['prepared', 'uploading', 'cleaning', 'verifying', 'committed', 'rolled_back'].includes(candidate.state ?? '')) {
+    throw journalError('journal structure is invalid');
+  }
+  if (candidate.buckets.length !== 2 || new Set(candidate.buckets.map((bucket) => bucket.kind)).size !== 2
+    || !candidate.buckets.every((bucket) => bucket && (bucket.kind === 'content' || bucket.kind === 'console')
+      && typeof bucket.bucket === 'string' && Array.isArray(bucket.desiredKeys) && Array.isArray(bucket.managedKeys)
+      && Array.isArray(bucket.uploaded) && Array.isArray(bucket.cleanup))) {
+    throw journalError('journal must contain valid content and console buckets');
+  }
+  for (const bucket of candidate.buckets) {
+    for (const ref of [...bucket.uploaded, ...bucket.cleanup]) {
+      if (!ref || typeof ref.key !== 'string' || typeof ref.versionId !== 'string' || !ref.versionId || ref.versionId === 'null') {
+        throw journalError('journal contains an invalid VersionId reference');
+      }
+    }
+  }
+}
+
+function readCommittedJournal(config: HtmlShareConfig): Journal {
+  if (!existsSync(journalDir(config))) throw journalError('publication journal directory is missing');
+  const entries = readdirSync(journalDir(config), { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith('.json'));
+  if (!entries.length) throw journalError('publication journal is empty');
+  const journals = entries.map((entry) => {
+    let parsed: unknown;
+    try { parsed = JSON.parse(readFileSync(path.join(journalDir(config), entry.name), 'utf8')); }
+    catch { throw journalError(`journal file ${entry.name} is malformed`); }
+    validateJournal(parsed);
+    return parsed;
+  });
+  const unresolved = journals.filter((journal) => !['committed', 'rolled_back'].includes(journal.state));
+  if (unresolved.length) throw journalError('an incomplete publication transaction is unresolved');
+  const committed = journals.filter((journal) => journal.state === 'committed');
+  if (!committed.length) throw journalError('no committed publication transaction exists');
+  return committed.sort((a, b) => a.startedAt.localeCompare(b.startedAt)).at(-1)!;
+}
+
 function desiredKeys(root: string): string[] {
   return files(root).map((relative) => relative.split(path.sep).join('/')).sort();
 }
@@ -193,10 +257,51 @@ async function verifyCurrent(client: S3Client, bucket: BucketJournal): Promise<v
   for (const key of bucket.desiredKeys) {
     const item = current.get(key);
     if (!item || item.deleteMarker) throw new Error(`Published key is not current: ${bucket.bucket}/${key}`);
+    const uploaded = bucket.uploaded.find((ref) => ref.key === key);
+    if (uploaded && item.versionId !== uploaded.versionId) {
+      throw new Error(`Published key version mismatch: ${bucket.bucket}/${key}`);
+    }
   }
   for (const key of bucket.managedKeys) if (!bucket.desiredKeys.includes(key) && current.has(key) && !current.get(key)!.deleteMarker) {
     throw new Error(`Stale managed key remains current: ${bucket.bucket}/${key}`);
   }
+}
+
+export async function verifyProduction(
+  config: HtmlShareConfig,
+  providedClient?: S3Client,
+): Promise<ProductionVerificationResult> {
+  const journal = readCommittedJournal(config);
+  const client = providedClient ?? new S3Client({ region: config.aws.region });
+  const checks: ProductionCheck[] = [];
+  for (const bucket of journal.buckets) {
+    try {
+      await requireVersioning(client, bucket.bucket);
+      checks.push({ bucket: bucket.bucket, kind: bucket.kind, check: 'versioning', ok: true, message: 'S3 Versioning is enabled' });
+    } catch (error) {
+      checks.push({ bucket: bucket.bucket, kind: bucket.kind, check: 'versioning', ok: false, message: error instanceof Error ? error.message : String(error) });
+      continue;
+    }
+    const current = new Map(currentObjects(await listVersions(client, bucket.bucket)).map((item) => [item.key, item]));
+    for (const key of bucket.desiredKeys) {
+      const item = current.get(key);
+      const expected = bucket.uploaded.find((ref) => ref.key === key)?.versionId;
+      const ok = Boolean(item && !item.deleteMarker && (!expected || item.versionId === expected));
+      checks.push({
+        bucket: bucket.bucket, kind: bucket.kind, check: 'desired-object', key, expectedVersionId: expected,
+        actualVersionId: item?.versionId ?? null, ok,
+        message: !item ? 'desired managed object is missing' : item.deleteMarker ? 'desired managed object is a delete marker'
+          : expected && item.versionId !== expected ? 'current VersionId does not match the committed VersionId' : 'desired object matches',
+      });
+    }
+    for (const key of staleManagedPublishKeys(bucket.kind, bucket.managedKeys, bucket.desiredKeys)) {
+      const item = current.get(key);
+      const ok = !item || item.deleteMarker;
+      checks.push({ bucket: bucket.bucket, kind: bucket.kind, check: 'stale-object', key, actualVersionId: item?.versionId ?? null, ok,
+        message: ok ? 'stale managed object is not current' : 'stale managed object remains current' });
+    }
+  }
+  return { ok: checks.every((check) => check.ok), transactionId: journal.transactionId, checks };
 }
 
 async function deleteRefs(client: S3Client, refs: VersionRef[], bucket: string): Promise<void> {
