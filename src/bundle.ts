@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -48,6 +48,7 @@ const MIME: Record<string, string> = {
 
 export interface BuiltPage {
   slug: string;
+  navigationToken: string;
   title: string;
   source: string;
   updatedAt: string;
@@ -55,6 +56,7 @@ export interface BuiltPage {
   repository: string;
   stream: string;
   streamLabel: string;
+  share_policy: 'owner_only' | 'shareable';
   objectKey: string;
 }
 
@@ -109,6 +111,7 @@ export function bundleHtml(sourceFile: string, roots: string[], maxAssetBytes: n
     const value = raw.trim();
     if (!value || /^(?:https?:|data:|blob:|mailto:|tel:|javascript:|#|\/\/)/i.test(value)) return full;
     const pathname = decodeURIComponent(value.split(/[?#]/, 1)[0]);
+    if (path.extname(pathname).toLowerCase() === '.html') return full;
     const candidate = path.resolve(sourceDirectory, pathname);
     if (!existsSync(candidate)) throw new Error(`Local asset not found: ${value} in ${sourceFile}`);
     const resolved = realpathSync(candidate);
@@ -127,6 +130,68 @@ function injectMobileTables(html: string): string {
   return `${html}\n${tag}\n`;
 }
 
+interface PageLink {
+  href: string;
+  slug: string;
+}
+
+function rewritePageLinks(html: string, sourceFile: string, pageLinks: Map<string, PageLink>): string {
+  const sourceDirectory = path.dirname(sourceFile);
+  return html.replace(/<a\b[^>]*>/gi, (anchor) => {
+    const match = anchor.match(/\bhref\s*=\s*(["'])([^"']+)\1/i);
+    if (!match) return anchor;
+    const [hrefAttribute, quote, raw] = match;
+    const value = raw.trim();
+    if (!value || /^(?:https?:|data:|blob:|mailto:|tel:|javascript:|#|\/\/|\/)/i.test(value)) return anchor;
+    let pathname: string;
+    try {
+      pathname = decodeURIComponent(value.split(/[?#]/, 1)[0]);
+    } catch {
+      return anchor;
+    }
+    if (path.extname(pathname).toLowerCase() !== '.html') return anchor;
+    const candidate = path.resolve(sourceDirectory, pathname);
+    if (!existsSync(candidate)) return anchor;
+    const target = pageLinks.get(realpathSync(candidate));
+    if (!target) return anchor;
+    return anchor
+      .replace(hrefAttribute, `href=${quote}${target.href}${quote}`)
+      .replace(/\s+target\s*=\s*(?:["']_top["']|_top)(?=\s|>)/gi, '')
+      .replace(/\s+data-html-share-page\s*=\s*(?:["'][^"']*["']|[^\s>]+)/gi, '')
+      .replace(/>$/, ` data-html-share-page="${target.slug}">`);
+  });
+}
+
+function injectPageNavigation(html: string, consoleOrigin: string, navigationToken: string): string {
+  const script = `<script data-html-share-nav="postmessage-v1">
+(() => {
+  const consoleOrigin = ${JSON.stringify(consoleOrigin)};
+  const navigationToken = ${JSON.stringify(navigationToken)};
+  document.addEventListener('click', (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const external = target.closest('a[data-html-share-external]');
+    if (external && window.parent !== window) {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const url = external.href;
+      event.preventDefault();
+      window.parent.postMessage({ type: 'html-share:external', url, token: navigationToken }, consoleOrigin);
+      return;
+    }
+    const anchor = target.closest('a[data-html-share-page]');
+    if (!anchor || window.parent === window) return;
+    const slug = anchor.dataset.htmlSharePage;
+    if (!slug) return;
+    event.preventDefault();
+    window.parent.postMessage({ type: 'html-share:navigate', slug, token: navigationToken }, consoleOrigin);
+  });
+})();
+</script>`;
+  if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${script}\n</body>`);
+  return `${html}\n${script}\n`;
+}
+
 function pagePath(config: HtmlShareConfig, page: PageConfig): string {
   const absolute = resolveFromConfig(config, page.path);
   if (!existsSync(absolute)) throw new Error(`Page not found: ${absolute}`);
@@ -141,17 +206,45 @@ function defaultGroup(page: PageConfig): string {
 export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildManifest {
   const roots = validatedRoots(config);
   const contentRoot = path.join(buildRoot, 'content');
+  const tokenFile = path.join(config.baseDir, '.html-share', 'navigation-tokens.json');
+  let savedTokens: Record<string, string> = {};
+  if (existsSync(tokenFile)) {
+    try {
+      const saved = JSON.parse(readFileSync(tokenFile, 'utf8')) as unknown;
+      if (saved && typeof saved === 'object' && !Array.isArray(saved)) savedTokens = saved as Record<string, string>;
+    } catch { /* An invalid local cache is safely replaced below. */ }
+  }
+  const nextTokens: Record<string, string> = {};
   rmSync(buildRoot, { recursive: true, force: true });
   mkdirSync(contentRoot, { recursive: true });
   const used = new Set<string>();
-  const pages = config.content.pages.map((page) => {
-    const source = pagePath(config, page);
-    const sourceReal = realpathSync(source);
-    const html = bundleHtml(sourceReal, roots, config.content.maximumAssetBytes);
-    const fallback = path.basename(source, path.extname(source));
+  const planned = config.content.pages.map((page) => {
+    const sourceReal = realpathSync(pagePath(config, page));
+    const fallback = path.basename(sourceReal, path.extname(sourceReal));
     let slug = slugify(page.slug || fallback);
     if (used.has(slug)) slug = `${slug}-${createHash('sha256').update(sourceReal).digest('hex').slice(0, 6)}`;
     used.add(slug);
+    const tokenKey = createHash('sha256').update(`${sourceReal}\0${slug}`).digest('hex');
+    const savedToken = savedTokens[tokenKey];
+    const navigationToken = typeof savedToken === 'string' && /^[A-Za-z0-9_-]{24}$/.test(savedToken)
+      ? savedToken
+      : randomBytes(18).toString('base64url');
+    nextTokens[tokenKey] = navigationToken;
+    return { page, sourceReal, fallback, slug, navigationToken };
+  });
+  mkdirSync(path.dirname(tokenFile), { recursive: true });
+  writeFileSync(tokenFile, `${JSON.stringify(nextTokens, null, 2)}\n`, { mode: 0o600 });
+  const consoleOrigin = `https://${config.aws.consoleDomain}`;
+  const pageLinks = new Map(planned.map(({ sourceReal, slug }) => [sourceReal, {
+    href: `${consoleOrigin}/app/index.html#/${slug}`,
+    slug,
+  }]));
+  const pages = planned.map(({ page, sourceReal, fallback, slug, navigationToken }) => {
+    const html = injectPageNavigation(
+      rewritePageLinks(bundleHtml(sourceReal, roots, config.content.maximumAssetBytes), sourceReal, pageLinks),
+      consoleOrigin,
+      navigationToken,
+    );
     const directory = path.join(contentRoot, 'pages', slug);
     mkdirSync(directory, { recursive: true });
     writeFileSync(path.join(directory, 'index.html'), html);
@@ -160,6 +253,7 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
     const stream = page.stream || repository;
     return {
       slug,
+      navigationToken,
       title: page.title || extractTitle(html, fallback),
       source: page.path,
       updatedAt,
@@ -167,6 +261,7 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
       repository,
       stream,
       streamLabel: page.streamLabel || stream,
+      share_policy: page.sharePolicy || 'owner_only',
       objectKey: `pages/${slug}/index.html`,
     };
   });

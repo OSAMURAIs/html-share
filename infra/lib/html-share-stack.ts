@@ -83,12 +83,14 @@ export class HtmlShareStack extends Stack {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
+      versioned: true,
       removalPolicy: RemovalPolicy.RETAIN,
     });
     const contentBucket = new s3.Bucket(this, 'ContentBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
+      versioned: true,
       removalPolicy: RemovalPolicy.RETAIN,
     });
 
@@ -172,6 +174,11 @@ export class HtmlShareStack extends Stack {
     userPool.addDomain('OwnerDomain', {
       cognitoDomain: { domainPrefix: props.cognitoDomainPrefix },
       managedLoginVersion: cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
+    });
+    new cognito.CfnManagedLoginBranding(this, 'OwnerManagedLoginBranding', {
+      userPoolId: userPool.userPoolId,
+      clientId: userPoolClient.userPoolClientId,
+      useCognitoProvidedValues: true,
     });
 
     const privateKeyParameter = ssm.StringParameter.fromSecureStringParameterAttributes(
