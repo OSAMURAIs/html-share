@@ -135,26 +135,40 @@ interface PageLink {
   slug: string;
 }
 
-function rewritePageLinks(html: string, sourceFile: string, pageLinks: Map<string, PageLink>): string {
+function isParentMediatedExternalHref(value: string, contentHref: string): boolean {
+  try {
+    const url = new URL(value, contentHref);
+    const contentOrigin = new URL(contentHref).origin;
+    return (url.protocol === 'http:' || url.protocol === 'https:') && url.origin !== contentOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function rewritePageLinks(html: string, sourceFile: string, contentHref: string, pageLinks: Map<string, PageLink>): string {
   const sourceDirectory = path.dirname(sourceFile);
   return html.replace(/<a\b[^>]*>/gi, (anchor) => {
-    const match = anchor.match(/\bhref\s*=\s*(["'])([^"']+)\1/i);
-    if (!match) return anchor;
+    const generatedAnchor = anchor.replace(/\s+data-html-share-external(?:\s*=\s*(?:["'][^"']*["']|[^\s>]+))?/gi, '');
+    const match = generatedAnchor.match(/\bhref\s*=\s*(["'])([^"']+)\1/i);
+    if (!match) return generatedAnchor;
     const [hrefAttribute, quote, raw] = match;
     const value = raw.trim();
-    if (!value || /^(?:https?:|data:|blob:|mailto:|tel:|javascript:|#|\/\/|\/)/i.test(value)) return anchor;
+    if (isParentMediatedExternalHref(value, contentHref)) {
+      return generatedAnchor.replace(/>$/, ' data-html-share-external>');
+    }
+    if (!value || /^(?:https?:|data:|blob:|mailto:|tel:|javascript:|#|\/)/i.test(value)) return generatedAnchor;
     let pathname: string;
     try {
       pathname = decodeURIComponent(value.split(/[?#]/, 1)[0]);
     } catch {
-      return anchor;
+      return generatedAnchor;
     }
-    if (path.extname(pathname).toLowerCase() !== '.html') return anchor;
+    if (path.extname(pathname).toLowerCase() !== '.html') return generatedAnchor;
     const candidate = path.resolve(sourceDirectory, pathname);
-    if (!existsSync(candidate)) return anchor;
+    if (!existsSync(candidate)) return generatedAnchor;
     const target = pageLinks.get(realpathSync(candidate));
-    if (!target) return anchor;
-    return anchor
+    if (!target) return generatedAnchor;
+    return generatedAnchor
       .replace(hrefAttribute, `href=${quote}${target.href}${quote}`)
       .replace(/\s+target\s*=\s*(?:["']_top["']|_top)(?=\s|>)/gi, '')
       .replace(/\s+data-html-share-page\s*=\s*(?:["'][^"']*["']|[^\s>]+)/gi, '')
@@ -235,13 +249,14 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
   mkdirSync(path.dirname(tokenFile), { recursive: true });
   writeFileSync(tokenFile, `${JSON.stringify(nextTokens, null, 2)}\n`, { mode: 0o600 });
   const consoleOrigin = `https://${config.aws.consoleDomain}`;
+  const contentOrigin = `https://${config.aws.contentDomain}`;
   const pageLinks = new Map(planned.map(({ sourceReal, slug }) => [sourceReal, {
     href: `${consoleOrigin}/app/index.html#/${slug}`,
     slug,
   }]));
   const pages = planned.map(({ page, sourceReal, fallback, slug, navigationToken }) => {
     const html = injectPageNavigation(
-      rewritePageLinks(bundleHtml(sourceReal, roots, config.content.maximumAssetBytes), sourceReal, pageLinks),
+      rewritePageLinks(bundleHtml(sourceReal, roots, config.content.maximumAssetBytes), sourceReal, `${contentOrigin}/pages/${slug}/index.html`, pageLinks),
       consoleOrigin,
       navigationToken,
     );

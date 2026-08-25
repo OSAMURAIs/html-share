@@ -28,6 +28,8 @@ const TYPES: Record<string, string> = {
 };
 
 type VersionRef = { key: string; versionId: string };
+type DeleteIdentifier = { Key: string; VersionId?: string };
+type DeletedIdentifier = { Key?: string; VersionId?: string; DeleteMarkerVersionId?: string };
 type BaselineObject = { key: string; versionId: string | null; deleteMarker: boolean };
 type BucketJournal = {
   bucket: string; kind: 'content' | 'console'; desiredKeys: string[]; managedKeys: string[];
@@ -128,6 +130,27 @@ function desiredKeys(root: string): string[] {
   return files(root).map((relative) => relative.split(path.sep).join('/')).sort();
 }
 
+const DELETE_OBJECTS_LIMIT = 1000;
+
+export async function deleteObjectsInBatches(
+  client: S3Client,
+  bucket: string,
+  objects: DeleteIdentifier[],
+  onDeleted?: (deleted: DeletedIdentifier[]) => void | Promise<void>,
+): Promise<void> {
+  for (let offset = 0; offset < objects.length; offset += DELETE_OBJECTS_LIMIT) {
+    const chunk = objects.slice(offset, offset + DELETE_OBJECTS_LIMIT);
+    const result = await client.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: chunk } }));
+    await onDeleted?.(result.Deleted ?? []);
+    const errors = result.Errors ?? [];
+    if (errors.length) {
+      const details = errors.slice(0, 5).map((item) => `${item.Key ?? '(unknown key)'} [${item.Code ?? 'Unknown'}]`).join(', ');
+      const remaining = errors.length > 5 ? `, and ${errors.length - 5} more` : '';
+      throw new Error(`S3 DeleteObjects reported ${errors.length} object error(s) for ${bucket}: ${details}${remaining}`);
+    }
+  }
+}
+
 async function prepareBucket(client: S3Client, bucket: string, kind: BucketJournal['kind'], root: string): Promise<BucketJournal> {
   const baseline = currentObjects(await listVersions(client, bucket));
   const desired = desiredKeys(root);
@@ -156,12 +179,13 @@ async function removeStale(client: S3Client, bucket: BucketJournal, config: Html
   journal.state = 'cleaning'; saveJournal(config, journal);
   const stale = staleManagedPublishKeys(bucket.kind, bucket.managedKeys, bucket.desiredKeys);
   if (!stale.length) return;
-  const result = await client.send(new DeleteObjectsCommand({ Bucket: bucket.bucket, Delete: { Objects: stale.map((Key) => ({ Key })) } }));
-  for (const item of result.Deleted ?? []) {
-    const versionId = item.DeleteMarkerVersionId ?? item.VersionId;
-    if (item.Key && versionId && versionId !== 'null') bucket.cleanup.push({ key: item.Key, versionId });
-  }
-  saveJournal(config, journal);
+  await deleteObjectsInBatches(client, bucket.bucket, stale.map((Key) => ({ Key })), (deleted) => {
+    for (const item of deleted) {
+      const versionId = item.DeleteMarkerVersionId ?? item.VersionId;
+      if (item.Key && versionId && versionId !== 'null') bucket.cleanup.push({ key: item.Key, versionId });
+    }
+    saveJournal(config, journal);
+  });
 }
 
 async function verifyCurrent(client: S3Client, bucket: BucketJournal): Promise<void> {
@@ -176,8 +200,7 @@ async function verifyCurrent(client: S3Client, bucket: BucketJournal): Promise<v
 }
 
 async function deleteRefs(client: S3Client, refs: VersionRef[], bucket: string): Promise<void> {
-  if (!refs.length) return;
-  await client.send(new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: refs.map(({ key, versionId }) => ({ Key: key, VersionId: versionId })) } }));
+  await deleteObjectsInBatches(client, bucket, refs.map(({ key, versionId }) => ({ Key: key, VersionId: versionId })));
 }
 
 async function transactionRefs(client: S3Client, bucket: BucketJournal, journal: Journal): Promise<VersionRef[]> {
