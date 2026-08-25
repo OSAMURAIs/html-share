@@ -33,6 +33,13 @@ test('ships the full dashboard UI and inbox wording', () => {
   assert.match(dashboard, /id="review-dot"/);
   assert.match(dashboard, /function refreshInboxDot/);
   assert.match(dashboard, /\/api\/owner\/reviews/);
+  assert.match(dashboard, /HtmlShareNavigation\.navigationSlug/);
+  assert.match(dashboard, /HtmlShareNavigation\.externalUrl/);
+  assert.match(dashboard, /Signed content is cross-origin and CSP-sandboxed/);
+  assert.match(dashboard, /function openPage\(page\)\s*{\s*location\.hash = `#\/\$\{page\.slug\}`;/);
+  assert.match(dashboard, /frame\.src = current\.href;/);
+  assert.doesNotMatch(dashboard, /const isNarrow/);
+  assert.doesNotMatch(dashboard, /location\.href = new URL\(page\.href/);
 });
 
 test('folds overflowing tables on the viewing origin without network access', () => {

@@ -175,6 +175,7 @@
   const CAN_SYNC = false;
   let allPages = [];
   let currentPage = null;
+  const pageIdentity = (page) => page.objectKey ?? page.source ?? page.slug;
   let starredSources = [];
   let hiddenSources = new Set();
   let preferencesReady = false;
@@ -262,7 +263,7 @@
 
   function syncMenu() {
     const button = $('.star-action');
-    const on = Boolean(currentPage && starredSources.includes(currentPage.source));
+    const on = Boolean(currentPage && starredSources.includes(pageIdentity(currentPage)));
     button.disabled = !currentPage || !preferencesReady;
     button.classList.toggle('starred', on);
     button.querySelector('span').textContent = on ? 'スターを外す' : 'スターを付ける';
@@ -282,10 +283,10 @@
   $('.star-action').addEventListener('click', async () => {
     if (!currentPage) return;
     const previousStarred = [...starredSources];
-    const on = starredSources.includes(currentPage.source);
+    const on = starredSources.includes(pageIdentity(currentPage));
     starredSources = on
-      ? starredSources.filter((sourceValue) => sourceValue !== currentPage.source)
-      : [...starredSources, currentPage.source];
+      ? starredSources.filter((sourceValue) => sourceValue !== pageIdentity(currentPage))
+      : [...starredSources, pageIdentity(currentPage)];
     syncMenu();
     closePopovers();
     try {
@@ -300,14 +301,15 @@
   $('.unread-action').addEventListener('click', async () => {
     if (!currentPage) return;
     closePopovers();
-    const previousMark = readMarks[currentPage.source];
+    const currentKey = pageIdentity(currentPage);
+    const previousMark = readMarks[currentKey];
     if (!L.markUnread(currentPage, readMarks)) return;
     try {
       await persistPreferences();
       location.href = '/app/index.html';
     } catch (error) {
-      if (previousMark === undefined) delete readMarks[currentPage.source];
-      else readMarks[currentPage.source] = previousMark;
+      if (previousMark === undefined) delete readMarks[currentKey];
+      else readMarks[currentKey] = previousMark;
       saveLocalPreferences();
       alert(error.message);
     }
@@ -324,8 +326,8 @@
     if (!confirm(`「${currentPage.title}」を共有くんの一覧から削除します。\n\n原本と発行済みURLは残り、左の「削除済み」から戻せます。`)) return;
     const previousHidden = new Set(hiddenSources);
     const previousStarred = [...starredSources];
-    hiddenSources.add(currentPage.source);
-    starredSources = starredSources.filter((sourceValue) => sourceValue !== currentPage.source);
+    hiddenSources.add(pageIdentity(currentPage));
+    starredSources = starredSources.filter((sourceValue) => sourceValue !== pageIdentity(currentPage));
     try {
       await persistPreferences();
       location.href = '/';
@@ -391,7 +393,7 @@
 
   fetch('/app/manifest.json', { cache: 'no-store' }).then((response) => response.json()).then(async (manifest) => {
     allPages = manifest.pages ?? [];
-    const validSources = new Set(allPages.map((page) => page.source));
+    const validSources = new Set(allPages.map(pageIdentity));
     hiddenSources = new Set([...hiddenSources].filter((sourceValue) => validSources.has(sourceValue)));
     currentPage = allPages.find((page) => page.slug === currentSlug) ?? null;
 
