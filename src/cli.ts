@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
-import { buildOnly, publish, recoverPublish, share } from './publish.js';
+import { buildOnly, formatProductionVerification, publish, recoverPublish, share, verifyProduction } from './publish.js';
 import { initializeKeys, storePrivateKey } from './keys.js';
 import { addPageToConfig, loadConfig } from './config.js';
 import {
@@ -35,6 +35,7 @@ function usage(): never {
 Usage:
   html-share build [--config file]
   html-share publish [--config file] [--recover]
+  html-share verify-production [--config file] [--json]
   html-share share <slug> [--days 7]
   html-share page add <path> [--title title]
   html-share keys init [--overwrite]
@@ -62,6 +63,12 @@ async function main(): Promise<void> {
   if (command === 'publish') {
     const result = flag('--recover') ? await recoverPublish(config) : await publish(config);
     console.log(JSON.stringify({ ok: true, ...result }, null, 2));
+    return;
+  }
+  if (command === 'verify-production') {
+    const result = await verifyProduction(config);
+    console.log(flag('--json') ? JSON.stringify(result, null, 2) : formatProductionVerification(result));
+    if (!result.ok) process.exitCode = 1;
     return;
   }
   if (command === 'share') {
