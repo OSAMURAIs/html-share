@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
-import { buildOnly, publish, recoverPublish, share, verifyProduction } from './publish.js';
+import { buildOnly, formatProductionVerification, publish, recoverPublish, share, verifyProduction } from './publish.js';
 import { initializeKeys, storePrivateKey } from './keys.js';
 import { addPageToConfig, loadConfig } from './config.js';
 import {
@@ -67,7 +67,7 @@ async function main(): Promise<void> {
   }
   if (command === 'verify-production') {
     const result = await verifyProduction(config);
-    console.log(JSON.stringify(result, null, 2));
+    console.log(flag('--json') ? JSON.stringify(result, null, 2) : formatProductionVerification(result));
     if (!result.ok) process.exitCode = 1;
     return;
   }

@@ -169,7 +169,21 @@ function validateJournal(journal: unknown): asserts journal is Journal {
         throw journalError('journal contains an invalid VersionId reference');
       }
     }
+    if (candidate.state === 'committed') requiredUploadedVersions(bucket);
   }
+}
+
+function requiredUploadedVersions(bucket: BucketJournal): Map<string, string> {
+  const versions = new Map<string, string>();
+  for (const key of bucket.desiredKeys) {
+    const refs = bucket.uploaded.filter((ref) => ref.key === key && typeof ref.versionId === 'string'
+      && ref.versionId.length > 0 && ref.versionId !== 'null');
+    if (refs.length !== 1) {
+      throw journalError(`${bucket.kind} desired key ${key} must have exactly one uploaded VersionId`);
+    }
+    versions.set(key, refs[0].versionId);
+  }
+  return versions;
 }
 
 function readCommittedJournal(config: HtmlShareConfig): Journal {
@@ -252,13 +266,13 @@ async function removeStale(client: S3Client, bucket: BucketJournal, config: Html
   });
 }
 
-async function verifyCurrent(client: S3Client, bucket: BucketJournal): Promise<void> {
+export async function verifyCurrent(client: S3Client, bucket: BucketJournal): Promise<void> {
+  const expectedVersions = requiredUploadedVersions(bucket);
   const current = new Map(currentObjects(await listVersions(client, bucket.bucket)).map((item) => [item.key, item]));
   for (const key of bucket.desiredKeys) {
     const item = current.get(key);
     if (!item || item.deleteMarker) throw new Error(`Published key is not current: ${bucket.bucket}/${key}`);
-    const uploaded = bucket.uploaded.find((ref) => ref.key === key);
-    if (uploaded && item.versionId !== uploaded.versionId) {
+    if (item.versionId !== expectedVersions.get(key)) {
       throw new Error(`Published key version mismatch: ${bucket.bucket}/${key}`);
     }
   }
@@ -275,6 +289,7 @@ export async function verifyProduction(
   const client = providedClient ?? new S3Client({ region: config.aws.region });
   const checks: ProductionCheck[] = [];
   for (const bucket of journal.buckets) {
+    const expectedVersions = requiredUploadedVersions(bucket);
     try {
       await requireVersioning(client, bucket.bucket);
       checks.push({ bucket: bucket.bucket, kind: bucket.kind, check: 'versioning', ok: true, message: 'S3 Versioning is enabled' });
@@ -285,13 +300,13 @@ export async function verifyProduction(
     const current = new Map(currentObjects(await listVersions(client, bucket.bucket)).map((item) => [item.key, item]));
     for (const key of bucket.desiredKeys) {
       const item = current.get(key);
-      const expected = bucket.uploaded.find((ref) => ref.key === key)?.versionId;
-      const ok = Boolean(item && !item.deleteMarker && (!expected || item.versionId === expected));
+      const expected = expectedVersions.get(key)!;
+      const ok = Boolean(item && !item.deleteMarker && item.versionId === expected);
       checks.push({
         bucket: bucket.bucket, kind: bucket.kind, check: 'desired-object', key, expectedVersionId: expected,
         actualVersionId: item?.versionId ?? null, ok,
         message: !item ? 'desired managed object is missing' : item.deleteMarker ? 'desired managed object is a delete marker'
-          : expected && item.versionId !== expected ? 'current VersionId does not match the committed VersionId' : 'desired object matches',
+          : item.versionId !== expected ? 'current VersionId does not match the committed VersionId' : 'desired object matches',
       });
     }
     for (const key of staleManagedPublishKeys(bucket.kind, bucket.managedKeys, bucket.desiredKeys)) {
@@ -302,6 +317,16 @@ export async function verifyProduction(
     }
   }
   return { ok: checks.every((check) => check.ok), transactionId: journal.transactionId, checks };
+}
+
+export function formatProductionVerification(result: ProductionVerificationResult): string {
+  const lines = [`Production verification: ${result.ok ? 'PASS' : 'FAIL'}`];
+  if (result.transactionId) lines.push(`Transaction: ${result.transactionId}`);
+  for (const check of result.checks) {
+    const location = check.key ? `${check.kind}/${check.key}` : check.kind;
+    lines.push(`${check.ok ? 'PASS' : 'FAIL'} ${check.check} ${location}: ${check.message}`);
+  }
+  return lines.join('\n');
 }
 
 async function deleteRefs(client: S3Client, refs: VersionRef[], bucket: string): Promise<void> {

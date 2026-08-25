@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { GetBucketVersioningCommand, ListObjectVersionsCommand } from '@aws-sdk/client-s3';
 import test from 'node:test';
-import { verifyProduction } from '../src/publish.js';
+import { formatProductionVerification, verifyCurrent, verifyProduction } from '../src/publish.js';
 
 type State = { versioning?: boolean; objects: Array<{ Key: string; VersionId: string; IsLatest?: boolean }>; };
 const config = (baseDir: string) => ({ baseDir, aws: { region: 'ap-northeast-1' } } as any);
@@ -63,6 +63,27 @@ test('fails missing desired key and VersionId mismatch', async () => {
   assert.equal(result.checks.filter((check) => !check.ok).length, 2);
 });
 
+test('rejects a committed desired key without an uploaded VersionId', async () => {
+  const baseDir = mkdtempSync(path.join(tmpdir(), 'html-share-verifier-'));
+  journal(baseDir);
+  const journalPath = path.join(baseDir, '.html-share', 'publish-transactions', 'tx.json');
+  const source = JSON.parse(readFileSync(journalPath, 'utf8'));
+  source.buckets[0].uploaded = [];
+  writeFileSync(journalPath, JSON.stringify(source));
+  const s3 = new ReadOnlyS3(healthyStates());
+  await assert.rejects(verifyProduction(config(baseDir), s3 as any), /exactly one uploaded VersionId/);
+  assert.deepEqual(s3.calls, []);
+});
+
+test('publish-time verification rejects an existing object without transaction VersionId', async () => {
+  const s3 = new ReadOnlyS3(healthyStates());
+  await assert.rejects(verifyCurrent(s3 as any, {
+    bucket: 'content-bucket', kind: 'content', desiredKeys: ['pages/a.html'], managedKeys: ['pages/a.html'],
+    baseline: [], uploaded: [], cleanup: [],
+  }), /exactly one uploaded VersionId/);
+  assert.deepEqual(s3.calls, []);
+});
+
 test('fails when a stale managed key remains current or versioning is disabled', async () => {
   const baseDir = mkdtempSync(path.join(tmpdir(), 'html-share-verifier-'));
   journal(baseDir);
@@ -87,4 +108,10 @@ test('rejects malformed and non-committed journals without touching S3', async (
     await assert.rejects(verifyProduction(config(baseDir), s3 as any), /Production verification rejected/);
     assert.deepEqual(s3.calls, []);
   }
+});
+
+test('formats concise human-readable verification output', () => {
+  assert.match(formatProductionVerification({ ok: false, transactionId: 'tx', checks: [
+    { bucket: 'content-bucket', kind: 'content', check: 'desired-object', key: 'pages/a.html', ok: false, message: 'missing' },
+  ] }), /^Production verification: FAIL\nTransaction: tx\nFAIL desired-object content\/pages\/a\.html: missing$/);
 });
