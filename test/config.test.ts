@@ -52,7 +52,9 @@ test('adds a page only once', () => {
   const { config } = fixture();
   assert.equal(addPageToConfig(config, 'pages/second.html', 'Second'), true);
   assert.equal(addPageToConfig(config, 'pages/second.html', 'Second'), false);
-  assert.equal((readFileSync(config, 'utf8').match(/pages\/second\.html/g) ?? []).length, 1);
+  const loaded = loadConfig(config);
+  const expected = path.resolve('pages/second.html');
+  assert.equal(loaded.content.pages.filter(({ path: value }) => path.resolve(value) === expected).length, 1);
 });
 
 test('requires separate console and content origins', () => {
