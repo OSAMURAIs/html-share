@@ -18,6 +18,10 @@
 <meta name="theme-color" content="#0a4695">
 <!-- 一覧の見た目と描画の正本。スマホの個別ページ側も同じものを読む -->
 <script src="/page-list.js"></script>
+<script src="/app/manifest.js"></script>
+<script src="/app/browser-state.js"></script>
+<script src="/app/live-work.js"></script>
+<script src="/app/destination-routing.js"></script>
 <script src="/app/navigation.js"></script>
 <script>MyBriefsList.injectIntoHead();</script>
 <style>
@@ -493,6 +497,20 @@ body.page-controls-hidden #page-actions {
     background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none;
   }
 }
+.global-nav, .domain-nav { display: flex; align-items: center; gap: .3rem; overflow-x: auto; scrollbar-width: none; }
+.global-nav::-webkit-scrollbar, .domain-nav::-webkit-scrollbar { display: none; }
+.global-nav a, .domain-nav a { color: inherit; text-decoration: none; white-space: nowrap; border-radius: .55rem; padding: .35rem .55rem; font-size: .78rem; }
+.global-nav a[aria-current="page"], .domain-nav a[aria-current="page"] { color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+.global-nav a[data-operational] { color: var(--blue-mid); }
+.domain-nav { min-height: 2.3rem; padding: .2rem var(--gutter) .35rem; border-bottom: 1px solid var(--line); background: var(--panel); }
+.domain-nav[hidden] { display: none; }
+#live-work-summary { margin: 0 0 1rem; padding: 1rem 1.1rem; border: 1px solid var(--blue-line); border-radius: .9rem; background: var(--panel); }
+#live-work-summary h2 { margin: 0 0 .4rem; font-size: 1rem; color: var(--blue-deep); }
+#live-work-summary p { margin: .35rem 0; color: var(--sub); font-size: .86rem; }
+#live-work-summary ul { margin: .45rem 0; padding-left: 1.2rem; }
+#live-work-summary a { color: var(--blue); font-size: .82rem; }
+#page-native-share { color: var(--blue); }
+@media (max-width: 700px) { .global-nav { order: 3; flex-basis: 100%; } .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; } }
 </style>
 </head>
 <body>
@@ -506,7 +524,14 @@ body.page-controls-hidden #page-actions {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 4.5l8 6.7M6.4 9.6V19h11.2V9.6"/></svg>
             <span class="label">HTML共有くん</span>
           </button>
-          <span class="brand-meta" id="brand-meta"></span>
+           <span class="brand-meta" id="brand-meta"></span>
+           <nav class="global-nav" id="global-nav" aria-label="グローバル移動">
+             <a href="#/home" data-destination-id="home">ホーム</a>
+             <a href="#/research/overview" data-domain="research">研究</a>
+             <a href="#/personal/current" data-domain="personal">暮らし</a>
+             <a href="#/investment/dashboard" data-domain="investment">投資</a>
+             <a href="#/operational/live-work" data-operational="true">Live Work</a>
+           </nav>
           <div class="topbar-actions">
             <div class="search" id="search">
               <button id="search-toggle" type="button" aria-label="検索する" aria-expanded="false">
@@ -528,7 +553,9 @@ body.page-controls-hidden #page-actions {
           </div>
         </div>
       </header>
+      <nav id="domain-nav" class="domain-nav" aria-label="ドメイン内移動" hidden></nav>
       <div class="home-content">
+        <section id="live-work-summary" aria-live="polite"><h2>Live Work</h2><p>現在のActive状況は運用ページで確認できます。</p><a href="#/operational/live-work">Live Workを開く</a></section>
         <div id="tiles"></div>
         <div class="trash-bar">
           <button id="trash-toggle" type="button"><span id="trash-label"></span></button>
@@ -555,9 +582,12 @@ body.page-controls-hidden #page-actions {
     <button class="page-action" id="page-refresh" type="button" role="menuitem">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M19 11a7 7 0 1 0 .2 5"/></svg><span>更新</span>
     </button>
-    <button class="page-action" id="page-share" type="button" role="menuitem">
+     <button class="page-action" id="page-share" type="button" role="menuitem">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg><span>共有URLを発行</span>
-    </button>
+     </button>
+     <button class="page-action" id="page-native-share" type="button" role="menuitem">
+       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M8 8l4-4 4 4M5 13v6h14v-6"/></svg><span>このページを共有</span>
+     </button>
     <button class="page-action delete" id="page-delete" type="button" role="menuitem">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg><span>一覧から削除</span>
     </button>
@@ -573,10 +603,11 @@ body.page-controls-hidden #page-actions {
 (() => {
   const $ = (id) => document.getElementById(id);
   const frame = $('frame'), home = $('home'), tilesEl = $('tiles'), brandMeta = $('brand-meta');
+  const globalNav = $('global-nav'), domainNav = $('domain-nav'), liveWorkSummary = $('live-work-summary');
   const searchBox = $('search'), searchToggle = $('search-toggle'), searchClear = $('search-clear');
   const refresh = $('refresh'), pageRefresh = $('page-refresh');
   const pageMore = $('page-more'), pageMenu = $('page-menu'), pageSharePanel = $('page-share-panel');
-  const pageStar = $('page-star'), pageUnread = $('page-unread'), pageShare = $('page-share'), pageDelete = $('page-delete'), pageShareIssue = $('page-share-issue');
+  const pageStar = $('page-star'), pageUnread = $('page-unread'), pageShare = $('page-share'), pageNativeShare = $('page-native-share'), pageDelete = $('page-delete'), pageShareIssue = $('page-share-issue');
   const trashToggle = $('trash-toggle'), trashLabel = $('trash-label');
   const STAR_KEY = 'mb_starred_pages';
   const HIDDEN_KEY = 'mb_hidden_pages';
@@ -588,29 +619,13 @@ body.page-controls-hidden #page-actions {
   // { ページの source: 開いたときの更新日時 }。更新日時ごと持つので、再更新で自動的に未読へ戻る
   let readMarks = {};
   let knowsReadMarks = false;
+  let stateWriteBlocked = false;
   let showingTrash = false;
   let filterText = '';
   let preferenceSaveTimer = null;
   // テーマ内で最初に見せる件数と、「他N件を表示」で開いたテーマのキー
   const STREAM_PREVIEW = 3;
   const expandedStreams = new Set();
-
-  try {
-    const saved = JSON.parse(localStorage.getItem(STAR_KEY) ?? '[]');
-    if (Array.isArray(saved)) starred = new Set(saved.filter((item) => typeof item === 'string'));
-  } catch { /* 壊れた保存値は空として扱う */ }
-  try {
-    const saved = JSON.parse(localStorage.getItem(HIDDEN_KEY) ?? '[]');
-    if (Array.isArray(saved)) hiddenSources = new Set(saved.filter((item) => typeof item === 'string'));
-  } catch { /* 壊れた保存値は空として扱う */ }
-  try {
-    const raw = localStorage.getItem(READ_KEY);
-    const saved = raw === null ? null : JSON.parse(raw);
-    if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
-      readMarks = saved;
-      knowsReadMarks = true;
-    }
-  } catch { /* 壊れた保存値は未記録として扱う */ }
 
   // 日付の区切り・新着判定・☆は page-list.js が正本。ここでは委譲するだけにする。
   // 行の見た目だけはトップ専用（1行1ページ）なので、この画面側で組み立てる
@@ -619,7 +634,7 @@ body.page-controls-hidden #page-actions {
   const dateGroup = L.dateGroup;
   const shortTime = L.shortTime;
 
-  const pageIdentity = (page) => page.objectKey ?? page.source ?? page.slug;
+  const pageIdentity = (page) => page.destination_id ?? null;
   const isStarred = (page) => starred.has(pageIdentity(page));
   // 一度も開いていない、または開いたあとに元HTMLが更新されたページ
   const isUnread = (page) => L.isUnread(page, readMarks);
@@ -629,11 +644,15 @@ body.page-controls-hidden #page-actions {
   const pageStreamLabel = (page) => page.streamLabel ?? pageStream(page);
 
   function saveLocalPreferences() {
+    if (stateWriteBlocked) return;
     try {
-      localStorage.setItem(STAR_KEY, JSON.stringify([...starred]));
-      localStorage.removeItem('mb_recent_pages');
-      localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hiddenSources]));
-      localStorage.setItem(READ_KEY, JSON.stringify(readMarks));
+      window.HtmlShareBrowserState.write(localStorage, {
+        version: window.HtmlShareBrowserState.VERSION,
+        favorites: [...starred].filter(Boolean),
+        hidden: [...hiddenSources].filter(Boolean),
+        readMarks,
+        recent: [],
+      });
       knowsReadMarks = true;
     } catch { /* noop */ }
   }
@@ -726,7 +745,7 @@ body.page-controls-hidden #page-actions {
 
   async function loadPreferences() {
     const hadLocalReadMarks = knowsReadMarks;
-    const validSources = new Set(allPages.map(pageIdentity));
+     const validSources = new Set(allPages.map(pageIdentity).filter(Boolean));
     starred = new Set([...starred].filter((source) => validSources.has(source)));
     hiddenSources = new Set([...hiddenSources].filter((source) => validSources.has(source)));
     pruneReadMarks(validSources);
@@ -777,6 +796,7 @@ body.page-controls-hidden #page-actions {
   }
 
   async function hidePage(page) {
+    if (!pageIdentity(page)) return;
     if (!confirm(`「${page.title}」を共有くんの一覧から削除します。\n\n原本と発行済みURLは残り、一覧の末尾の「削除済み」から戻せます。`)) return;
     const previousHidden = new Set(hiddenSources);
     const previousStarred = new Set(starred);
@@ -799,6 +819,7 @@ body.page-controls-hidden #page-actions {
   }
 
   async function restorePage(page) {
+    if (!pageIdentity(page)) return;
     const previousHidden = new Set(hiddenSources);
     const previousShowingTrash = showingTrash;
       hiddenSources.delete(pageIdentity(page));
@@ -819,6 +840,7 @@ body.page-controls-hidden #page-actions {
   }
 
   function toggleStar(page) {
+    if (!pageIdentity(page)) return;
     if (isStarred(page)) starred.delete(pageIdentity(page));
     else starred.add(pageIdentity(page));
     queuePreferenceSave();
@@ -830,8 +852,15 @@ body.page-controls-hidden #page-actions {
   const starButton = (page) => L.starButton(page, { starred, onToggle: toggleStar });
 
   /** ページを開く */
+  function pageRoute(page) {
+    if (page?.canonical_route) {
+      try { return new URL(page.canonical_route, location.href).hash || '#/'; } catch { /* fall through */ }
+    }
+    return page?.slug ? `#/${page.slug}` : '#/';
+  }
+
   function openPage(page) {
-    location.hash = `#/${page.slug}`;
+    location.hash = pageRoute(page);
   }
 
   /**
@@ -1059,8 +1088,9 @@ body.page-controls-hidden #page-actions {
     if (meta) brandMeta.textContent = `${pages.length}ページ ／ ${fmtDateTime(meta.generatedAt)} 更新`;
   }
 
-  function select(slug) {
-    current = pages.find((p) => p.slug === slug) ?? null;
+  function select(route) {
+    const destinationId = window.HtmlShareDestinationRouting.resolve(route, { pages: allPages });
+    current = pages.find((p) => p.destination_id === destinationId) ?? null;
     document.body.classList.toggle('page-open', Boolean(current));
     document.body.classList.remove('page-controls-hidden');
     closePagePopovers();
@@ -1074,12 +1104,87 @@ body.page-controls-hidden #page-actions {
     } else {
       home.classList.remove('on');
       frame.hidden = false;
+      if (!current.href) {
+        frame.hidden = true;
+        home.classList.add('on');
+        brandMeta.textContent = 'このページは現在開けません';
+        return;
+      }
       frame.src = current.href;
       document.title = `${current.title}｜HTML共有くん`;
       // ブックマークやURL直打ちで開いた場合もここを通るので、未読解除はまとめてここで行う
       markRead(current);
     }
     setStamp();
+  }
+
+  function updateNavigation() {
+    const destinationId = current?.destination_id ?? window.HtmlShareDestinationRouting.resolve(location.hash, { pages: allPages });
+    const active = allPages.find((page) => page.destination_id === destinationId);
+    globalNav.querySelectorAll('a[data-destination-id], a[data-domain], a[data-operational]').forEach((link) => {
+      const linkId = link.dataset.destinationId;
+      const linkDomain = link.dataset.domain;
+      const operational = link.dataset.operational === 'true';
+      const selected = linkId === destinationId || (linkDomain && active?.domain === linkDomain) || (operational && active?.domain === 'operational');
+      link.setAttribute('aria-current', selected ? 'page' : 'false');
+    });
+    domainNav.replaceChildren();
+    const domain = active?.domain;
+    if (!domain || !['research', 'personal', 'investment'].includes(domain)) { domainNav.hidden = true; return; }
+    const pagesForDomain = allPages.filter((page) => page.domain === domain).sort((a, b) => (a.navigation?.order ?? 0) - (b.navigation?.order ?? 0));
+    for (const page of pagesForDomain) {
+      const link = document.createElement('a');
+      link.href = pageRoute(page);
+      link.textContent = page.labels?.navigation || page.title;
+      link.dataset.destinationId = page.destination_id;
+      link.setAttribute('aria-current', page.destination_id === destinationId ? 'page' : 'false');
+      link.addEventListener('click', (event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey) { event.preventDefault(); openPage(page); } });
+      domainNav.append(link);
+    }
+    domainNav.hidden = pagesForDomain.length === 0;
+  }
+
+  async function refreshLiveWorkSummary() {
+    const page = allPages.find((item) => item.destination_id === 'operational.live-work');
+    if (!page?.href) return;
+    try {
+      const summary = await window.HtmlShareLiveWork.read(page.href);
+      window.HtmlShareLiveWork.render(liveWorkSummary, summary, pageRoute(page));
+    } catch { /* static fallback remains authoritative */ }
+  }
+
+  let refreshPromise = null;
+  let lastRefreshAt = 0;
+  async function refreshBrowserData(force = false) {
+    if (refreshPromise) return refreshPromise;
+    if (!force && Date.now() - lastRefreshAt < 30000) return;
+    refreshPromise = window.HtmlShareManifest.load().then(async (loaded) => {
+      const destinationId = current?.destination_id;
+      meta = loaded;
+      allPages = loaded.pages;
+      let state;
+      try {
+        stateWriteBlocked = false;
+        state = window.HtmlShareBrowserState.migrate(localStorage, allPages);
+      } catch (error) {
+        // Keep the legacy records intact and render a recoverable, unpersonalized
+        // view if storage validation/quota prevents the two-phase migration.
+        console.warn('Browser state migration deferred', error);
+        stateWriteBlocked = true;
+        state = window.HtmlShareBrowserState.emptyState();
+      }
+      starred = new Set(state.favorites);
+      hiddenSources = new Set(state.hidden);
+      readMarks = state.readMarks;
+      knowsReadMarks = true;
+      if (!stateWriteBlocked) await loadPreferences();
+      select(destinationId || location.hash);
+      updateNavigation();
+      await refreshLiveWorkSummary();
+      refreshInboxDot();
+      lastRefreshAt = Date.now();
+    }).finally(() => { refreshPromise = null; });
+    return refreshPromise;
   }
 
   async function buildTimedShareUrl(page, mode, days) {
@@ -1196,6 +1301,20 @@ body.page-controls-hidden #page-actions {
   $('review').addEventListener('click', () => { location.href = '/review/index.html'; });
   refresh.addEventListener('click', refreshApp);
   pageRefresh.addEventListener('click', refreshApp);
+  pageNativeShare.addEventListener('click', async () => {
+    if (!current) return;
+    const url = new URL(pageRoute(current), location.href).href;
+    const data = { title: current.title, text: current.title, url };
+    try {
+      if (typeof navigator.share === 'function') await navigator.share(data);
+      else throw new Error('native share unavailable');
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+      try { await navigator.clipboard.writeText(url); pageNativeShare.querySelector('span').textContent = 'リンクをコピーしました'; }
+      catch { prompt('このURLをコピーしてください', url); }
+      finally { setTimeout(() => { pageNativeShare.querySelector('span').textContent = 'このページを共有'; }, 2200); }
+    }
+  });
   pageMore.addEventListener('click', () => {
     const willOpen = pageMenu.hidden;
     closePagePopovers();
@@ -1271,35 +1390,35 @@ body.page-controls-hidden #page-actions {
       if (popup) popup.opener = null;
       return;
     }
-    const slug = window.HtmlShareNavigation.navigationSlug(event, frame, current, allPages);
-    if (slug) location.hash = `#/${slug}`;
+    const destinationId = window.HtmlShareNavigation.navigationSlug(event, frame, current, allPages);
+    const page = allPages.find((item) => item.destination_id === destinationId || item.slug === destinationId);
+    if (page) openPage(page);
   });
   document.addEventListener('pointerdown', (event) => {
     if ($('page-actions').contains(event.target)) return;
     closePagePopovers();
   });
 
-  addEventListener('hashchange', () => select(location.hash.replace(/^#\//, '')));
+  addEventListener('hashchange', () => { select(location.hash); updateNavigation(); });
 
   // インボックスで答えて戻る、他のアプリから切り替えて戻る、ホーム画面のPWAを開き直す——
   // どれも一覧を読み込み直さずに前面へ戻るので、印だけ取り直す
-  addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') refreshInboxDot();
-  });
-
-  fetch('manifest.json', { cache: 'no-store' })
-    .then((r) => r.json())
-    .then(async (data) => {
-      meta = data;
-      allPages = data.pages ?? [];
-      await loadPreferences();
-      select(location.hash.replace(/^#\//, ''));
-      refreshInboxDot();
-    })
-    .catch((err) => {
-      brandMeta.textContent = '一覧の読み込みに失敗しました';
-      console.error(err);
+  let lifecycleBound = false;
+  if (!lifecycleBound) {
+    lifecycleBound = true;
+    addEventListener('pageshow', (event) => { if (event.persisted) refreshBrowserData(true).catch((error) => console.warn(error)); });
+    addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        refreshBrowserData().catch((error) => console.warn(error));
+        refreshInboxDot();
+      }
     });
+  }
+
+  refreshBrowserData(true).catch((err) => {
+    brandMeta.textContent = '一覧の読み込みに失敗しました';
+    console.error(err);
+  });
 })();
 </script>
 </body>

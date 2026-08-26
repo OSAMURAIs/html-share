@@ -11,9 +11,9 @@ The current source tree is the baseline used by the deterministic checks:
 
 | Item | Current raw size | v1 budget |
 | --- | ---: | ---: |
-| `web/app/index.html` | 57,088 bytes | 81,920 bytes (80 KiB) |
-| `web/page-list.js` | 19,807 bytes | 32,768 bytes (32 KiB) |
-| Combined critical shell | 76,895 bytes | 122,880 bytes (120 KiB) |
+| `web/app/index.html` | 63,803 bytes | 81,920 bytes (80 KiB) |
+| `web/page-list.js` | 20,171 bytes | 32,768 bytes (32 KiB) |
+| Combined critical shell | 83,974 bytes | 122,880 bytes (120 KiB) |
 
 These are source-tree byte measurements, not production transfer timings.
 Production wall-clock baselines must be collected later from the trusted
@@ -34,11 +34,14 @@ The generated web manifest currently has the identity/navigation fields
 and `icons` (192px, 512px, and maskable 512px). It intentionally has no
 service worker, stable `id`, or shortcuts requirement in v1.
 
-The current publication path sets `Cache-Control: no-store, max-age=0` on
-published S3 objects and on CloudFront responses. Both content and console
-CloudFront distributions use `CACHING_DISABLED`; owner APIs and auth/review
-handlers also explicitly use no-store where applicable. This is current
-behavior, not an immutable architecture promise.
+The browser consumes `manifest.v2.json` as the primary identity/index source
+and uses the v1 `manifest.json` only for migration compatibility and signed
+content href enrichment. Browser state is keyed by `destination_id`.
+
+Mutable shell, manifest/index metadata, canonical HTML, and the operational
+Live Work document use explicit-refresh semantics (`no-store, max-age=0`).
+The managed `/assets/v5/1/*` presentation assets are content-versioned and
+may use `public, max-age=31536000, immutable`; they contain no private data.
 
 ## Contractual invariants
 
@@ -74,9 +77,12 @@ These are hard raw-byte budgets:
 
 Browser freshness starts after publication has reached production. One explicit
 browser reload must be sufficient to obtain the current manifest and content.
-V1 does not promise automatic dashboard-manifest refresh merely on foreground
-or visibility return. Inbox visibility refresh is current behavior, not the
-general dashboard freshness mechanism.
+The shell also performs one deduplicated metadata check on bfcache restore or
+after a resumed visible tab when the last check is older than 30 seconds. It
+does not unconditionally reload on `pageshow`, and it preserves the current
+`destination_id` while applying a refreshed index. Live Work enhancement uses
+the bounded operational document and never promotes stale or unknown data to
+Active.
 
 Personal's approximately 1–2 minute convergence, Live Work's approximately
 10–20 second target, and approximately 6-hour reconciliation are upstream
@@ -93,9 +99,15 @@ one header value:
 - Owner APIs must not be reused as stale cached data.
 - Mutable manifest and content must preserve explicit-refresh freshness.
 - Non-fingerprinted shell assets must not become unsafe immutable cache entries.
-- Future fingerprinted static assets may be cached aggressively.
+- Versioned `/assets/v5/1/*` presentation assets may be cached aggressively
+  with immutable semantics.
+- Future fingerprinted static assets may be cached aggressively when they meet
+  the same privacy and version-addressing requirements.
 - Versioned v5 presentation assets use deterministic managed paths and must be
   published, validated, and cleaned as part of the existing content tree.
+- The browser shell and manifest/index metadata remain explicitly fresh.
+- Canonical HTML remains mutable and explicitly fresh.
+- Live Work remains mutable and explicitly fresh; it is not an immutable page.
 - Any future cache change must preserve the security, privacy, and freshness
   invariants above.
 
@@ -164,7 +176,7 @@ procedure:
 
 ## Review guardrails
 
-This contract is intentionally non-behavior-changing. v1 does not add browser
-UX, cache, CloudFront, dashboard freshness, bfcache, Web Share, service-worker,
-or PWA-shortcut work. Any such change must preserve these invariants and add a
-new focused review and measurement plan.
+This Phase 3 contract makes the browser-integration behavior above explicit.
+Future UX, cache, CloudFront, freshness, bfcache, Web Share, service-worker, or
+PWA-shortcut changes must preserve these invariants and add a focused review and
+measurement plan.

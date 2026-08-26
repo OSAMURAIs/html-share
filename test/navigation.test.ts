@@ -32,6 +32,14 @@ test('accepts a known slug from the active content iframe', () => {
   assert.equal(navigationSlug(validEvent, frame, currentPage, manifestPages), 'knowledge-review');
 });
 
+test('returns destination_id when the normalized manifest has one', () => {
+  const pages = [
+    { ...currentPage, destination_id: 'research.overview' },
+    { ...manifestPages[1], destination_id: 'research.knowledge-review' },
+  ];
+  assert.equal(navigationSlug(validEvent, frame, pages[0], pages), 'research.knowledge-review');
+});
+
 test('accepts the opaque origin produced by the existing content CSP sandbox', () => {
   assert.equal(navigationSlug({ ...validEvent, origin: 'null' }, frame, currentPage, manifestPages), 'knowledge-review');
 });

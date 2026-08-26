@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { buildOnly } from '../src/publish.js';
+import { cacheControlFor } from '../src/publish.js';
 import { formatBaselineRecord, sanitizeBaselineRecord } from '../scripts/performance-baseline.mjs';
 import type { HtmlShareConfig } from '../src/config.js';
 
@@ -92,7 +93,7 @@ test('cache contract and security policy invariants remain explicit', () => {
   assert.match(contract, /same-origin managed assets/);
   assert.match(contract, /JavaScript is progressive enhancement, never content reconstruction/);
   assert.match(contract, /deterministic managed paths/);
-  const objectCacheControl = publish.match(/CacheControl:\s*['"]([^'"]+)['"]/)?.[1];
+  const objectCacheControl = cacheControlFor('content', 'pages/demo/index.html');
   const responseCacheControl = infra.match(/header:\s*'Cache-Control',\s*value:\s*'([^']+)'/)?.[1];
   const contentBehavior = infra.match(/const contentDistribution[\s\S]*?defaultBehavior:\s*\{([\s\S]*?cachePolicy:[\s\S]*?compress:\s*true,[\s\S]*?)\n\s*\}/)?.[1];
   const sharedConsoleBehavior = infra.match(/const common = \{([\s\S]*?)\n\s*\};/)?.[1];
@@ -111,6 +112,9 @@ test('cache contract and security policy invariants remain explicit', () => {
     assert.match(policy, /maxTtl:\s*Duration\.seconds\(0\)/);
   };
   assertFreshnessDirective(objectCacheControl, 'published mutable object');
+  assert.equal(cacheControlFor('content', 'assets/v5/1/presentation.js'), 'public, max-age=31536000, immutable');
+  assert.match(publish, /cacheControlFor\(bucket\.kind, key\)/);
+  assert.match(infra, /assets\/v5\/1\/\*/);
   assertFreshnessDirective(responseCacheControl, 'CloudFront response');
   assertFreshnessPolicy(contentBehavior, 'mutable content');
   assertFreshnessPolicy(sharedConsoleBehavior, 'console and owner API');

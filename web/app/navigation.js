@@ -20,7 +20,8 @@
     if (Object.keys(data).sort().join(',') !== 'slug,token,type') return null;
     if (data.type !== 'html-share:navigate' || typeof data.slug !== 'string') return null;
     if (typeof data.token !== 'string' || data.token !== currentPage.navigationToken) return null;
-    return manifestPages.some((page) => page.slug === data.slug) ? data.slug : null;
+    const target = manifestPages.find((page) => page.slug === data.slug);
+    return target?.destination_id ?? target?.slug ?? null;
   };
 
   const externalUrl = (event, frame, currentPage) => {

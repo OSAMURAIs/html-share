@@ -178,9 +178,9 @@
   const NEW_WINDOW_DAYS = 30;
 
   const pageRepository = (page) => page.repository ?? page.category ?? 'unknown';
-  // Manifest v2 identity wins when present. Existing object-key/source keys
-  // remain compatibility inputs until the later persisted-state migration.
-  const pageIdentity = (page) => page.destination_id ?? page.objectKey ?? page.source ?? page.slug;
+  // destination_id is the only durable browser identity. Legacy fields are
+  // accepted by the manifest migration layer, never promoted here.
+  const pageIdentity = (page) => typeof page?.destination_id === 'string' && page.destination_id ? page.destination_id : null;
 
   const repositoryTone = (repository = '') => {
     const hash = [...repository].reduce((value, char) => value * 31 + char.charCodeAt(0), 0);
@@ -208,7 +208,9 @@
 
   // 一度も開いていない、手で未読へ戻した、または開いたあとに元HTMLが更新されたページ
   const isUnread = (page, readMarks = {}) => {
-    const entry = readEntry(readMarks[pageIdentity(page)]);
+    const identity = pageIdentity(page);
+    if (!identity) return false;
+    const entry = readEntry(readMarks[identity]);
     if (!entry || !entry.v) return true;
     return Date.parse(page.date) > Date.parse(entry.v);
   };
@@ -221,15 +223,17 @@
 
   /** そのページを「今の版で読んだ」ことにする。次に元HTMLが更新されれば再び新着に戻る */
   function markRead(page, readMarks) {
-    if (!page || !isUnread(page, readMarks)) return false;
-    readMarks[pageIdentity(page)] = { v: page.date, at: new Date().toISOString() };
+    const identity = pageIdentity(page);
+    if (!identity || !isUnread(page, readMarks)) return false;
+    readMarks[identity] = { v: page.date, at: new Date().toISOString() };
     return true;
   }
 
   /** そのページを手で未読へ戻す。開き直すか元HTMLを更新するまで新着のまま残る */
   function markUnread(page, readMarks) {
-    if (!page || isUnread(page, readMarks)) return false;
-    readMarks[pageIdentity(page)] = { v: null, at: new Date().toISOString() };
+    const identity = pageIdentity(page);
+    if (!identity || isUnread(page, readMarks)) return false;
+    readMarks[identity] = { v: null, at: new Date().toISOString() };
     return true;
   }
 
@@ -261,7 +265,8 @@
   /** 導入直後に全ページが新着になるのを避け、いま並んでいるぶんは読んだことにする */
   function seedReadMarks(pages, readMarks) {
     for (const page of pages) {
-      readMarks[pageIdentity(page)] ??= { v: page.date, at: page.date };
+      const identity = pageIdentity(page);
+      if (identity) readMarks[identity] ??= { v: page.date, at: page.date };
     }
   }
 
