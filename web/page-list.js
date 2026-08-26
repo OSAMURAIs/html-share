@@ -178,7 +178,9 @@
   const NEW_WINDOW_DAYS = 30;
 
   const pageRepository = (page) => page.repository ?? page.category ?? 'unknown';
-  const pageIdentity = (page) => page.objectKey ?? page.source ?? page.slug;
+  // Manifest v2 identity wins when present. Existing object-key/source keys
+  // remain compatibility inputs until the later persisted-state migration.
+  const pageIdentity = (page) => page.destination_id ?? page.objectKey ?? page.source ?? page.slug;
 
   const repositoryTone = (repository = '') => {
     const hash = [...repository].reduce((value, char) => value * 31 + char.charCodeAt(0), 0);

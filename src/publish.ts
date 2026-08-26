@@ -11,6 +11,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { BuildManifest, BuiltPage } from './bundle.js';
 import { buildSite } from './bundle.js';
+import { buildManifestV2 } from './manifest-v2.js';
+import type { ManifestV2 } from './v5-contract.js';
 import type { HtmlShareConfig, StackOutputs } from './config.js';
 import { loadOutputs, resolveFromConfig } from './config.js';
 import { signUrl } from './sign.js';
@@ -67,7 +69,7 @@ function files(root: string, current = root): string[] {
   });
 }
 
-function copyConsole(buildRoot: string, manifest: object): void {
+function copyConsole(buildRoot: string, manifest: object, manifestV2: ManifestV2): void {
   const consoleRoot = path.join(buildRoot, 'console');
   mkdirSync(consoleRoot, { recursive: true });
   for (const relative of files(path.join(PACKAGE_ROOT, 'web'))) {
@@ -78,6 +80,7 @@ function copyConsole(buildRoot: string, manifest: object): void {
   }
   mkdirSync(path.join(consoleRoot, 'app'), { recursive: true });
   writeFileSync(path.join(consoleRoot, 'app', 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  writeFileSync(path.join(consoleRoot, 'app', 'manifest.v2.json'), `${JSON.stringify(manifestV2, null, 2)}\n`);
   writeFileSync(path.join(consoleRoot, 'app.webmanifest'), `${JSON.stringify({
     name: 'HTML共有くん', short_name: '共有くん', lang: 'ja', start_url: '/app/index.html', scope: '/', display: 'standalone',
     background_color: '#f6f7f9', theme_color: '#0e0d6a',
@@ -131,7 +134,7 @@ function currentObjects(all: any[]): BaselineObject[] {
 }
 
 export function isManagedPublishKey(kind: 'content' | 'console', key: string): boolean {
-  if (kind === 'content') return key.startsWith('pages/');
+  if (kind === 'content') return key.startsWith('pages/') || key.startsWith('assets/v5/');
   return key === 'index.html' || key === 'app.webmanifest' || ['app/', 'auth/', 'icons/', 'review/'].some((prefix) => key.startsWith(prefix));
 }
 
@@ -429,17 +432,18 @@ function ownerManifest(manifest: BuildManifest, outputs: StackOutputs, config: H
   };
 }
 
-export function buildOnly(config: HtmlShareConfig): { buildRoot: string; manifest: BuildManifest } {
+export function buildOnly(config: HtmlShareConfig): { buildRoot: string; manifest: BuildManifest; manifestV2: ManifestV2 } {
   const buildRoot = path.resolve(config.baseDir, '.html-share', 'build');
   const manifest = buildSite(config, buildRoot);
-  copyConsole(buildRoot, { generatedAt: manifest.generatedAt, pages: manifest.pages.map((page) => toConsoleManifestPage(page, null)) });
-  return { buildRoot, manifest };
+  const manifestV2 = buildManifestV2(manifest);
+  copyConsole(buildRoot, { generatedAt: manifest.generatedAt, pages: manifest.pages.map((page) => toConsoleManifestPage(page, null)) }, manifestV2);
+  return { buildRoot, manifest, manifestV2 };
 }
 
 export async function publish(config: HtmlShareConfig): Promise<{ consoleUrl: string; pages: number; transactionId: string }> {
   const outputs = loadOutputs(path.resolve(config.baseDir, '.html-share', 'outputs.json'));
   const { buildRoot, manifest } = buildOnly(config);
-  copyConsole(buildRoot, ownerManifest(manifest, outputs, config));
+  copyConsole(buildRoot, ownerManifest(manifest, outputs, config), buildManifestV2(manifest));
   const client = new S3Client({ region: config.aws.region });
   const buckets = [
     await prepareBucket(client, outputs.ContentBucketName, 'content', path.join(buildRoot, 'content')),

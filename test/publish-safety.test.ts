@@ -16,8 +16,10 @@ class RecordingDeleteS3 {
 
 const identifiers = (count: number) => Array.from({ length: count }, (_, index) => ({ Key: `pages/page-${index}.html`, VersionId: `version-${index}` }));
 
-test('publisher only considers canonical keys managed and preserves unrelated objects', () => {
+test('publisher manages canonical pages and versioned presentation assets while preserving unrelated objects', () => {
   assert.equal(isManagedPublishKey('content', 'pages/old.html'), true);
+  assert.equal(isManagedPublishKey('content', 'assets/v5/1/presentation.css'), true);
+  assert.equal(isManagedPublishKey('content', 'assets/unmanaged.js'), false);
   assert.equal(isManagedPublishKey('content', 'operator-notes.txt'), false);
   assert.equal(isManagedPublishKey('console', 'app/index.html'), true);
   assert.equal(isManagedPublishKey('console', 'operator-notes.txt'), false);
