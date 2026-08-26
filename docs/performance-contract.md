@@ -1,4 +1,4 @@
-# Browser Performance Contract (v1)
+# Browser Performance Contract (v2)
 
 This document is the browser-facing contract for `html-share`. It covers the
 owner dashboard, canonical content pages, publication behavior, and the
@@ -23,10 +23,11 @@ The current dashboard bootstrap loads `page-list.js`, navigation code, and the
 inline dashboard shell, then requests owner preferences and the owner shares
 manifest; the Inbox indicator separately checks review state. Both desktop and
 narrow/mobile dashboard selection remain dashboard-mediated and update the
-canonical-page iframe (`MOBILE_IFRAME` on narrow/mobile). Canonical pages are
-bundled with local assets as data URLs and inline table behavior; their content
-CSP has `connect-src 'none'`, so the document is network-self-contained after
-its document request.
+canonical-page iframe (`MOBILE_IFRAME` on narrow/mobile). Pre-v5 canonical
+pages remain bundled with local assets as data URLs and inline table behavior.
+V5 pages may load only the versioned, same-origin managed assets declared by
+the presentation contract. Their content CSP retains `connect-src 'none'`;
+external runtime and CDN dependencies remain forbidden.
 
 The generated web manifest currently has the identity/navigation fields
 `name`, `short_name`, `lang`, `start_url`, `scope`, `display`, `theme_color`,
@@ -52,8 +53,10 @@ behavior, not an immutable architecture promise.
 ### Network
 
 - There must be no third-party runtime requests.
-- After the canonical content document request, the page must remain
-  network-self-contained.
+- After the canonical content document request, a v5 page may request only the
+  same-origin managed assets in its versioned presentation contract.
+- Fundamental page content must be present as semantic HTML before JavaScript
+  runs. JavaScript is progressive enhancement, never content reconstruction.
 - Ordinary initial dashboard boot must not introduce duplicate application API
   or resource requests.
 - Browser-managed favicon and PWA-manifest requests are not application
@@ -91,6 +94,8 @@ one header value:
 - Mutable manifest and content must preserve explicit-refresh freshness.
 - Non-fingerprinted shell assets must not become unsafe immutable cache entries.
 - Future fingerprinted static assets may be cached aggressively.
+- Versioned v5 presentation assets use deterministic managed paths and must be
+  published, validated, and cleaned as part of the existing content tree.
 - Any future cache change must preserve the security, privacy, and freshness
   invariants above.
 

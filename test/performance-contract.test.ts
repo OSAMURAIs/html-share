@@ -76,8 +76,8 @@ test('canonical bundling and deployed content CSP remain network-self-contained'
   assert.doesNotMatch(content, /\b(?:fetch|XMLHttpRequest|WebSocket|EventSource)\s*\(/);
   assert.ok(contentCsp, 'content CSP is defined');
   assert.match(contentCsp, /default-src 'none'/);
-  assert.match(contentCsp, /img-src data:/);
-  assert.match(contentCsp, /media-src data:/);
+  assert.match(contentCsp, /img-src 'self' data:/);
+  assert.match(contentCsp, /media-src 'self' data:/);
   assert.match(contentCsp, /frame-src 'none'/);
   assert.match(contentCsp, /connect-src 'none'/);
 });
@@ -89,6 +89,9 @@ test('cache contract and security policy invariants remain explicit', () => {
   assert.match(contract, /Owner APIs must not be reused as stale cached data/);
   assert.match(contract, /Mutable manifest and content must preserve explicit-refresh freshness/);
   assert.match(contract, /Future fingerprinted static assets may be cached aggressively/);
+  assert.match(contract, /same-origin managed assets/);
+  assert.match(contract, /JavaScript is progressive enhancement, never content reconstruction/);
+  assert.match(contract, /deterministic managed paths/);
   const objectCacheControl = publish.match(/CacheControl:\s*['"]([^'"]+)['"]/)?.[1];
   const responseCacheControl = infra.match(/header:\s*'Cache-Control',\s*value:\s*'([^']+)'/)?.[1];
   const contentBehavior = infra.match(/const contentDistribution[\s\S]*?defaultBehavior:\s*\{([\s\S]*?cachePolicy:[\s\S]*?compress:\s*true,[\s\S]*?)\n\s*\}/)?.[1];
@@ -113,6 +116,8 @@ test('cache contract and security policy invariants remain explicit', () => {
   assertFreshnessPolicy(sharedConsoleBehavior, 'console and owner API');
   assert.match(infra, /'api\/owner\/\*':\s*\{\s*\.\.\.common/);
   assert.match(infra, /connect-src 'none'/);
+  assert.match(infra, /script-src 'self' 'unsafe-inline' data:/);
+  assert.match(infra, /style-src 'self' 'unsafe-inline' data:/);
   assert.match(infra, /sandbox allow-scripts/);
   assert.match(infra, /trustedKeyGroups: \[keyGroup\]/);
 });

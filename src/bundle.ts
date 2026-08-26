@@ -12,6 +12,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { HtmlShareConfig, PageConfig } from './config.js';
 import { resolveFromConfig, validatedRoots } from './config.js';
+import {
+  readGeneratedV5Metadata,
+  V5_PRESENTATION,
+  type GeneratedV5Metadata,
+} from './v5-contract.js';
 
 function packageRoot(): string {
   let directory = path.dirname(fileURLToPath(import.meta.url));
@@ -58,11 +63,24 @@ export interface BuiltPage {
   streamLabel: string;
   share_policy: 'owner_only' | 'shareable';
   objectKey: string;
+  v5?: GeneratedV5Metadata | null;
+  contentHash?: string;
 }
 
 export interface BuildManifest {
   generatedAt: string;
   pages: BuiltPage[];
+}
+
+function copyManagedV5Assets(contentRoot: string): void {
+  for (const publicPath of V5_PRESENTATION.assets) {
+    const relative = publicPath.replace(/^\//, '');
+    const source = path.join(packageRoot(), 'web', relative);
+    if (!existsSync(source)) throw new Error(`Managed v5 presentation asset is missing: ${publicPath}`);
+    const target = path.join(contentRoot, relative);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, readFileSync(source));
+  }
 }
 
 export function slugify(value: string): string {
@@ -109,6 +127,7 @@ export function bundleHtml(sourceFile: string, roots: string[], maxAssetBytes: n
   const reference = /\b(src|href)\s*=\s*(["'])([^"']+)\2/gi;
   html = html.replace(reference, (full, attribute: string, quote: string, raw: string) => {
     const value = raw.trim();
+    if ((V5_PRESENTATION.assets as readonly string[]).includes(value)) return full;
     if (!value || /^(?:https?:|data:|blob:|mailto:|tel:|javascript:|#|\/\/)/i.test(value)) return full;
     const pathname = decodeURIComponent(value.split(/[?#]/, 1)[0]);
     if (path.extname(pathname).toLowerCase() === '.html') return full;
@@ -231,6 +250,7 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
   const nextTokens: Record<string, string> = {};
   rmSync(buildRoot, { recursive: true, force: true });
   mkdirSync(contentRoot, { recursive: true });
+  copyManagedV5Assets(contentRoot);
   const used = new Set<string>();
   const planned = config.content.pages.map((page) => {
     const sourceReal = realpathSync(pagePath(config, page));
@@ -266,6 +286,7 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
     const updatedAt = statSync(sourceReal).mtime.toISOString();
     const repository = page.repository || defaultGroup(page);
     const stream = page.stream || repository;
+    const v5 = readGeneratedV5Metadata(html);
     return {
       slug,
       navigationToken,
@@ -278,6 +299,8 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
       streamLabel: page.streamLabel || stream,
       share_policy: page.sharePolicy || 'owner_only',
       objectKey: `pages/${slug}/index.html`,
+      v5,
+      contentHash: createHash('sha256').update(html).digest('hex'),
     };
   });
   const manifest = { generatedAt: new Date().toISOString(), pages };
