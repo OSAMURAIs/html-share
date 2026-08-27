@@ -2,7 +2,9 @@ import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
-const root = path.resolve(process.argv[2] ?? '.html-share/build/console');
+const buildRoot = path.resolve(process.argv[2] ?? '.html-share/build');
+const consoleRoot = path.join(buildRoot, 'console');
+const contentRoot = path.join(buildRoot, 'content');
 const port = Number(process.env.HTML_SHARE_PREVIEW_PORT ?? 4311);
 const sampleReview = process.env.HTML_SHARE_PREVIEW_SAMPLE_REVIEW === '1';
 const types = {
@@ -34,7 +36,14 @@ createServer((request, response) => {
     response.end('{"code":"DEMO-2026"}');
     return;
   }
-  const candidate = path.resolve(root, `.${pathname.endsWith('/') ? `${pathname}index.html` : pathname}`);
+  const [root, relativePath] = pathname === '/content' || pathname.startsWith('/content/')
+    ? [contentRoot, pathname.slice('/content'.length)]
+    : pathname === '/console' || pathname.startsWith('/console/')
+      ? [buildRoot, pathname]
+      : pathname === '/assets' || pathname.startsWith('/assets/')
+        ? [contentRoot, pathname]
+        : [consoleRoot, pathname];
+  const candidate = path.resolve(root, `.${relativePath.endsWith('/') ? `${relativePath}index.html` : relativePath}`);
   if (!(candidate === root || candidate.startsWith(`${root}${path.sep}`)) || !existsSync(candidate) || !statSync(candidate).isFile()) {
     response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     response.end('Not found');

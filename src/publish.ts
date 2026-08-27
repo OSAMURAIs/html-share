@@ -442,8 +442,11 @@ function ownerManifest(manifest: BuildManifest, outputs: StackOutputs, config: H
 export function buildOnly(config: HtmlShareConfig): { buildRoot: string; manifest: BuildManifest; manifestV2: ManifestV2 } {
   const buildRoot = path.resolve(config.baseDir, '.html-share', 'build');
   const manifest = buildSite(config, buildRoot);
+  const localPreview = process.env.HTML_SHARE_PREVIEW_LOCAL === '1';
+  const hrefForPage = (page: BuiltPage): string | null => localPreview ? `/content/${page.objectKey}` : null;
   const manifestV2 = buildManifestV2(manifest);
-  copyConsole(buildRoot, { generatedAt: manifest.generatedAt, pages: manifest.pages.map((page) => toConsoleManifestPage(page, null)) }, manifestV2);
+  const previewManifestV2 = localPreview ? buildManifestV2(manifest, hrefForPage) : manifestV2;
+  copyConsole(buildRoot, { generatedAt: manifest.generatedAt, pages: manifest.pages.map((page) => toConsoleManifestPage(page, hrefForPage(page))) }, previewManifestV2);
   return { buildRoot, manifest, manifestV2 };
 }
 
