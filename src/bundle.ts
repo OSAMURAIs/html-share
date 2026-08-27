@@ -137,7 +137,11 @@ export function bundleHtml(sourceFile: string, roots: string[], maxAssetBytes: n
     if (!inside(resolved, roots)) throw new Error(`Local asset escapes content.roots: ${value}`);
     return `${attribute}=${quote}${dataUrl(resolved, maxAssetBytes)}${quote}`;
   });
-  return injectMobileTables(addMeta(html));
+  const withMetadata = addMeta(html);
+  // v5 pages keep their semantic HTML and managed presentation enhancements
+  // intact. Legacy pages retain the existing inline table enhancement while
+  // the migration is in progress.
+  return /html-share-v5/.test(withMetadata) ? withMetadata : injectMobileTables(withMetadata);
 }
 
 function injectMobileTables(html: string): string {
