@@ -62,11 +62,12 @@ test('R5 uses canonical Home as the primary surface and keeps the legacy browser
   assert.match(dashboard, /data-domain="research">Research/);
   assert.match(dashboard, /data-domain="personal">暮らし/);
   assert.match(dashboard, /data-domain="investment">Investment/);
-  assert.match(dashboard, /data-operational="true">Live Work/);
+  assert.match(dashboard, /<nav class="operational-nav" id="operational-nav" aria-label="運用アクセス">[\s\S]*data-operational="true">Live Work/);
   assert.match(dashboard, /id="browser-toggle"/);
   assert.match(dashboard, /const destinationId = resolved \|\| .*'home'/);
   assert.match(dashboard, /current\.destination_id !== 'home'/);
   assert.match(dashboard, /DOMAIN_NAV_LABELS/);
+  assert.match(dashboard, /searchToggle\.focus\(\)/);
   assert.match(dashboard, /@media \(min-width: 46\.01rem\)/);
   assert.match(dashboard, /@media \(max-width: 46rem\)/);
   assert.match(dashboard, /prefers-reduced-motion/);
