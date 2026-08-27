@@ -89,6 +89,8 @@ iframe { flex: 1; width: 100%; border: 0; background: var(--panel); }
   -webkit-overflow-scrolling: touch;
 }
 #home.on { display: block; animation: home-in .2s ease both; }
+#home.on { position: fixed; inset: 0; z-index: 10; padding: 1.5rem var(--gutter) 3rem; background: var(--bg); }
+#home[aria-hidden="true"] { display: none; }
 @keyframes home-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -502,22 +504,54 @@ body.page-controls-hidden #page-actions {
 .global-nav a, .domain-nav a { color: inherit; text-decoration: none; white-space: nowrap; border-radius: .55rem; padding: .35rem .55rem; font-size: .78rem; }
 .global-nav a[aria-current="page"], .domain-nav a[aria-current="page"] { color: var(--accent); background: var(--accent-soft); font-weight: 700; }
 .global-nav a[data-operational] { color: var(--blue-mid); }
+.operational-nav { display: flex; align-items: center; gap: .3rem; }
+.operational-nav a { color: inherit; text-decoration: none; white-space: nowrap; border-radius: .55rem; padding: .35rem .55rem; font-size: .78rem; }
+.operational-nav a[data-operational] { color: var(--blue-mid); }
+.operational-nav .operational-link { margin-top: .8rem; border-top: 1px solid rgba(255,255,255,.14); border-radius: 0 .55rem .55rem .55rem; padding-top: .85rem; }
 .domain-nav { min-height: 2.3rem; padding: .2rem var(--gutter) .35rem; border-bottom: 1px solid var(--line); background: var(--panel); }
 .domain-nav[hidden] { display: none; }
+#browser-toggle { display: none; }
 #live-work-summary { margin: 0 0 1rem; padding: 1rem 1.1rem; border: 1px solid var(--blue-line); border-radius: .9rem; background: var(--panel); }
 #live-work-summary h2 { margin: 0 0 .4rem; font-size: 1rem; color: var(--blue-deep); }
 #live-work-summary p { margin: .35rem 0; color: var(--sub); font-size: .86rem; }
 #live-work-summary ul { margin: .45rem 0; padding-left: 1.2rem; }
 #live-work-summary a { color: var(--blue); font-size: .82rem; }
 #page-native-share { color: var(--blue); }
-@media (max-width: 700px) { .global-nav { order: 3; flex-basis: 100%; } .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; } }
+@media (min-width: 46.01rem) {
+  main { margin-left: 236px; position: relative; min-height: 100vh; }
+  .topbar { position: fixed; inset: 0 auto 0 0; width: 236px; height: 100vh; padding: 0; border-radius: 0; background: var(--blue-deep); box-shadow: 8px 0 28px rgba(14, 13, 106, .12); }
+  .topbar-inner { height: 100%; padding: 26px 15px 20px; flex-direction: column; align-items: stretch; gap: 1.1rem; }
+  .brand { margin: 0; padding: 0 9px 1.1rem; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,.14); border-radius: 0; }
+  .brand-meta { order: 3; color: rgba(255,255,255,.68); font-size: .72rem; }
+  .global-nav { display: grid; gap: .25rem; overflow: visible; }
+  .global-nav a { min-height: 2.7rem; padding: .65rem .65rem; color: #c7d5ea; font-size: .86rem; }
+  .global-nav a:hover { color: #fff; background: rgba(255,255,255,.08); }
+  .global-nav a[aria-current="page"] { color: #fff; background: rgba(46, 115, 194, .35); box-shadow: inset 3px 0 var(--blue-bright); }
+  .global-nav a[data-operational] { color: #aacaef; }
+  .operational-nav { display: grid; gap: .25rem; margin-top: -.45rem; padding-top: .85rem; border-top: 1px solid rgba(255,255,255,.14); }
+  .operational-nav a { min-height: 2.7rem; padding: .65rem .65rem; color: #aacaef; font-size: .86rem; }
+  .operational-nav a:hover { color: #fff; background: rgba(255,255,255,.08); }
+  .operational-nav a[aria-current="page"] { color: #fff; background: rgba(46, 115, 194, .22); box-shadow: inset 3px 0 var(--blue-bright); }
+  .topbar-actions { margin-top: auto; margin-left: 0; display: grid; grid-template-columns: 1fr 2.2rem; gap: .45rem; }
+  #browser-toggle { display: inline-flex; justify-content: flex-start; }
+  .search { width: 2.2rem; }
+  body.searching .search { width: 100%; grid-column: 1 / -1; grid-row: 1; }
+  .topbar-actions #browser-toggle { grid-column: 1; grid-row: 2; }
+  .topbar-actions #refresh { grid-column: 2; grid-row: 2; }
+  .domain-nav { padding-left: 1.75rem; position: sticky; top: 0; z-index: 8; }
+  #home { inset: 0 0 0 236px; padding-top: 1.5rem; }
+  body.page-open #home-btn { left: calc(236px + .75rem); }
+  body.page-open #page-actions { right: .75rem; }
+}
+.tb-glyph { font-size: 1rem; line-height: 1; }
+@media (max-width: 700px) { .global-nav { order: 3; flex-basis: 100%; } .operational-nav { order: 4; flex-basis: 100%; justify-content: flex-start; padding-left: max(var(--gutter), env(safe-area-inset-left)); } .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; } #browser-toggle { display: inline-flex; } }
+@media (max-width: 46rem) { #home.on { padding-top: calc(4.5rem + var(--safe-top-inset)); } }
+@media (max-width: 46rem) { body.page-open .brand { visibility: hidden; } }
 </style>
 </head>
 <body>
 <div class="app">
   <main>
-    <iframe id="frame" title="選択中のページ" hidden></iframe>
-    <div id="home" class="on">
       <header class="topbar">
         <div class="topbar-inner">
           <button class="brand" id="brand" type="button" title="トップへ戻る">
@@ -525,15 +559,21 @@ body.page-controls-hidden #page-actions {
             <span class="label">HTML共有くん</span>
           </button>
            <span class="brand-meta" id="brand-meta"></span>
-           <nav class="global-nav" id="global-nav" aria-label="グローバル移動">
-             <a href="#/home" data-destination-id="home">ホーム</a>
-             <a href="#/research/overview" data-domain="research">研究</a>
-             <a href="#/personal/current" data-domain="personal">暮らし</a>
-             <a href="#/investment/dashboard" data-domain="investment">投資</a>
-             <a href="#/operational/live-work" data-operational="true">Live Work</a>
-           </nav>
-          <div class="topbar-actions">
-            <div class="search" id="search">
+             <nav class="global-nav" id="global-nav" aria-label="グローバル移動">
+              <a href="#/home" data-destination-id="home">Home</a>
+              <a href="#/research/overview" data-domain="research">Research</a>
+              <a href="#/personal/current" data-domain="personal">暮らし</a>
+              <a href="#/investment/dashboard" data-domain="investment">Investment</a>
+             </nav>
+             <nav class="operational-nav" id="operational-nav" aria-label="運用アクセス">
+              <a class="operational-link" href="#/operational/live-work" data-operational="true">Live Work</a>
+             </nav>
+           <div class="topbar-actions">
+             <button class="tb-btn" id="browser-toggle" type="button" aria-expanded="false" title="一覧ユーティリティを開く">
+               <span class="tb-glyph" aria-hidden="true">☷</span>
+               <span class="label">一覧</span>
+             </button>
+             <div class="search" id="search">
               <button id="search-toggle" type="button" aria-label="検索する" aria-expanded="false">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.4" fill="none"/><path d="m20 20-4.2-4.2"/></svg>
               </button>
@@ -551,16 +591,18 @@ body.page-controls-hidden #page-actions {
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M19 11a7 7 0 1 0 .2 5"/></svg>
             </button>
           </div>
-        </div>
-      </header>
-      <nav id="domain-nav" class="domain-nav" aria-label="ドメイン内移動" hidden></nav>
-      <div class="home-content">
+         </div>
+       </header>
+       <nav id="domain-nav" class="domain-nav" aria-label="ドメイン内移動" hidden></nav>
+    <iframe id="frame" title="選択中のページ" hidden></iframe>
+    <div id="home" aria-label="一覧ユーティリティ">
+       <div class="home-content">
         <section id="live-work-summary" aria-live="polite"><h2>Live Work</h2><p>現在のActive状況は運用ページで確認できます。</p><a href="#/operational/live-work">Live Workを開く</a></section>
         <div id="tiles"></div>
         <div class="trash-bar">
           <button id="trash-toggle" type="button"><span id="trash-label"></span></button>
         </div>
-      </div>
+       </div>
     </div>
   </main>
 </div>
@@ -603,9 +645,9 @@ body.page-controls-hidden #page-actions {
 (() => {
   const $ = (id) => document.getElementById(id);
   const frame = $('frame'), home = $('home'), tilesEl = $('tiles'), brandMeta = $('brand-meta');
-  const globalNav = $('global-nav'), domainNav = $('domain-nav'), liveWorkSummary = $('live-work-summary');
+  const globalNav = $('global-nav'), operationalNav = $('operational-nav'), domainNav = $('domain-nav'), liveWorkSummary = $('live-work-summary');
   const searchBox = $('search'), searchToggle = $('search-toggle'), searchClear = $('search-clear');
-  const refresh = $('refresh'), pageRefresh = $('page-refresh');
+  const refresh = $('refresh'), pageRefresh = $('page-refresh'), browserToggle = $('browser-toggle');
   const pageMore = $('page-more'), pageMenu = $('page-menu'), pageSharePanel = $('page-share-panel');
   const pageStar = $('page-star'), pageUnread = $('page-unread'), pageShare = $('page-share'), pageNativeShare = $('page-native-share'), pageDelete = $('page-delete'), pageShareIssue = $('page-share-issue');
   const trashToggle = $('trash-toggle'), trashLabel = $('trash-label');
@@ -626,6 +668,21 @@ body.page-controls-hidden #page-actions {
   // テーマ内で最初に見せる件数と、「他N件を表示」で開いたテーマのキー
   const STREAM_PREVIEW = 3;
   const expandedStreams = new Set();
+  const DOMAIN_NAV_LABELS = Object.freeze({
+    'research.overview': 'Overview',
+    'research.feed': 'Feed',
+    'research.papers': 'Papers',
+    'research.knowledge-review': 'Knowledge Review',
+    'personal.current': '現在地',
+    'personal.plans': '案件',
+    'personal.library': 'Library',
+    'personal.travel': 'Travel',
+    'investment.dashboard': 'Dashboard',
+    'investment.pulse': 'Pulse',
+    'investment.positions': 'Positions',
+    'investment.decisions': 'Decisions',
+    'investment.journal': 'Journal',
+  });
 
   // 日付の区切り・新着判定・☆は page-list.js が正本。ここでは委譲するだけにする。
   // 行の見た目だけはトップ専用（1行1ページ）なので、この画面側で組み立てる
@@ -806,7 +863,7 @@ body.page-controls-hidden #page-actions {
     updateTrashToggle();
     try {
       await savePreferencesNow();
-      location.hash = '#/';
+      location.hash = '#/home';
     } catch (error) {
       hiddenSources = previousHidden;
       starred = previousStarred;
@@ -856,7 +913,7 @@ body.page-controls-hidden #page-actions {
     if (page?.canonical_route) {
       try { return new URL(page.canonical_route, location.href).hash || '#/'; } catch { /* fall through */ }
     }
-    return page?.slug ? `#/${page.slug}` : '#/';
+    return page?.slug ? `#/${page.slug}` : '#/home';
   }
 
   function openPage(page) {
@@ -1089,9 +1146,10 @@ body.page-controls-hidden #page-actions {
   }
 
   function select(route) {
-    const destinationId = window.HtmlShareDestinationRouting.resolve(route, { pages: allPages });
-    current = pages.find((p) => p.destination_id === destinationId) ?? null;
-    document.body.classList.toggle('page-open', Boolean(current));
+    const resolved = window.HtmlShareDestinationRouting.resolve(route, { pages: allPages });
+    const destinationId = resolved || (allPages.some((page) => page.destination_id === 'home') ? 'home' : null);
+    current = allPages.find((p) => p.destination_id === destinationId) ?? null;
+    document.body.classList.toggle('page-open', Boolean(current && current.destination_id !== 'home'));
     document.body.classList.remove('page-controls-hidden');
     closePagePopovers();
 
@@ -1100,9 +1158,13 @@ body.page-controls-hidden #page-actions {
       frame.removeAttribute('src');
       renderHome();
       home.classList.add('on');
+      home.setAttribute('aria-hidden', 'false');
+      browserToggle?.setAttribute('aria-expanded', 'true');
       document.title = 'HTML共有くん';
     } else {
       home.classList.remove('on');
+      home.setAttribute('aria-hidden', 'true');
+      browserToggle?.setAttribute('aria-expanded', 'false');
       frame.hidden = false;
       if (!current.href) {
         frame.hidden = true;
@@ -1121,12 +1183,14 @@ body.page-controls-hidden #page-actions {
   function updateNavigation() {
     const destinationId = current?.destination_id ?? window.HtmlShareDestinationRouting.resolve(location.hash, { pages: allPages });
     const active = allPages.find((page) => page.destination_id === destinationId);
-    globalNav.querySelectorAll('a[data-destination-id], a[data-domain], a[data-operational]').forEach((link) => {
+    globalNav.querySelectorAll('a[data-destination-id], a[data-domain]').forEach((link) => {
       const linkId = link.dataset.destinationId;
       const linkDomain = link.dataset.domain;
-      const operational = link.dataset.operational === 'true';
-      const selected = linkId === destinationId || (linkDomain && active?.domain === linkDomain) || (operational && active?.domain === 'operational');
+      const selected = linkId === destinationId || (linkDomain && active?.domain === linkDomain);
       link.setAttribute('aria-current', selected ? 'page' : 'false');
+    });
+    operationalNav.querySelectorAll('a[data-operational]').forEach((link) => {
+      link.setAttribute('aria-current', link.dataset.operational === 'true' && active?.domain === 'operational' ? 'page' : 'false');
     });
     domainNav.replaceChildren();
     const domain = active?.domain;
@@ -1135,7 +1199,7 @@ body.page-controls-hidden #page-actions {
     for (const page of pagesForDomain) {
       const link = document.createElement('a');
       link.href = pageRoute(page);
-      link.textContent = page.labels?.navigation || page.title;
+      link.textContent = DOMAIN_NAV_LABELS[page.destination_id] || page.labels?.navigation || page.title;
       link.dataset.destinationId = page.destination_id;
       link.setAttribute('aria-current', page.destination_id === destinationId ? 'page' : 'false');
       link.addEventListener('click', (event) => { if (event.button === 0 && !event.metaKey && !event.ctrlKey) { event.preventDefault(); openPage(page); } });
@@ -1242,6 +1306,13 @@ body.page-controls-hidden #page-actions {
     location.reload();
   }
 
+  function setBrowserPanel(open) {
+    home.classList.toggle('on', open);
+    home.setAttribute('aria-hidden', String(!open));
+    browserToggle?.setAttribute('aria-expanded', String(open));
+    if (open) renderHome();
+  }
+
   // ── 検索。ふだんは虫めがねだけを置き、押したときだけ入力欄へ広げる ──
   const searchInput = $('q');
   function setSearching(open) {
@@ -1250,7 +1321,10 @@ body.page-controls-hidden #page-actions {
     searchToggle.setAttribute('aria-label', open ? '検索を閉じる' : '検索する');
     // 閉じている間は Tab の巡回から外し、虫めがね自体を押させる
     searchInput.tabIndex = open ? 0 : -1;
-    if (open) searchInput.focus();
+    if (open) {
+      setBrowserPanel(true);
+      searchInput.focus();
+    }
   }
   function applyFilter(value) {
     filterText = value;
@@ -1264,6 +1338,7 @@ body.page-controls-hidden #page-actions {
     }
     setSearching(false);
     searchInput.blur();
+    searchToggle.focus();
   }
   searchToggle.addEventListener('click', () => {
     if (document.body.classList.contains('searching')) closeSearch();
@@ -1294,10 +1369,11 @@ body.page-controls-hidden #page-actions {
 
   // 名前を押したらトップへ戻る
   $('brand').addEventListener('click', () => {
-    if (location.hash && location.hash !== '#/') location.hash = '#/';
-    else home.scrollTo({ top: 0, behavior: 'smooth' });
+    if (location.hash !== '#/home') location.hash = '#/home';
+    else frame.contentWindow?.scrollTo?.({ top: 0, behavior: 'smooth' });
   });
-  $('home-btn').addEventListener('click', () => { location.hash = '#/'; });
+  $('home-btn').addEventListener('click', () => { location.hash = '#/home'; });
+  browserToggle?.addEventListener('click', () => setBrowserPanel(!home.classList.contains('on')));
   $('review').addEventListener('click', () => { location.href = '/review/index.html'; });
   refresh.addEventListener('click', refreshApp);
   pageRefresh.addEventListener('click', refreshApp);
@@ -1332,7 +1408,7 @@ body.page-controls-hidden #page-actions {
     const page = current;
     closePagePopovers();
     if (!markUnread(page)) return;
-    location.hash = '#/';
+    location.hash = '#/home';
   });
   pageShare.addEventListener('click', () => {
     pageMenu.hidden = true;
