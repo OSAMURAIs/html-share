@@ -92,6 +92,10 @@ a { color: var(--v5-color-blue); }
 .v5-data-table th, .v5-data-table td, .v5-table th, .v5-table td, .table th, .table td { padding: var(--v5-table-cell-padding); border-bottom: var(--v5-border-width) solid var(--v5-color-line); text-align: left; vertical-align: top; }
 .v5-data-table th, .v5-table th, .table th { background: var(--v5-surface-subtle); color: var(--v5-color-navy); font-weight: 750; }
 .v5-data-table td, .v5-table td, .table td { font-variant-numeric: tabular-nums; }
+.v5-data-table-wide { min-width: 96rem; }
+.v5-data-table-sticky-first th:first-child, .v5-data-table-sticky-first td:first-child { position: sticky; left: 0; }
+.v5-data-table-sticky-first th:first-child { z-index: 2; background: var(--v5-surface-subtle); }
+.v5-data-table-sticky-first td:first-child { z-index: 1; background: var(--v5-surface-raised); box-shadow: 4px 0 8px rgba(16, 35, 63, .08); }
 .num { text-align: right !important; white-space: nowrap; }
 .v5-disclosure, details { margin-top: var(--v5-space-3); }
 .v5-disclosure summary, details summary { cursor: pointer; font-weight: 700; }

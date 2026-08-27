@@ -12,6 +12,8 @@ test('managed v5 foundation has tokens, progressive enhancement, and no external
   for (const token of ['--v5-color-navy', '--v5-font-body', '--v5-space-4', '--v5-radius-md', '--v5-content-workspace', '--v5-table-min-width', '--v5-breakpoint-mobile', '--v5-motion-standard']) assert.match(css, new RegExp(token));
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /\.v5-grid, \.grid \{ display: grid/);
+  assert.match(css, /\.v5-data-table-wide \{ min-width: 96rem/);
+  assert.match(css, /\.v5-data-table-sticky-first th:first-child/);
   assert.match(css, /\.v5-cards, \.cards, \.v5-metadata-row/);
   assert.match(css, /@media \(max-width: 42rem\)/);
   assert.match(js, /prefers-reduced-motion/);
