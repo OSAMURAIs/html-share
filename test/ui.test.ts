@@ -56,6 +56,22 @@ test('ships the full dashboard UI and inbox wording', () => {
   assert.doesNotMatch(dashboard, /location\.href = new URL\(page\.href/);
 });
 
+test('R5 uses canonical Home as the primary surface and keeps the legacy browser as a utility', () => {
+  const dashboard = readFileSync(path.join(root, 'web', 'app', 'index.html'), 'utf8');
+  assert.match(dashboard, /data-destination-id="home">Home/);
+  assert.match(dashboard, /data-domain="research">Research/);
+  assert.match(dashboard, /data-domain="personal">暮らし/);
+  assert.match(dashboard, /data-domain="investment">Investment/);
+  assert.match(dashboard, /data-operational="true">Live Work/);
+  assert.match(dashboard, /id="browser-toggle"/);
+  assert.match(dashboard, /const destinationId = resolved \|\| .*'home'/);
+  assert.match(dashboard, /current\.destination_id !== 'home'/);
+  assert.match(dashboard, /DOMAIN_NAV_LABELS/);
+  assert.match(dashboard, /@media \(min-width: 46\.01rem\)/);
+  assert.match(dashboard, /@media \(max-width: 46rem\)/);
+  assert.match(dashboard, /prefers-reduced-motion/);
+});
+
 test('folds overflowing tables on the viewing origin without network access', () => {
   const tables = readFileSync(path.join(root, 'web', 'mobile-tables.js'), 'utf8');
   const handler = readFileSync(path.join(root, 'functions', 'review-handler.ts'), 'utf8');
