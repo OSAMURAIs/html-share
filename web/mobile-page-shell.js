@@ -175,7 +175,9 @@
   const CAN_SYNC = false;
   let allPages = [];
   let currentPage = null;
-  const pageIdentity = (page) => page.objectKey ?? page.source ?? page.slug;
+  // Canonical browser state is destination-first. Legacy fields are only
+  // understood by the shell migration layer when that helper is available.
+  const pageIdentity = (page) => page.destination_id ?? null;
   let starredSources = [];
   let hiddenSources = new Set();
   let preferencesReady = false;
@@ -204,10 +206,16 @@
 
   function saveLocalPreferences() {
     try {
-      localStorage.setItem(STAR_KEY, JSON.stringify(starredSources));
-      localStorage.removeItem('mb_recent_pages');
-      localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hiddenSources]));
-      localStorage.setItem(READ_KEY, JSON.stringify(readMarks));
+      if (window.HtmlShareBrowserState) {
+        window.HtmlShareBrowserState.write(localStorage, {
+          version: window.HtmlShareBrowserState.VERSION,
+          favorites: starredSources.filter(Boolean), hidden: [...hiddenSources].filter(Boolean), readMarks, recent: [],
+        });
+      } else {
+        localStorage.setItem(STAR_KEY, JSON.stringify(starredSources.filter(Boolean)));
+        localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hiddenSources].filter(Boolean)));
+        localStorage.setItem(READ_KEY, JSON.stringify(readMarks));
+      }
       knowsReadMarks = true;
     } catch { /* noop */ }
   }
@@ -264,10 +272,10 @@
   function syncMenu() {
     const button = $('.star-action');
     const on = Boolean(currentPage && starredSources.includes(pageIdentity(currentPage)));
-    button.disabled = !currentPage || !preferencesReady;
+    button.disabled = !currentPage || !pageIdentity(currentPage) || !preferencesReady;
     button.classList.toggle('starred', on);
     button.querySelector('span').textContent = on ? 'スターを外す' : 'スターを付ける';
-    $('.unread-action').disabled = !currentPage || !preferencesReady;
+    $('.unread-action').disabled = !currentPage || !pageIdentity(currentPage) || !preferencesReady;
   }
 
   nav.addEventListener('click', () => { location.href = '/app/index.html'; });
@@ -281,7 +289,7 @@
     setToolbarHidden(false);
   });
   $('.star-action').addEventListener('click', async () => {
-    if (!currentPage) return;
+    if (!currentPage || !pageIdentity(currentPage)) return;
     const previousStarred = [...starredSources];
     const on = starredSources.includes(pageIdentity(currentPage));
     starredSources = on
@@ -299,7 +307,7 @@
     }
   });
   $('.unread-action').addEventListener('click', async () => {
-    if (!currentPage) return;
+    if (!currentPage || !pageIdentity(currentPage)) return;
     closePopovers();
     const currentKey = pageIdentity(currentPage);
     const previousMark = readMarks[currentKey];
@@ -321,7 +329,7 @@
     more.setAttribute('aria-expanded', 'true');
   });
   $('.delete').addEventListener('click', async () => {
-    if (!currentPage) return;
+    if (!currentPage || !pageIdentity(currentPage)) return;
     closePopovers();
     if (!confirm(`「${currentPage.title}」を共有くんの一覧から削除します。\n\n原本と発行済みURLは残り、左の「削除済み」から戻せます。`)) return;
     const previousHidden = new Set(hiddenSources);
@@ -393,7 +401,7 @@
 
   fetch('/app/manifest.json', { cache: 'no-store' }).then((response) => response.json()).then(async (manifest) => {
     allPages = manifest.pages ?? [];
-    const validSources = new Set(allPages.map(pageIdentity));
+    const validSources = new Set(allPages.map(pageIdentity).filter(Boolean));
     hiddenSources = new Set([...hiddenSources].filter((sourceValue) => validSources.has(sourceValue)));
     currentPage = allPages.find((page) => page.slug === currentSlug) ?? null;
 

@@ -118,5 +118,6 @@ test('browser routing converges canonical routes and aliases on destination_id',
   assert.equal(resolve('/app/index.html#/research-pulse', manifest), 'research.overview');
   assert.equal(resolve('research.overview', manifest), 'research.overview');
   const pageList = readFileSync(path.resolve(import.meta.dirname, '..', 'web', 'page-list.js'), 'utf8');
-  assert.match(pageList, /page\.destination_id \?\? page\.objectKey/);
+  assert.match(pageList, /typeof page\?\.destination_id === 'string'/);
+  assert.doesNotMatch(pageList, /page\.objectKey \?\? page\.source \?\? page\.slug/);
 });

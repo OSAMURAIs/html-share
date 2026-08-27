@@ -115,6 +115,22 @@ export class HtmlShareStack extends Stack {
         trustedKeyGroups: [keyGroup],
         compress: true,
       },
+      additionalBehaviors: {
+        'assets/v5/1/*': {
+          origin: origins.S3BucketOrigin.withOriginAccessControl(contentBucket),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
+          cachePolicy: new cloudfront.CachePolicy(this, 'V5AssetCachePolicy', {
+            defaultTtl: Duration.days(365),
+            minTtl: Duration.days(365),
+            maxTtl: Duration.days(365),
+            enableAcceptEncodingBrotli: true,
+            enableAcceptEncodingGzip: true,
+          }),
+          responseHeadersPolicy: securityPolicy(this, 'ContentAssetHeaders', true, consoleOrigin, contentOrigin),
+          compress: true,
+        },
+      },
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
       priceClass: cloudfront.PriceClass.PRICE_CLASS_200,

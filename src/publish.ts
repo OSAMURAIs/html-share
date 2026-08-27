@@ -135,7 +135,7 @@ function currentObjects(all: any[]): BaselineObject[] {
 
 export function isManagedPublishKey(kind: 'content' | 'console', key: string): boolean {
   if (kind === 'content') return key.startsWith('pages/') || key.startsWith('assets/v5/');
-  return key === 'index.html' || key === 'app.webmanifest' || ['app/', 'auth/', 'icons/', 'review/'].some((prefix) => key.startsWith(prefix));
+  return key === 'index.html' || key === 'app.webmanifest' || ['app/', 'assets/v5/', 'auth/', 'icons/', 'review/'].some((prefix) => key.startsWith(prefix));
 }
 
 export function staleManagedPublishKeys(kind: 'content' | 'console', baselineKeys: string[], desiredKeys: string[]): string[] {
@@ -211,6 +211,13 @@ function desiredKeys(root: string): string[] {
   return files(root).map((relative) => relative.split(path.sep).join('/')).sort();
 }
 
+export function cacheControlFor(kind: 'content' | 'console', key: string): string {
+  if (kind === 'content' && key.startsWith('assets/v5/1/')) return 'public, max-age=31536000, immutable';
+  // Shell, manifests, canonical HTML, and the operational document are
+  // mutable owner content. Explicit reload/resume must be able to observe it.
+  return 'no-store, max-age=0';
+}
+
 const DELETE_OBJECTS_LIMIT = 1000;
 
 export async function deleteObjectsInBatches(
@@ -248,7 +255,7 @@ async function uploadTree(client: S3Client, bucket: BucketJournal, root: string,
     const key = relative.split(path.sep).join('/');
     const result = await client.send(new PutObjectCommand({
       Bucket: bucket.bucket, Key: key, Body: readFileSync(file), ContentType: TYPES[path.extname(file).toLowerCase()] ?? 'application/octet-stream',
-      CacheControl: 'no-store, max-age=0', Metadata: { [TRANSACTION_METADATA]: transactionId },
+      CacheControl: cacheControlFor(bucket.kind, key), Metadata: { [TRANSACTION_METADATA]: transactionId },
     }));
     if (!result.VersionId || result.VersionId === 'null') throw new Error(`S3 did not return a version for ${bucket.bucket}/${key}`);
     bucket.uploaded.push({ key, versionId: result.VersionId });
