@@ -1,0 +1,646 @@
+{
+  "schema": "html-share.visual.contract/1",
+  "authority": {
+    "design_authority": "Prototype v5 actual implementation",
+    "prototype_path": "reference/html-share-ui-prototype-v5/html-share-ui-prototype-v5",
+    "authority_documents": [
+      "reference/html-share-ui-prototype-v5/html-share-ui-prototype-v5/DESIGN-DECISIONS.md",
+      "reference/html-share-ui-prototype-v5/html-share-ui-prototype-v5/INFORMATION-PRESERVATION.md",
+      "reference/html-share-ui-prototype-v5/html-share-ui-prototype-v5/REVIEW-v5.md",
+      "reference/html-share-ui-v5-to-implementation-master-handoff.md"
+    ],
+    "note": "Every quantitative value below was verified against the Prototype by capturing it in Chrome and reading computed geometry. Where an authority document and the Prototype implementation disagree, the implementation wins and the disagreement is recorded in known_prototype_defects.",
+    "current_production_is_not_authority": true
+  },
+
+  "tolerances": {
+    "principal_width_pct": 8,
+    "column_ratio_points": 10,
+    "body_font_px": 1,
+    "table_font_px": 1,
+    "heading_font_px": 2,
+    "first_content_y_px": 48,
+    "shell_chrome_extent_px": 24,
+    "overflow_px": 8,
+    "fold_density_pct": 50
+  },
+
+  "expected_prototype_failures": {
+    "note": "The contract is validated by evaluating it with the Prototype standing in as both sides. The Prototype must satisfy its own contract everywhere EXCEPT these documented defects. Any other Prototype-side failure means the contract is wrong, not the implementation.",
+    "check_ids": [
+      "investment.pulse.mobile.overflow.document"
+    ]
+  },
+
+  "known_prototype_defects": [
+    {
+      "id": "positions.sticky-identity-transparent",
+      "where": "investment.positions",
+      "detail": "td:first-child{position:sticky;left:0;background:inherit} resolves to a transparent row background, so the pinned identity column does not mask the columns scrolling beneath it.",
+      "instruction": "Reconstruct the INTENT (sticky, opaque identity column). Do not replicate the defect."
+    },
+    {
+      "id": "tables.sticky-header-inert",
+      "where": "investment.positions, research.papers",
+      "detail": "th{position:sticky;top:0} sits inside an overflow-x:auto wrapper, which is a content-height scroll container, so the header never sticks during page scroll.",
+      "instruction": "Reconstruct the INTENT. Do not replicate the defect."
+    },
+    {
+      "id": "pulse.unwrapped-wide-table",
+      "where": "investment.pulse",
+      "detail": "A min-width:720px table is rendered without a scroll wrapper and overflows the page at 390px (measured 392px of document overflow on the Prototype).",
+      "instruction": "Do not replicate. The overflow guardrail is absolute, not Prototype-relative, for this reason."
+    },
+    {
+      "id": "travel.confirmed-marker-dropped",
+      "where": "personal.travel",
+      "detail": "@media (max-width:560px) .confirmed-row em{display:none} removes the 確定 booking marker, the one genuine information loss at 390px.",
+      "instruction": "Do not replicate. Mobile must not drop confirmation state."
+    },
+    {
+      "id": "tokens.teal-aliased-to-blue",
+      "where": "global",
+      "detail": "--teal is redeclared to the same value as --blue, so .gain renders blue while the Dashboard divergent chart uses true green/red. Investment carries two incompatible divergent encodings.",
+      "instruction": "V1 must choose one divergent encoding. Recorded here so the inconsistency is not silently inherited."
+    },
+    {
+      "id": "pulse.metrics-before-action",
+      "where": "investment.pulse",
+      "detail": "The reconstruction brief expects action/review emphasis before compact metrics. The Prototype renders the 4-up KPI grid FIRST and injects the attention block after it. The contract encodes the Prototype's actual order and flags the intent gap.",
+      "instruction": "V1 decision required: follow the Prototype order, or follow the stated intent. Not settled in V0."
+    }
+  ],
+
+  "motion_contract": {
+    "note": "V0 defines and provides hooks only. No motion is implemented or asserted in V0. Every entry lists the normal expectation and the prefers-reduced-motion expectation.",
+    "test_hook": "The harness sets Emulation.setEmulatedMedia prefers-reduced-motion and waits for document.getAnimations() to settle, so a V1+ motion suite can capture both states through the same capture path.",
+    "behaviours": [
+      {
+        "id": "cross-route-transition",
+        "routes": "all",
+        "normal": "Same-origin navigation cross-fades the document root over ~250ms (@view-transition{navigation:auto}).",
+        "reduced_motion": "::view-transition-old(root)/::view-transition-new(root) animation:none — no transition at all."
+      },
+      {
+        "id": "entry-reveal-stagger",
+        "routes": "home, research.papers, research.knowledge-review, investment.pulse, investment.positions, investment.decisions, investment.journal, operational.live-work",
+        "normal": "Major blocks rise 7px and fade in over 450ms, staggered 45ms per index, capped at 10 indices.",
+        "reduced_motion": "animation-duration collapses to ~0. NOTE: the Prototype does not reset animation-delay, so late elements can hold opacity:0 for up to 450ms. V1 must reset the delay too."
+      },
+      {
+        "id": "research-filter-reflow",
+        "routes": "research.feed, research.papers",
+        "normal": "STATED BY THE AUTHORITY DOCUMENTS, ABSENT FROM THE PROTOTYPE. The Prototype filters by toggling [hidden], an instant reflow with no motion. V1 must decide whether to implement the documented reflow.",
+        "reduced_motion": "Instant reflow (which is what the Prototype already does)."
+      },
+      {
+        "id": "travel-timeline-draw",
+        "routes": "personal.travel",
+        "normal": "Each itinerary connector draws top-to-bottom via scaleY 0→1 over 750ms; all lines animate simultaneously, no stagger.",
+        "reduced_motion": "Connectors are drawn immediately at full extent."
+      },
+      {
+        "id": "travel-current-marker",
+        "routes": "personal.travel",
+        "normal": "STATED BY THE AUTHORITY DOCUMENTS, ABSENT FROM THE PROTOTYPE. Switching to 旅行中 toggles display on the next-move block — a hard cut with no transition.",
+        "reduced_motion": "Hard cut."
+      },
+      {
+        "id": "allocation-reveal",
+        "routes": "investment.dashboard",
+        "normal": "The allocation donut irises open via clip-path inset(50% 0 50% 0)→inset(0) with opacity .45→1 over 850ms.",
+        "reduced_motion": "Donut renders complete immediately."
+      },
+      {
+        "id": "pl-bar-reveal",
+        "routes": "investment.dashboard",
+        "normal": "Divergent P/L bars grow outward from the zero rule via scaleX 0→1 over 600ms, transform-origin left for gains and right for losses.",
+        "reduced_motion": "Bars render at full extent immediately."
+      }
+    ]
+  },
+
+  "navigation_invariant": {
+    "id": "one-navigation-one-history-entry",
+    "statement": "One logical user navigation produces exactly one logical browser history entry.",
+    "status": "Diagnosed and fixed on the parked branch maintenance/browser-history-double-entry (commit 8fb9fdb). NOT merged during V0.",
+    "instruction": "V1 must either incorporate that implementation or preserve this invariant through its new shell architecture."
+  },
+
+  "routes": {
+    "home": {
+      "label": "Home",
+      "domain_grammar": "Cross-domain operating overview: Research, Personal and Investment each present as a distinct surface carrying live state, with Operational projected as a strip. No hero.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "three-column domain band over a two-column personal/investment band",
+        "expected_column_count": 3,
+        "expected_column_ratios": [33.3, 33.3, 33.3],
+        "expected_content_column_count": 3,
+        "primary_first_fold": "Three Research project surfaces side by side, plus the top of the Personal/Investment band.",
+        "section_order": [
+          { "id": "research-band", "match": { "classAny": ["home-research"], "heading": "研究|Research" } },
+          { "id": "personal-investment-band", "match": { "classAny": ["home-lower", "home-personal", "home-investment"], "heading": "暮らし|Personal|投資|Investment|次に動く" } },
+          { "id": "live-work-strip", "match": { "classAny": ["live-strip", "home-live-work"], "heading": "Live Work" } },
+          { "id": "recent-updates", "match": { "classAny": ["recent-grid", "home-recent"], "heading": "最近更新|Recently updated" } }
+        ],
+        "visual_grammar": {
+          "sections": { "min": 4, "why": "Home must project all four domains, not a single feed." },
+          "h2": { "min": 4, "why": "Each domain surface carries its own heading." }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "research-band", "match": { "classAny": ["home-research"], "heading": "研究|Research" } },
+          { "id": "personal-investment-band", "match": { "classAny": ["home-lower", "home-personal", "home-investment"], "heading": "暮らし|Personal|投資|Investment|次に動く" } },
+          { "id": "live-work-strip", "match": { "classAny": ["live-strip", "home-live-work"], "heading": "Live Work" } },
+          { "id": "recent-updates", "match": { "classAny": ["recent-grid", "home-recent"], "heading": "最近更新|Recently updated" } }
+        ],
+        "critical_first_screen": ["Research project state", "at least one non-Research domain surface"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "The Prototype keeps the Research band as a horizontally scrolling three-card carousel at <=1080px rather than stacking it. Domain order is preserved at every width."
+      }
+    },
+
+    "research.overview": {
+      "label": "Research Overview",
+      "domain_grammar": "Two explicit Project workspaces beside a visually subordinate exploration surface, then a task/context workspace. The Project-vs-exploration boundary is the point of the route.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "three-column project header (two projects + exploration), then a two-column workspace",
+        "expected_column_count": 3,
+        "expected_column_ratios": [36, 36, 28.1],
+        "expected_content_column_count": 3,
+        "primary_first_fold": "Both Project cards with their six state rows, beside the exploration surface with its four exploration rows.",
+        "section_order": [
+          { "id": "project-workspaces", "match": { "classAny": ["project-header", "project-definition"], "heading": "修士論文|Project|CPGteam" } },
+          { "id": "exploration", "match": { "classAny": ["research-exploration"], "heading": "研究探索|Exploration" }, "required": false },
+          { "id": "task-context-workspace", "match": { "classAny": ["project-workspace", "task-panel", "context-panel"], "heading": "Project|task|context|Active|entity" } }
+        ],
+        "visual_grammar": {
+          "sections": { "min": 2, "why": "Project workspaces and the exploration surface must both be present." },
+          "h2": { "min": 2, "why": "Each Project workspace is its own titled record." }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "project-workspaces", "match": { "classAny": ["project-header", "project-definition"], "heading": "修士論文|Project|CPGteam" } },
+          { "id": "exploration", "match": { "classAny": ["research-exploration"], "heading": "研究探索|Exploration" }, "required": false },
+          { "id": "task-context-workspace", "match": { "classAny": ["project-workspace", "task-panel", "context-panel"], "heading": "Project|task|context|Active|entity" } }
+        ],
+        "critical_first_screen": ["first Project identity and its current state"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "Straight three-then-two stack, order preserved. Fixed label columns (82px exploration, 76px state) are NOT overridden on mobile, leaving ~260px for values."
+      }
+    },
+
+    "research.feed": {
+      "label": "Research Feed",
+      "domain_grammar": "Dated digest batches, each holding a two-column grid of candidate reading cards. Body text outranks metadata; the evidence block is anchored to the bottom of every card.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "filter toolbar over date-batched two-column candidate grids",
+        "expected_column_count": 1,
+        "expected_content_column_count": 2,
+        "expected_content_column_ratios": [50, 50],
+        "primary_first_fold": "Filter row plus the first two candidate cards, each showing relation and relevance chips, a serif title, body text and a two-column evidence footer.",
+        "section_order": [
+          { "id": "filter-toolbar", "match": { "classAny": ["feed-toolbar"], "heading": "すべて|filter|絞り込み" } },
+          { "id": "dated-batch-primary", "match": { "classAny": ["feed-batch"], "heading": "\\d+月\\d+日|\\d{4}-\\d{2}-\\d{2}|batch" } },
+          { "id": "dated-batch-earlier", "match": { "classAny": ["feed-batch"], "heading": "以前|earlier|\\d+月\\d+日|\\d{4}-\\d{2}-\\d{2}" }, "required": false }
+        ],
+        "visual_grammar": {
+          "sections": { "min": 2, "why": "A filter affordance and at least one dated batch are both required." }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "filter-toolbar", "match": { "classAny": ["feed-toolbar"], "heading": "すべて|filter|絞り込み" } },
+          { "id": "dated-batch-primary", "match": { "classAny": ["feed-batch"], "heading": "\\d+月\\d+日|\\d{4}-\\d{2}-\\d{2}|batch" } },
+          { "id": "dated-batch-earlier", "match": { "classAny": ["feed-batch"], "heading": "以前|earlier|\\d+月\\d+日|\\d{4}-\\d{2}-\\d{2}" }, "required": false }
+        ],
+        "critical_first_screen": ["filter affordance", "first candidate title and body"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "Cards go one-up; the in-card evidence footer also collapses to one column. Filter buttons wrap rather than scroll."
+      }
+    },
+
+    "research.papers": {
+      "label": "Research Papers",
+      "domain_grammar": "Three rich focus records first, then the complete collection as a compact searchable table. Focus before completeness is the whole shape of the route.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "three-column focus band above a full-width collection table",
+        "expected_column_count": 3,
+        "expected_column_ratios": [33.3, 33.3, 33.3],
+        "expected_content_column_count": 3,
+        "primary_first_fold": "All three focus papers with their chips, title, summary and two detail lines, plus the collection heading and toolbar.",
+        "section_order": [
+          { "id": "focus-records", "match": { "classAny": ["focus-list", "focus-paper", "v5-focus"], "heading": "重要|focus|次に読む|Focus" } },
+          { "id": "collection-toolbar", "match": { "classAny": ["collection-toolbar"], "heading": "検索|search|Queue|全Paper" }, "required": false },
+          { "id": "complete-collection", "match": { "classAny": ["collection-table-wrap", "v5-collection", "table-shell"], "heading": "Complete|全Paper|Queue|Paper" } }
+        ],
+        "visual_grammar": {
+          "tables": { "min": 1, "why": "The complete collection is a table, not cards." },
+          "widest_table_columns": { "min": 4, "why": "Paper / status / relevance / added-reviewed must all survive." }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "focus-records", "match": { "classAny": ["focus-list", "focus-paper", "v5-focus"], "heading": "重要|focus|次に読む|Focus" } },
+          { "id": "collection-toolbar", "match": { "classAny": ["collection-toolbar"], "heading": "検索|search|Queue|全Paper" }, "required": false },
+          { "id": "complete-collection", "match": { "classAny": ["collection-table-wrap", "v5-collection", "table-shell"], "heading": "Complete|全Paper|Queue|Paper" } }
+        ],
+        "critical_first_screen": ["first focus paper title and its relation to the reader's own work"],
+        "table_overflow_strategy": "horizontal-scroll-container",
+        "sticky_identity": true,
+        "hierarchy_note": "Focus records stack one-up; the collection table stays a table and scrolls horizontally inside its wrapper. Cards must NOT be substituted for the table."
+      }
+    },
+
+    "research.knowledge-review": {
+      "label": "Knowledge Review",
+      "domain_grammar": "The single actionable question plus the review workflow state come first; explicit review tasks second; the unreviewed backlog last, as a kind-partitioned disclosure.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "62.5/37.5 focus-and-workflow band over single-column task and backlog stacks",
+        "expected_column_count": 2,
+        "expected_column_ratios": [62.5, 37.5],
+        "expected_content_column_count": 2,
+        "primary_first_fold": "The review question callout beside the workflow summary tiles.",
+        "section_order": [
+          { "id": "focus-and-workflow", "match": { "classAny": ["review-focus", "review-card", "review-summary", "v5-focus"], "heading": "review workflow|確認する|Review|代表測定" } },
+          { "id": "explicit-tasks", "match": { "classAny": ["stack"], "heading": "Explicit|事実・記述|適用を検討|task" } },
+          { "id": "unreviewed-backlog", "match": { "classAny": ["stack", "backlog-group"], "heading": "backlog|未review|Unreviewed" } }
+        ],
+        "visual_grammar": {
+          "sections": { "min": 3, "why": "Focus/workflow, explicit tasks and backlog are three distinct regions." }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "focus-and-workflow", "match": { "classAny": ["review-focus", "review-card", "review-summary", "v5-focus"], "heading": "review workflow|確認する|Review|代表測定" } },
+          { "id": "explicit-tasks", "match": { "classAny": ["stack"], "heading": "Explicit|事実・記述|適用を検討|task" } },
+          { "id": "unreviewed-backlog", "match": { "classAny": ["stack", "backlog-group"], "heading": "backlog|未review|Unreviewed" } }
+        ],
+        "critical_first_screen": ["the actionable review question", "review workflow counts"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "Backlog uses in-place disclosure, never a nested scroll region. Order focus → tasks → backlog is preserved."
+      }
+    },
+
+    "personal.current": {
+      "label": "Personal Current",
+      "domain_grammar": "Two co-equal priority records each carrying a current state and an explicit NEXT action, then dated items separated from undated continuing items.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "50/50 priority pair, full-width strip, three-column dated band, four-column continuing band",
+        "expected_column_count": 2,
+        "expected_column_ratios": [50, 50],
+        "expected_content_column_count": 2,
+        "primary_first_fold": "Both priority cards with their date context, current state and bottom-anchored next action.",
+        "section_order": [
+          { "id": "priority-pair", "match": { "classAny": ["priority-pair", "priority-card"], "heading": "龍宮城|いまの文脈|現在地|priority" } },
+          { "id": "dated-items", "match": { "classAny": ["grid-3", "side-list"], "heading": "近い予定|dated|予定" } },
+          { "id": "continuing-items", "match": { "classAny": ["grid-4", "focus-section"], "heading": "継続中|フォーカス|continuing" } }
+        ],
+        "visual_grammar": {
+          "sections": { "min": 3, "why": "Priorities, dated context and undated continuing context are three distinct regions." }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "priority-pair", "match": { "classAny": ["priority-pair", "priority-card"], "heading": "龍宮城|いまの文脈|現在地|priority" } },
+          { "id": "dated-items", "match": { "classAny": ["grid-3", "side-list"], "heading": "近い予定|dated|予定" } },
+          { "id": "continuing-items", "match": { "classAny": ["grid-4", "focus-section"], "heading": "継続中|フォーカス|continuing" } }
+        ],
+        "critical_first_screen": ["first priority identity, its date context and its NEXT action"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "Everything becomes one column with order preserved. Additional continuing items expand in place; a nested scroll region is not acceptable."
+      }
+    },
+
+    "personal.plans": {
+      "label": "Personal Plans",
+      "domain_grammar": "A single-column stack of detailed active plan records. Each record carries a facts grid plus two named long-copy blocks. Lifecycle is carried as a status chip only — the Prototype does NOT partition plans by state.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "single-column record stack; each record contains a two-column facts grid",
+        "expected_column_count": 1,
+        "expected_content_column_count": 2,
+        "expected_content_column_ratios": [50, 50],
+        "primary_first_fold": "The first plan record complete: status and kind chips, title, the facts grid, and the current-state and next-move copy blocks.",
+        "section_order": [
+          { "id": "active-plan-records", "match": { "classAny": ["stack", "plan-card"], "heading": "龍宮城|現在の案件|案件|plan" } },
+          { "id": "plan-collection", "match": { "classAny": ["v5-wide"], "heading": "全案件|collection|コレクション" }, "required": false }
+        ],
+        "visual_grammar": {
+          "sections": { "min": 1, "why": "The record stack is the route." },
+          "h2": { "min": 2, "why": "Each plan record is an independently titled record." }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "active-plan-records", "match": { "classAny": ["stack", "plan-card"], "heading": "龍宮城|現在の案件|案件|plan" } },
+          { "id": "plan-collection", "match": { "classAny": ["v5-wide"], "heading": "全案件|collection|コレクション" }, "required": false }
+        ],
+        "critical_first_screen": ["first plan identity, its status and its date"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "Already single column. The Prototype keeps the in-record facts grid at two columns even at 390px."
+      }
+    },
+
+    "personal.library": {
+      "label": "Personal Library",
+      "domain_grammar": "Distinct lifecycle/state regions stacked vertically, each a tinted surface containing a three-column item grid. Region tint is the entire mechanism that distinguishes state.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "single-column stack of state regions, each with a three-column item grid",
+        "expected_column_count": 1,
+        "expected_content_column_count": 3,
+        "expected_content_column_ratios": [33.3, 33.3, 33.3],
+        "primary_first_fold": "The active/in-use region complete, plus the next region's header.",
+        "section_order": [
+          { "id": "region-active", "match": { "classAny": ["library-layout", "library-section", "v5-surface"], "heading": "今見ている|使っている|Active" } },
+          { "id": "region-saved", "match": { "heading": "あとで見る|Saved|Unstarted" }, "required": false },
+          { "id": "region-acquired", "match": { "heading": "最近入手|Acquired" }, "required": false },
+          { "id": "region-considering", "match": { "heading": "検討中|Shopping|considering" }, "required": false }
+        ],
+        "visual_grammar": {
+          "h2": { "min": 3, "why": "Library is defined by having several visually distinct lifecycle regions, each independently titled, rather than one flat list. The Prototype nests its four regions inside one layout wrapper, so regions are counted by heading, not by top-level section." }
+        },
+        "source_truth_note": "The Prototype's shopping region (prices and a three-step purchase-intent gradient) is self-declared on the page as a conceptual fixture, and DESIGN-DECISIONS.md records that source has no complete field for it. Visual authority for the REGION GRAMMAR is accepted; the shopping SEMANTICS must not be promoted into production data unless the canonical source supports them."
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "region-active", "match": { "classAny": ["library-layout", "library-section", "v5-surface"], "heading": "今見ている|使っている|Active" } },
+          { "id": "region-saved", "match": { "heading": "あとで見る|Saved|Unstarted" }, "required": false },
+          { "id": "region-acquired", "match": { "heading": "最近入手|Acquired" }, "required": false },
+          { "id": "region-considering", "match": { "heading": "検討中|Shopping|considering" }, "required": false }
+        ],
+        "critical_first_screen": ["the active region identity and its first items"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "Each region becomes a one-column list. Region order and region distinction by tint must survive."
+      }
+    },
+
+    "personal.travel": {
+      "label": "Personal Travel",
+      "domain_grammar": "A trip collection beside the current/next trip, then ONE selected trip workspace carrying timeline, bookings, critical items and fallback as four distinct grammars.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "40/60 collection band, then a selected-trip workspace with a 56/44 overview, a two-column day timeline and a 50/50 critical/fallback pair",
+        "expected_column_count": 2,
+        "expected_column_ratios": [40, 60],
+        "expected_content_column_count": 2,
+        "primary_first_fold": "The current/next trip state beside the trip collection, then the selected trip identity and its mode control.",
+        "section_order": [
+          { "id": "trip-collection", "match": { "classAny": ["v5-travel-collection", "trip-row"], "heading": "旅行コレクション|Collection|旅行中|完了旅行" } },
+          { "id": "selected-trip-workspace", "match": { "classAny": ["trip-detail-v5", "trip-overview"], "heading": "Trip Detail|詳細:|箱根|旅行" } }
+        ],
+        "visual_grammar": {
+          "sections": { "min": 2, "why": "A collection and exactly one selected trip workspace are both required." }
+        },
+        "grammar_requirements": [
+          "timeline: a vertical day-by-day itinerary with a continuous connector and per-stop nodes",
+          "bookings: a confirmed-legs list carrying an explicit confirmation marker",
+          "critical: hard time and reservation constraints called out separately",
+          "fallback: an explicit what-if-the-plan-slips block"
+        ]
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "trip-collection", "match": { "classAny": ["v5-travel-collection", "trip-row"], "heading": "旅行コレクション|Collection|旅行中|完了旅行" } },
+          { "id": "selected-trip-workspace", "match": { "classAny": ["trip-detail-v5", "trip-overview"], "heading": "Trip Detail|詳細:|箱根|旅行" } }
+        ],
+        "critical_first_screen": ["current/next trip state", "selected trip identity"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "The itinerary MUST remain a continuous vertical timeline at 390px — it is vertical by construction, not by media query. Booking confirmation state must NOT be dropped on mobile (see known_prototype_defects travel.confirmed-marker-dropped)."
+      }
+    },
+
+    "investment.dashboard": {
+      "label": "Investment Dashboard",
+      "domain_grammar": "A dominant portfolio summary, an allocation figure that encodes share quantitatively, and a divergent P/L figure that encodes gain and loss in opposite directions from a zero rule. Every figure states its denominator.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "60/40 summary band, full-width allocation figure, 50/50 chart pair, full-width divergent figure",
+        "expected_column_count": 2,
+        "expected_column_ratios": [60, 40],
+        "expected_content_column_count": 2,
+        "primary_first_fold": "The dark portfolio summary with its headline total, beside the attention list; then the allocation figure heading with its stated denominator.",
+        "section_order": [
+          { "id": "portfolio-summary", "match": { "classAny": ["v5-summary", "portfolio-summary-v5"], "heading": "Portfolio Summary|万円|総資産|Portfolio" } },
+          { "id": "allocation-figure", "match": { "classAny": ["chart-panel", "v5-grid"], "heading": "配分|allocation|Invested-asset" } },
+          { "id": "top-holdings", "match": { "heading": "上位保有|Top holdings|Top 5" }, "required": false },
+          { "id": "divergent-pl", "match": { "classAny": ["chart-panel", "divergent-v5"], "heading": "損益|P/L|contribution" } }
+        ],
+        "visual_grammar": {
+          "quantitative_visuals": { "min": 2, "why": "Allocation share and divergent P/L must be encoded as figures, not as text or a bare table.", "severity": "critical" }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "portfolio-summary", "match": { "classAny": ["v5-summary", "portfolio-summary-v5"], "heading": "Portfolio Summary|万円|総資産|Portfolio" } },
+          { "id": "allocation-figure", "match": { "classAny": ["chart-panel", "v5-grid"], "heading": "配分|allocation|Invested-asset" } },
+          { "id": "top-holdings", "match": { "heading": "上位保有|Top holdings|Top 5" }, "required": false },
+          { "id": "divergent-pl", "match": { "classAny": ["chart-panel", "divergent-v5"], "heading": "損益|P/L|contribution" } }
+        ],
+        "critical_first_screen": ["portfolio headline total", "at least one item needing attention"],
+        "table_overflow_strategy": "horizontal-scroll-container",
+        "sticky_identity": false,
+        "hierarchy_note": "Charts must stay readable at 390px: the allocation figure centres and its legend goes full width; the divergent rows keep a usable bar track. Chart readability, not merely chart presence, is the requirement.",
+        "visual_grammar": {
+          "quantitative_visuals": { "min": 2, "why": "The figures must survive at mobile width, not be dropped for text.", "severity": "critical" }
+        }
+      }
+    },
+
+    "investment.pulse": {
+      "label": "Investment Pulse",
+      "domain_grammar": "Compact portfolio metrics, an explicit next-check block, then the items needing action or review. NOTE: the reconstruction brief expects action/review BEFORE compact metrics; the Prototype renders metrics first. See known_prototype_defects pulse.metrics-before-action.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "four-column KPI row, full-width next-check block, 50/50 action/snapshot pair, 50/50 tables, full-width quality disclosure",
+        "expected_column_count": 4,
+        "expected_column_ratios": [26.8, 24.4, 24.4, 24.4],
+        "expected_content_column_count": 2,
+        "primary_first_fold": "The four KPI tiles, then the next-check card, then the top of the action/review pair.",
+        "section_order": [
+          { "id": "compact-metrics", "match": { "classAny": ["invest-kpi-grid", "v5-wide"], "heading": "総資産|KPI|What needs review|保有資産" } },
+          { "id": "next-check", "match": { "classAny": ["attention-v5", "v5-grid"], "heading": "Next checks|次回確認|attention|利確" } },
+          { "id": "action-review", "match": { "classAny": ["pulse-layout", "action-section"], "heading": "今確認|判断する|action|review" }, "required": false },
+          { "id": "data-quality", "match": { "classAny": ["quality-panel", "warn"], "heading": "Data [Qq]uality|freshness|WARN" } }
+        ],
+        "visual_grammar": {
+          "quantitative_visuals": { "min": 1, "why": "Pulse carries compact allocation bars, not only numbers." },
+          "sections": { "min": 3, "why": "Metrics, next-check emphasis and data-quality are distinct regions." }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "compact-metrics", "match": { "classAny": ["invest-kpi-grid", "v5-wide"], "heading": "総資産|KPI|What needs review|保有資産" } },
+          { "id": "next-check", "match": { "classAny": ["attention-v5", "v5-grid"], "heading": "Next checks|次回確認|attention|利確" } },
+          { "id": "action-review", "match": { "classAny": ["pulse-layout", "action-section"], "heading": "今確認|判断する|action|review" }, "required": false },
+          { "id": "data-quality", "match": { "classAny": ["quality-panel", "warn"], "heading": "Data [Qq]uality|freshness|WARN" } }
+        ],
+        "critical_first_screen": ["portfolio headline metric", "the next thing to check"],
+        "table_overflow_strategy": "horizontal-scroll-container",
+        "sticky_identity": false,
+        "hierarchy_note": "Every wide table must sit in a scroll container — the Prototype fails this here and must not be copied. Allocation bars must keep a usable track width."
+      }
+    },
+
+    "investment.positions": {
+      "label": "Investment Positions",
+      "domain_grammar": "A high-information wide table is the route. Identity stays pinned while the numeric columns scroll. Cards are explicitly NOT substituted for the table at any width.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "table-dominant: a summary table above the full position table, both full width",
+        "expected_column_count": 1,
+        "expected_content_column_count": 1,
+        "primary_first_fold": "The status chips, the summary table heading, and roughly the first ten summary rows.",
+        "section_order": [
+          { "id": "position-collection", "match": { "classAny": ["table-shell", "invest-status", "v5-surface"], "heading": "Complete|Security Summary|position|銘柄" } },
+          { "id": "position-detail", "match": { "classAny": ["table-shell", "v5-wide"], "heading": "Positions|Stock|銘柄" }, "required": false },
+          { "id": "data-quality", "match": { "classAny": ["warn"], "heading": "Data [Qq]uality|freshness" }, "required": false }
+        ],
+        "visual_grammar": {
+          "tables": { "min": 1, "why": "Positions is a table route." },
+          "widest_table_columns": { "min": 10, "why": "The Prototype carries 11 columns. Collapsing to a handful of columns loses the route's purpose.", "severity": "critical" },
+          "sticky_elements": { "min": 1, "why": "Identity must stay pinned while numeric columns scroll." }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "position-collection", "match": { "classAny": ["table-shell", "invest-status", "v5-surface"], "heading": "Complete|Security Summary|position|銘柄" } },
+          { "id": "position-detail", "match": { "classAny": ["table-shell", "v5-wide"], "heading": "Positions|Stock|銘柄" }, "required": false },
+          { "id": "data-quality", "match": { "classAny": ["warn"], "heading": "Data [Qq]uality|freshness" }, "required": false }
+        ],
+        "critical_first_screen": ["security identity column", "valuation and P/L for the first rows"],
+        "table_overflow_strategy": "horizontal-scroll-container",
+        "sticky_identity": true,
+        "hierarchy_note": "No layout change from desktop: the table stays a table and scrolls horizontally. The identity column must be sticky AND opaque so it masks the columns passing under it (the Prototype's transparent implementation is a defect, not the target).",
+        "visual_grammar": {
+          "widest_table_columns": { "min": 10, "why": "Column count must not be reduced on mobile.", "severity": "critical" },
+          "sticky_elements": { "min": 1, "why": "Sticky identity is the mobile affordance that makes the wide table usable.", "severity": "critical" }
+        }
+      }
+    },
+
+    "investment.decisions": {
+      "label": "Investment Decisions",
+      "domain_grammar": "A persistent quick index beside a long column of detailed decision records. The index is the only sticky in-page element in the Prototype.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "fixed 310px index column beside a fluid record column",
+        "expected_column_count": 2,
+        "expected_column_ratios": [33.4, 66.6],
+        "expected_content_column_count": 2,
+        "primary_first_fold": "The complete quick index beside the first decision record's chips, facts grid and first copy row.",
+        "section_order": [
+          { "id": "quick-index", "match": { "classAny": ["decision-layout", "decision-index"], "heading": "Decision index|Quick Index|要対応|index" } },
+          { "id": "decision-records", "match": { "classAny": ["decision-card"], "heading": "Action / Review|Holdings|decision|CONL|TQQQ" }, "required": false }
+        ],
+        "visual_grammar": {
+          "sticky_elements": { "min": 1, "why": "The quick index must stay visible while the record column scrolls.", "severity": "critical" }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "quick-index", "match": { "classAny": ["decision-layout", "decision-index"], "heading": "Decision index|Quick Index|要対応|index" } },
+          { "id": "decision-records", "match": { "classAny": ["decision-card"], "heading": "Action / Review|Holdings|decision|CONL|TQQQ" }, "required": false }
+        ],
+        "critical_first_screen": ["the quick index of items needing action"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "The index unpins and becomes a leading block above the records. It must still come first."
+      }
+    },
+
+    "investment.journal": {
+      "label": "Investment Journal",
+      "domain_grammar": "One visually privileged open/next-check item above a uniform reverse-chronological entry grid.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "full-width open item over a 50/50 chronology grid",
+        "expected_column_count": 2,
+        "expected_column_ratios": [50, 50],
+        "expected_content_column_count": 2,
+        "primary_first_fold": "The open item with its question callout and cross-link, then the first row of chronology entries.",
+        "section_order": [
+          { "id": "open-next-check", "match": { "classAny": ["journal-open", "v5-wide"], "heading": "未完了|Next Check|次回確認|open" } },
+          { "id": "chronology", "match": { "classAny": ["journal-grid", "journal-entry"], "heading": "Journal entries|Monthly Review|entries|chronolog" } }
+        ],
+        "visual_grammar": {
+          "sections": { "min": 2, "why": "The open item must be a separate, visually privileged region above the chronology.", "severity": "critical" }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "open-next-check", "match": { "classAny": ["journal-open", "v5-wide"], "heading": "未完了|Next Check|次回確認|open" } },
+          { "id": "chronology", "match": { "classAny": ["journal-grid", "journal-entry"], "heading": "Journal entries|Monthly Review|entries|chronolog" } }
+        ],
+        "critical_first_screen": ["the open item and what it is waiting on"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "Entries stack one-up in chronological order; the open item stays first and stays visually distinct."
+      }
+    },
+
+    "operational.live-work": {
+      "label": "Live Work",
+      "domain_grammar": "Three strict tiers: the active task as a large tinted dominant panel, then Current/Next and recent work as an equal pair, then history collapsed and secondary.",
+      "desktop": {
+        "global_chrome_orientation": "vertical-rail",
+        "layout": "full-width active panel over a 55/45 recent and current/next pair, then a collapsed history disclosure",
+        "expected_column_count": 2,
+        "expected_column_ratios": [55, 45],
+        "expected_content_column_count": 2,
+        "primary_first_fold": "The whole active panel: repository, task title, description, and the current and next steps, with its side rail of repo/agent/updated.",
+        "section_order": [
+          { "id": "active-task", "match": { "classAny": ["live-active"], "heading": "Active|Live Work|実際に動いている" } },
+          { "id": "recent-and-next", "match": { "classAny": ["live-recent", "live-list"], "heading": "Recent|最近完了|Current / next|current" } },
+          { "id": "history", "match": { "classAny": ["history"], "heading": "History|過去のLive Work" }, "required": false }
+        ],
+        "visual_grammar": {
+          "sections": { "min": 2, "why": "Active must be a distinct dominant region, not one row among equals.", "severity": "critical" }
+        }
+      },
+      "mobile": {
+        "global_chrome_orientation": "horizontal-bar",
+        "section_order": [
+          { "id": "active-task", "match": { "classAny": ["live-active"], "heading": "Active|Live Work|実際に動いている" } },
+          { "id": "recent-and-next", "match": { "classAny": ["live-recent", "live-list"], "heading": "Recent|最近完了|Current / next|current" } },
+          { "id": "history", "match": { "classAny": ["history"], "heading": "History|過去のLive Work" }, "required": false }
+        ],
+        "critical_first_screen": ["the active task identity and its current step"],
+        "table_overflow_strategy": "none",
+        "sticky_identity": false,
+        "hierarchy_note": "The active panel's side rail rotates from a right column into a block below it with a top rule. History stays collapsed and last."
+      }
+    }
+  }
+}
