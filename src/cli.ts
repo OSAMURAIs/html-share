@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { readFileSync } from 'node:fs';
-import { buildOnly, formatProductionVerification, publish, recoverPublish, share, verifyProduction } from './publish.js';
+import { buildOnly, formatProductionVerification, publish, reconcileSupersededPublish, recoverPublish, share, verifyProduction } from './publish.js';
 import { initializeKeys, storePrivateKey } from './keys.js';
 import { addPageToConfig, loadConfig } from './config.js';
 import {
@@ -36,6 +36,7 @@ Usage:
   html-share build [--config file]
   html-share publish [--config file] [--recover]
   html-share verify-production [--config file] [--json]
+  html-share journal reconcile-superseded [--transaction id] [--config file]
   html-share share <slug> [--days 7]
   html-share page add <path> [--title title]
   html-share keys init [--overwrite]
@@ -69,6 +70,14 @@ async function main(): Promise<void> {
     const result = await verifyProduction(config);
     console.log(flag('--json') ? JSON.stringify(result, null, 2) : formatProductionVerification(result));
     if (!result.ok) process.exitCode = 1;
+    return;
+  }
+  if (command === 'journal') {
+    // Deliberately a distinct verb rather than another `publish` flag: this touches only the
+    // journal, never S3 content, and must never be reachable by mistyping a publish.
+    if (process.argv[3] !== 'reconcile-superseded') usage();
+    const result = await reconcileSupersededPublish(config, option('--transaction'));
+    console.log(JSON.stringify({ ok: true, ...result }, null, 2));
     return;
   }
   if (command === 'share') {
