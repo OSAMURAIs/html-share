@@ -44,7 +44,6 @@ test('ships the full dashboard UI and inbox wording', () => {
   assert.match(dashboard, /Signed content is cross-origin and CSP-sandboxed/);
   assert.match(dashboard, /function pageRoute\(page\)/);
   assert.match(dashboard, /location\.hash = pageRoute\(page\);/);
-  assert.match(dashboard, /frame\.src = current\.href;/);
   assert.match(dashboard, /navigator\.share\(data\)/);
   assert.match(dashboard, /error\?\.name === 'AbortError'/);
   assert.match(dashboard, /navigator\.clipboard\.writeText\(url\)/);
@@ -71,6 +70,25 @@ test('R5 uses canonical Home as the primary surface and keeps the legacy browser
   assert.match(dashboard, /@media \(min-width: 46\.01rem\)/);
   assert.match(dashboard, /@media \(max-width: 46rem\)/);
   assert.match(dashboard, /prefers-reduced-motion/);
+});
+
+test('content frame is swapped, not re-navigated in place, so one destination change stays one history entry', () => {
+  // Reassigning `frame.src`/`frame.removeAttribute('src')` on the same persistent
+  // <iframe> makes the browser record the subframe's own navigation in the joint
+  // session history, on top of the shell's own `location.hash` push — one click
+  // then produces two entries and Back appears to do nothing the first time.
+  // Recreating the element makes every content navigation look like that fresh
+  // frame's first load, which browsers never add to joint session history.
+  const dashboard = readFileSync(path.join(root, 'web', 'app', 'index.html'), 'utf8');
+  assert.match(dashboard, /let frame = \$\('frame'\);/);
+  assert.match(dashboard, /function swapFrame\(\{ hidden, url \}\)/);
+  assert.match(dashboard, /frame\.replaceWith\(fresh\);/);
+  assert.match(dashboard, /if \(loadedDestinationId !== current\.destination_id\) \{\s*\n\s*swapFrame\(\{ hidden: false, url: current\.href \}\);/);
+  assert.match(dashboard, /if \(loadedDestinationId !== null\) swapFrame\(\{ hidden: true, url: null \}\);/);
+  // The old direct-reassignment shape must not come back: it is the exact
+  // pattern that created the extra, unwanted history entry.
+  assert.doesNotMatch(dashboard, /frame\.src = current\.href;/);
+  assert.doesNotMatch(dashboard, /frame\.removeAttribute\('src'\);/);
 });
 
 test('folds overflowing tables on the viewing origin without network access', () => {
