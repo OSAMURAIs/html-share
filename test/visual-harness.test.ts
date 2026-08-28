@@ -10,7 +10,10 @@ import { CAPTURE_METADATA_SCHEMA, SHELL_PROBES } from '../scripts/visual/capture
 // @ts-expect-error -- see above
 import { METRICS_SCHEMA, METRICS_SOURCE } from '../scripts/visual/metrics.mjs';
 // @ts-expect-error -- see above
-import { ACCEPTANCE_SCHEMA, evaluateContract, mapSections } from '../scripts/visual/check.mjs';
+import {
+  ACCEPTANCE_SCHEMA, MODES, divergenceIndex, evaluateContract, mapSections,
+  validateProductionTargetIntegrity, validatePrototypeObservation,
+} from '../scripts/visual/check.mjs';
 // @ts-expect-error -- see above
 import { RUN_SCHEMA, TOOL_VERSION } from '../scripts/visual/run.mjs';
 
@@ -49,7 +52,7 @@ test('both required viewports are declared at 100% zoom scale', () => {
 });
 
 test('the route geometry contract declares all 15 destinations with both viewports', () => {
-  assert.equal(contract.schema, 'html-share.visual.contract/1');
+  assert.equal(contract.schema, 'html-share.visual.contract/2');
   assert.equal(contract.authority.current_production_is_not_authority, true);
   assert.deepEqual(Object.keys(contract.routes).sort(), V5_DESTINATIONS.map((d) => d.destination_id).sort());
   for (const [id, route] of Object.entries<Record<string, any>>(contract.routes)) {
@@ -98,17 +101,203 @@ test('quantitative guardrails are declared and are the agreed tolerances', () =>
   });
 });
 
-test('the motion contract defines both normal and reduced-motion behaviour for every required hook', () => {
-  const ids = contract.motion_contract.behaviours.map((b: { id: string }) => b.id);
+test('the motion contract classifies every hook and covers the handoff candidate list', () => {
+  const behaviours = contract.motion_contract.behaviours;
+  const ids = behaviours.map((b: { id: string }) => b.id);
   for (const required of ['cross-route-transition', 'research-filter-reflow', 'travel-timeline-draw',
-    'travel-current-marker', 'allocation-reveal', 'pl-bar-reveal']) {
+    'travel-current-marker', 'allocation-reveal', 'pl-bar-reveal', 'disclosure', 'plan-travel-continuity',
+    'live-work-active-indicator']) {
     assert.ok(ids.includes(required), `motion contract is missing ${required}`);
   }
-  for (const behaviour of contract.motion_contract.behaviours) {
-    assert.ok(behaviour.normal?.length > 20, `${behaviour.id} needs a normal expectation`);
-    assert.ok(behaviour.reduced_motion?.length > 5, `${behaviour.id} needs a reduced-motion expectation`);
+  for (const behaviour of behaviours) {
+    assert.ok(contract.motion_contract.classifications.includes(behaviour.classification),
+      `${behaviour.id} needs a classification from the declared taxonomy`);
+    assert.ok(behaviour.prototype_observed?.length > 10, `${behaviour.id} needs prototype_observed`);
+    assert.ok(behaviour.production_target?.length > 10, `${behaviour.id} needs production_target`);
+    assert.ok(behaviour.authority_source?.length > 5, `${behaviour.id} needs an authority_source`);
     assert.ok(behaviour.routes, `${behaviour.id} needs a route scope`);
+    // Reduced motion is mandatory wherever production motion is required.
+    if (behaviour.classification !== 'NOT_REQUIRED') {
+      assert.ok(behaviour.reduced_motion?.length > 5,
+        `${behaviour.id} is required for production, so it needs a reduced-motion expectation`);
+    }
   }
+  assert.match(contract.motion_contract.reduced_motion_rule, /mandatory/i);
+});
+
+test('required motion absent from the Prototype is still required for production', () => {
+  const byId = new Map(contract.motion_contract.behaviours.map((b: { id: string }) => [b.id, b]));
+  // These are documented intent that the Prototype never implemented. Under the
+  // corrected precedence a Prototype omission is not a production target.
+  for (const id of ['research-filter-reflow', 'travel-current-marker']) {
+    const behaviour: any = byId.get(id);
+    assert.equal(behaviour.classification, 'REQUIRED_PRODUCTION_DELTA',
+      `${id} is absent from the Prototype but required by written authority`);
+    assert.match(behaviour.prototype_observed, /ABSENT/,
+      `${id} must record that the Prototype does not implement it`);
+    assert.ok(behaviour.reduced_motion?.length > 5, `${id} still needs a reduced-motion expectation`);
+    assert.ok(behaviour.authority_source.length > 20, `${id} must cite the authority that requires it`);
+  }
+  // And the converse: something the Prototype does implement is not automatically
+  // required, if no authority asks for it.
+  const stagger: any = byId.get('entry-reveal-stagger');
+  assert.equal(stagger.classification, 'NOT_REQUIRED');
+  assert.equal(stagger.authority_strength, 'SILENT');
+});
+
+test('the authority model is the corrected one, and the superseded rule is named as wrong', () => {
+  const authority = contract.authority;
+  assert.match(authority.acceptance_standard, /production target/i);
+  assert.match(authority.rule, /never becomes acceptable by reproducing a Prototype defect/i);
+  assert.equal(authority.precedence.length, 3);
+  assert.match(authority.precedence[0].source, /master-handoff/);
+  assert.match(authority.precedence[0].role, /NORMATIVE/);
+  assert.match(authority.precedence[1].source, /Prototype v5/);
+  assert.match(authority.precedence[1].role, /PRIMARY VISUAL AND COMPOSITION BASELINE/);
+  assert.match(authority.precedence[2].role, /not discarded merely because/i);
+  assert.match(authority.superseded_rule, /was wrong/i);
+
+  // The discarded rule must not survive anywhere in the committed harness.
+  for (const file of ['visual/README.md', 'visual/metadata-schema.md', 'visual/route-geometry.contract.json',
+    'visual/baseline-verdicts.md', 'scripts/visual/check.mjs', 'scripts/visual/compare.mjs']) {
+    const text = readFileSync(path.join(root, file), 'utf8');
+    assert.doesNotMatch(text, /implementation wins/i,
+      `${file} still carries the discarded "implementation wins" rule`);
+  }
+});
+
+test('prototype_observed and production_target are distinct, separately sourced concepts', () => {
+  assert.ok(Array.isArray(contract.divergences) && contract.divergences.length > 0);
+  assert.deepEqual(MODES, ['production_target', 'prototype_observed']);
+  const strengths = Object.keys(contract.authority.strength_scale);
+  for (const divergence of contract.divergences) {
+    assert.ok(divergence.id, 'every divergence needs an id');
+    assert.ok(divergence.where, `${divergence.id} needs a scope`);
+    assert.ok(divergence.aspect, `${divergence.id} needs an aspect`);
+    assert.ok(divergence.prototype_observed?.length > 10, `${divergence.id} needs prototype_observed`);
+    assert.ok(divergence.production_target?.length > 10, `${divergence.id} needs production_target`);
+    assert.ok(divergence.authority_source?.length > 5, `${divergence.id} needs an authority_source`);
+    assert.ok(divergence.rationale?.length > 10, `${divergence.id} needs a rationale`);
+    assert.ok(strengths.includes(divergence.authority_strength),
+      `${divergence.id} needs an authority_strength from the declared scale`);
+    assert.notEqual(divergence.prototype_observed, divergence.production_target,
+      `${divergence.id} records no actual divergence`);
+  }
+  // The two modes are not interchangeable.
+  assert.notEqual(
+    JSON.stringify(evaluateContract({ contract, captures: [], destinations: [], mode: 'production_target' }).acceptance_standard),
+    JSON.stringify(evaluateContract({ contract, captures: [], destinations: [], mode: 'prototype_observed' }).acceptance_standard),
+  );
+  assert.throws(() => evaluateContract({ contract, captures: [], destinations: [], mode: 'whatever' }));
+});
+
+test('an explicit final-handoff production delta overrides a Prototype omission', () => {
+  const byId = new Map(contract.divergences.map((entry: { id: string }) => [entry.id, entry]));
+  // The handoff deletes this panel outright; the Prototype still renders it.
+  const relationModel: any = byId.get('research-overview.relation-model-panel-removed');
+  assert.equal(relationModel.authority_strength, 'explicit-normative');
+  assert.match(relationModel.production_target, /REMOVED/);
+  // ...and the route contract must therefore not require it.
+  for (const viewport of ['desktop', 'mobile']) {
+    const sections = contract.routes['research.overview'][viewport].section_order;
+    for (const section of sections) {
+      assert.ok(!(section.match.classAny ?? []).includes('context-panel'),
+        `research.overview ${viewport} must not require the Relation model panel the handoff deletes`);
+    }
+  }
+  // A mandatory addition the Prototype never made.
+  const grouping: any = byId.get('positions.market-product-grouping');
+  assert.equal(grouping.authority_strength, 'explicit-normative');
+  assert.match(grouping.authority_source, /未反映必須修正/);
+  // Where the handoff is silent, the contract says so rather than inventing a rule.
+  const sticky: any = byId.get('positions.sticky-identity-transparent');
+  assert.equal(sticky.authority_strength, 'intent-doc');
+  assert.match(sticky.handoff, /SILENT/);
+});
+
+test('recorded Prototype defects are never required production behaviour', () => {
+  const declared = divergenceIndex(contract);
+  assert.ok(declared.size > 0, 'at least one Prototype defect must be geometry-observable');
+  for (const [checkId, divergence] of declared) {
+    // A relaxation may only ever weaken observation, never the target.
+    assert.ok(divergence.production_target.length > 10,
+      `${checkId} is relaxed for observation but states no production target`);
+    assert.notEqual(divergence.production_target, divergence.prototype_observed);
+  }
+});
+
+test('Investment Pulse mobile overflow is not an accepted production target', () => {
+  const byId = new Map(contract.divergences.map((entry: { id: string }) => [entry.id, entry]));
+  const overflow: any = byId.get('pulse.half-width-table-abolished');
+  assert.ok(overflow, 'the Pulse overflow divergence must exist');
+  assert.equal(overflow.authority_strength, 'explicit-normative');
+  assert.match(overflow.prototype_observed, /overflow/i);
+  assert.match(overflow.production_target, /ABOLISHED/);
+  assert.match(overflow.production_target, /No horizontal document overflow/i);
+  // The handoff names this exact defect and prescribes removing the table, not wrapping it.
+  assert.match(overflow.authority_source, /overflow bug/);
+  assert.ok(overflow.relaxed_in_prototype_observation.includes('investment.pulse.mobile.overflow.document'));
+
+  // The production target must still forbid it. The overflow guardrail is absolute,
+  // so a candidate reproducing the Prototype's overflow fails.
+  const metrics = (overflowPx: number) => ({
+    shell: {
+      globalChrome: { present: true, selector: 'header', width: 390, height: 83, orientation: 'horizontal-bar' },
+      globalNavigation: { present: true }, domainNavigation: { present: true }, firstContentY: 100,
+    },
+    typography: { body: { fontSize: 15 }, h1: { fontSize: 30 }, h2: { fontSize: 22 }, tableBody: { fontSize: 14 }, meta: { fontSize: 13 } },
+    main: {
+      principalContainer: { contentWidth: 358 }, columnCount: 1, columnRatios: [100],
+      contentColumnCount: 1, contentColumnRatios: [100], contentBandSelector: null,
+      sectionOrder: [], horizontalOverflowPx: overflowPx, overflowingElements: [],
+      firstFoldDensity: { charsPerMegapixel: 600 },
+    },
+    grammar: {
+      tables: [], stickyElementCount: 0, svgCount: 0, canvasCount: 0, proportionalBarCount: 0,
+      quantitativeVisualCount: 1, listCount: 2, headingCounts: { h1: 1, h2: 3, h3: 0 },
+    },
+  });
+  const capture = (side: string, overflowPx: number) => ({
+    destination_id: 'investment.pulse', side, viewport: { name: 'mobile' }, metrics: metrics(overflowPx),
+  });
+  const captures = [
+    capture('prototype', 392), capture('current', 392),
+    { ...capture('prototype', 392), viewport: { name: 'desktop' } },
+    { ...capture('current', 392), viewport: { name: 'desktop' } },
+  ];
+  const destinations = [{ destination_id: 'investment.pulse', domain: 'investment' }];
+
+  const target = evaluateContract({ contract, captures, destinations, mode: 'production_target' });
+  const overflowCheck = target.routes['investment.pulse'].checks
+    .find((check: { id: string }) => check.id === 'investment.pulse.mobile.overflow.document');
+  assert.equal(overflowCheck.status, 'FAIL',
+    'a candidate reproducing the Prototype overflow must FAIL the production target');
+
+  const observation = evaluateContract({ contract, captures, destinations, mode: 'prototype_observed' });
+  const observed = observation.routes['investment.pulse'].checks
+    .find((check: { id: string }) => check.id === 'investment.pulse.mobile.overflow.document');
+  assert.equal(observed.status, 'OBSERVED_PROTOTYPE_DEFECT',
+    'observation mode records the defect instead of failing on it');
+  assert.equal(observed.divergence.id, 'pulse.half-width-table-abolished');
+});
+
+test('the source-truth constraints the handoff states are recorded, and flagged as unchecked here', () => {
+  const block = contract.source_truth_constraints;
+  assert.match(block.note, /does not check them/i);
+  const ids = block.constraints.map((entry: { id: string }) => entry.id);
+  for (const required of ['travel.no-fixed-booking-slots', 'library.intent-gradient-not-promotable',
+    'feed.no-ai-canon']) {
+    assert.ok(ids.includes(required), `source-truth constraint ${required} is missing`);
+  }
+  for (const constraint of block.constraints) {
+    assert.ok(constraint.requirement?.length > 20, `${constraint.id} needs a requirement`);
+    assert.ok(constraint.authority_source?.length > 5, `${constraint.id} needs an authority_source`);
+  }
+});
+
+test('the contract does not overreach into canonical page topology', () => {
+  assert.match(contract.scope.statement, /NOT a canonical page-topology decision/i);
+  assert.match(contract.scope.authority_source, /L908/);
 });
 
 test('the navigation invariant from the parked history fix is recorded for V1', () => {
@@ -282,6 +471,50 @@ test('the harness runs entirely locally and depends on no production URL', () =>
   }
   assert.equal(RUN_SCHEMA, 'html-share.visual.run/1');
   assert.match(TOOL_VERSION, /^html-share-visual-harness\/\d+\.\d+\.\d+$/);
+});
+
+test('the recorded V0 baseline verdicts are unchanged by the authority correction', () => {
+  // The authority correction changes what the TARGET means. It does not change what
+  // was measured, so this evidence must survive it untouched.
+  const verdicts = readFileSync(path.join(root, 'visual/baseline-verdicts.md'), 'utf8');
+  const expected: Record<string, string> = {
+    home: 'FUNDAMENTALLY DIFFERENT',
+    'research.overview': 'FUNDAMENTALLY DIFFERENT',
+    'research.feed': 'FUNDAMENTALLY DIFFERENT',
+    'research.papers': 'FUNDAMENTALLY DIFFERENT',
+    'research.knowledge-review': 'FUNDAMENTALLY DIFFERENT',
+    'personal.current': 'FUNDAMENTALLY DIFFERENT',
+    'personal.plans': 'MATERIAL GAP',
+    'personal.library': 'MATERIAL GAP',
+    'personal.travel': 'FUNDAMENTALLY DIFFERENT',
+    'investment.dashboard': 'FUNDAMENTALLY DIFFERENT',
+    'investment.pulse': 'MATERIAL GAP',
+    'investment.positions': 'PARTIAL',
+    'investment.decisions': 'MATERIAL GAP',
+    'investment.journal': 'MATERIAL GAP',
+    'operational.live-work': 'FUNDAMENTALLY DIFFERENT',
+  };
+  assert.equal(Object.keys(expected).length, 15);
+  for (const [destination, verdict] of Object.entries(expected)) {
+    assert.ok(new RegExp(`\\|\\s*${destination.replace('.', '\\.')}\\s*\\|\\s*${verdict}\\s*\\|`).test(verdicts),
+      `baseline verdict for ${destination} must remain ${verdict}`);
+  }
+  assert.match(verdicts, /9 FUNDAMENTALLY DIFFERENT · 5 MATERIAL GAP · 1 PARTIAL · 0 CLOSE/);
+  assert.match(verdicts, /0 of 15 routes pass/);
+  assert.doesNotMatch(verdicts, /CONFORMANT/);
+});
+
+test('every run records both validations so reproducibility covers them', () => {
+  const runner = readFileSync(path.join(root, 'scripts/visual/run.mjs'), 'utf8');
+  assert.match(runner, /validatePrototypeObservation/);
+  assert.match(runner, /validateProductionTargetIntegrity/);
+  assert.match(runner, /mode: 'production_target'/,
+    'candidates must be graded against the production target');
+  const comparator = readFileSync(path.join(root, 'scripts/visual/compare-runs.mjs'), 'utf8');
+  assert.match(comparator, /prototype_observation/);
+  assert.match(comparator, /production_target_integrity/);
+  // The ephemeral local port must be normalised, or two runs can never compare equal.
+  assert.match(comparator, /127\\\.0\\\.0\\\.1:\\d\+/);
 });
 
 test('generated visual artifacts stay out of version control', () => {

@@ -50,7 +50,8 @@ check('capture file names', a.captureFiles, b.captureFiles);
 check('screenshot file names', a.pngFiles, b.pngFiles);
 check('comparison sheet mapping', a.comparisons, b.comparisons);
 check('metric schema', a.run.schema, b.run.schema);
-check('contract self-validation', a.run.contract_self_validation, b.run.contract_self_validation);
+check('prototype observation', a.run.prototype_observation, b.run.prototype_observation);
+check('production target integrity', a.run.production_target_integrity, b.run.production_target_integrity);
 check('acceptance summary', a.run.acceptance_summary, b.run.acceptance_summary);
 
 const unstableMetrics = [];

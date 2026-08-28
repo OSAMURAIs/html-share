@@ -15,7 +15,7 @@ import { startServer } from './server.mjs';
 import { DESTINATIONS, VIEWPORTS, currentSide, prototypeSide } from './build-sides.mjs';
 import { captureDestination } from './capture.mjs';
 import { writeComparisonSheets } from './compare.mjs';
-import { evaluateContract, selfValidateContract } from './check.mjs';
+import { evaluateContract, validateProductionTargetIntegrity, validatePrototypeObservation } from './check.mjs';
 
 export const RUN_SCHEMA = 'html-share.visual.run/1';
 export const TOOL_VERSION = 'html-share-visual-harness/1.0.0';
@@ -104,12 +104,20 @@ export async function run({
     for (const server of Object.values(servers)) await server.close();
   }
 
-  // The contract is validated against the design authority on every run, so a
-  // contract that has drifted away from the Prototype cannot silently keep
-  // grading the candidate.
-  const selfValidation = selfValidateContract({ contract, captures, destinations });
-  const acceptance = evaluateContract({ contract, captures, destinations });
+  // Candidates are graded against the production target: Prototype v5 plus the
+  // explicit production deltas the final handoff requires.
+  const acceptance = evaluateContract({ contract, captures, destinations, mode: 'production_target' });
+
+  // Two separate concerns, checked separately on every run.
+  //  1. Did the harness measure the Prototype correctly?
+  //  2. Is the production target genuinely stricter than the Prototype, so that a
+  //     candidate cannot pass by copying a recorded Prototype defect?
+  const prototypeObservation = validatePrototypeObservation({ contract, captures, destinations });
+  const productionTargetIntegrity = validateProductionTargetIntegrity({ contract, captures, destinations });
+
   writeFileSync(path.join(outputDir, 'acceptance/guardrails.json'), `${JSON.stringify(acceptance, null, 2)}\n`, 'utf8');
+  writeFileSync(path.join(outputDir, 'acceptance/prototype-observation.json'),
+    `${JSON.stringify({ prototypeObservation, productionTargetIntegrity }, null, 2)}\n`, 'utf8');
   writeComparisonSheets({ outputDir, captures, destinations, acceptance, runContext });
 
   const runRecord = {
@@ -134,7 +142,8 @@ export async function run({
       viewport: capture.viewport.name,
       files: capture.files,
     })),
-    contract_self_validation: selfValidation,
+    prototype_observation: prototypeObservation,
+    production_target_integrity: productionTargetIntegrity,
     acceptance_summary: acceptance.summary,
   };
   writeFileSync(path.join(outputDir, 'run.json'), `${JSON.stringify(runRecord, null, 2)}\n`, 'utf8');
@@ -150,12 +159,22 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(`\n${record.actual.raw_captures}/${record.expected.raw_captures} raw captures, `
       + `${record.actual.comparison_sheets} comparison sheets`);
     console.log(JSON.stringify(record.acceptance_summary, null, 2));
-    if (!record.contract_self_validation.valid) {
-      console.error('\nCONTRACT SELF-VALIDATION FAILED — the Prototype does not satisfy its own contract:');
-      console.error(JSON.stringify(record.contract_self_validation, null, 2));
-      process.exit(1);
+    let ok = true;
+    if (!record.prototype_observation.valid) {
+      console.error('\nPROTOTYPE OBSERVATION FAILED — the harness did not measure the Prototype as the contract describes:');
+      console.error(JSON.stringify(record.prototype_observation, null, 2));
+      ok = false;
+    } else {
+      console.log(`prototype observation: OK (${record.prototype_observation.prototype_defects_reproduced.length} recorded Prototype defects reproduced)`);
     }
-    console.log('contract self-validation: OK (the Prototype satisfies its own contract)');
+    if (!record.production_target_integrity.valid) {
+      console.error('\nPRODUCTION TARGET INTEGRITY FAILED — a candidate could pass by copying a Prototype defect:');
+      console.error(JSON.stringify(record.production_target_integrity, null, 2));
+      ok = false;
+    } else {
+      console.log(`production target integrity: OK (${record.production_target_integrity.defects_rejected_by_the_production_target.length} Prototype defects rejected by the target)`);
+    }
+    if (!ok) process.exit(1);
   }).catch((error) => {
     console.error(error);
     process.exit(1);

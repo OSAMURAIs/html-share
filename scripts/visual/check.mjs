@@ -3,11 +3,38 @@
 // These are GUARDRAILS, not a pixel-diff. Every check is either a comparison of
 // computed geometry between the two sides against a stated tolerance, or a
 // structural expectation declared in visual/route-geometry.contract.json.
-export const ACCEPTANCE_SCHEMA = 'html-share.visual.acceptance/1';
+//
+// TWO MODES, TWO DIFFERENT QUESTIONS.
+//
+//   production_target  - what a candidate implementation MUST satisfy. This is the
+//                        acceptance standard: Prototype v5 plus the explicit
+//                        production deltas required by the final handoff. Recorded
+//                        Prototype defects are NOT part of it, so a candidate can
+//                        never pass by copying one.
+//   prototype_observed - what the Prototype actually does. Used only to prove the
+//                        harness measured the Prototype correctly. It tolerates the
+//                        enumerated Prototype defects, which is exactly why it must
+//                        never be used to grade a candidate.
+export const ACCEPTANCE_SCHEMA = 'html-share.visual.acceptance/2';
+export const MODES = Object.freeze(['production_target', 'prototype_observed']);
 
 const pass = (id, title, detail) => ({ id, title, status: 'PASS', detail });
 const fail = (id, title, detail, severity = 'major') => ({ id, title, status: 'FAIL', severity, detail });
 const skip = (id, title, detail) => ({ id, title, status: 'SKIP', detail });
+// A check the Prototype does not satisfy because of a recorded Prototype defect.
+// Produced in prototype_observed mode only, never in production_target mode.
+const observedDefect = (check, divergence) => ({
+  id: check.id,
+  title: check.title,
+  status: 'OBSERVED_PROTOTYPE_DEFECT',
+  detail: check.detail,
+  divergence: {
+    id: divergence.id,
+    prototype_observed: divergence.prototype_observed,
+    production_target: divergence.production_target,
+    authority_source: divergence.authority_source,
+  },
+});
 
 const pct = (value) => Math.round(value * 10) / 10;
 
@@ -277,6 +304,19 @@ function checkViewport({ destinationId, viewportName, prototype, current, route,
   // Section order.
   results.push(...checkSectionOrder({ idPrefix, sections: current.main.sectionOrder, expected: routeView.section_order }));
 
+  // Which section leads the page. Monotonic order alone cannot express "X must
+  // not be what the user meets first", which is exactly what the handoff requires
+  // on the routes where it legislates emphasis.
+  if (Array.isArray(routeView.first_section) && routeView.first_section.length) {
+    const contractIdOf = (section) => routeView.section_order
+      ?.find((entry) => matches(section, entry.match))?.id ?? null;
+    const leading = current.main.sectionOrder.map(contractIdOf).find((id) => id !== null) ?? null;
+    const detail = { allowed: routeView.first_section, leading, why: routeView.first_section_why };
+    results.push(leading !== null && routeView.first_section.includes(leading)
+      ? pass(`${idPrefix}.section-first`, 'The page leads with the section the target requires', detail)
+      : fail(`${idPrefix}.section-first`, 'The page leads with the section the target requires', detail, 'critical'));
+  }
+
   // Route-specific visual grammar.
   for (const [key, expectation] of Object.entries(routeView.visual_grammar ?? {})) {
     const actual = readGrammar(current, key);
@@ -307,7 +347,21 @@ function readGrammar(metrics, key) {
   }
 }
 
-export function evaluateContract({ contract, captures, destinations }) {
+export function divergenceIndex(contract) {
+  const byCheckId = new Map();
+  for (const divergence of contract.divergences ?? []) {
+    for (const checkId of divergence.relaxed_in_prototype_observation ?? []) {
+      byCheckId.set(checkId, divergence);
+    }
+  }
+  return byCheckId;
+}
+
+export function evaluateContract({ contract, captures, destinations, mode = 'production_target' }) {
+  if (!MODES.includes(mode)) throw new Error(`unknown evaluation mode: ${mode}`);
+  // Observation mode does not use a weaker contract. It applies named, enumerated
+  // relaxations on top of the same one, so the two modes cannot drift apart.
+  const relaxations = mode === 'prototype_observed' ? divergenceIndex(contract) : new Map();
   const index = new Map();
   for (const capture of captures) index.set(`${capture.destination_id}|${capture.side}|${capture.viewport.name}`, capture);
 
@@ -315,7 +369,7 @@ export function evaluateContract({ contract, captures, destinations }) {
   for (const destination of destinations) {
     const id = destination.destination_id;
     const route = contract.routes[id];
-    const checks = [];
+    let checks = [];
     if (!route) {
       checks.push(fail(`${id}.contract`, 'Route declared in the geometry contract', { destination_id: id }, 'critical'));
     } else {
@@ -336,16 +390,24 @@ export function evaluateContract({ contract, captures, destinations }) {
         }));
       }
     }
+    checks = checks.map((check) => {
+      if (check.status !== 'FAIL') return check;
+      const divergence = relaxations.get(check.id);
+      return divergence ? observedDefect(check, divergence) : check;
+    });
+
     const failures = checks.filter((check) => check.status === 'FAIL');
     routes[id] = {
       destination_id: id,
       label: route?.label ?? id,
       domain_grammar: route?.domain_grammar ?? null,
+      divergences: (contract.divergences ?? []).filter((divergence) => divergence.where === id || divergence.where === 'global'),
       checks,
       counts: {
         pass: checks.filter((check) => check.status === 'PASS').length,
         fail: failures.length,
         skip: checks.filter((check) => check.status === 'SKIP').length,
+        observed_prototype_defect: checks.filter((check) => check.status === 'OBSERVED_PROTOTYPE_DEFECT').length,
         critical: failures.filter((check) => check.severity === 'critical').length,
         major: failures.filter((check) => check.severity === 'major').length,
         minor: failures.filter((check) => check.severity === 'minor').length,
@@ -357,39 +419,83 @@ export function evaluateContract({ contract, captures, destinations }) {
   const all = Object.values(routes);
   return {
     schema: ACCEPTANCE_SCHEMA,
+    mode,
+    acceptance_standard: mode === 'production_target'
+      ? 'Prototype v5 plus the explicit production deltas required by the final handoff'
+      : 'the Prototype as it actually renders, including its recorded defects',
     tolerances: contract.tolerances,
     routes,
     summary: {
+      mode,
       routes_evaluated: all.length,
       routes_passing_guardrails: all.filter((route) => route.guardrail_status === 'PASS').length,
       routes_failing_guardrails: all.filter((route) => route.guardrail_status === 'FAIL').length,
       total_checks: all.reduce((sum, route) => sum + route.checks.length, 0),
       total_failures: all.reduce((sum, route) => sum + route.counts.fail, 0),
       critical_failures: all.reduce((sum, route) => sum + route.counts.critical, 0),
+      observed_prototype_defects: all.reduce((sum, route) => sum + route.counts.observed_prototype_defect, 0),
     },
   };
 }
 
-// Validates the contract against the design authority itself. If the Prototype
-// cannot satisfy its own contract — outside the failures the contract explicitly
-// documents as Prototype defects — the contract is wrong, not the candidate.
-export function selfValidateContract({ contract, captures, destinations }) {
-  const prototypeOnly = captures
-    .filter((capture) => capture.side === 'prototype')
-    .flatMap((capture) => [capture, { ...capture, side: 'current' }]);
-  const result = evaluateContract({ contract, captures: prototypeOnly, destinations });
-  const allowed = new Set(contract.expected_prototype_failures?.check_ids ?? []);
-  const failures = Object.values(result.routes)
-    .flatMap((route) => route.checks)
+const asBothSides = (captures) => captures
+  .filter((capture) => capture.side === 'prototype')
+  .flatMap((capture) => [capture, { ...capture, side: 'current' }]);
+
+// PROTOTYPE OBSERVATION VALIDATION.
+//
+// Proves the harness measured the Prototype correctly: with the Prototype standing
+// in as both sides, every check must either pass or be a named, recorded Prototype
+// defect. This says nothing about what production must do.
+export function validatePrototypeObservation({ contract, captures, destinations }) {
+  const result = evaluateContract({
+    contract, captures: asBothSides(captures), destinations, mode: 'prototype_observed',
+  });
+  const allChecks = Object.values(result.routes).flatMap((route) => route.checks);
+  const unexplained = allChecks
     .filter((check) => check.status === 'FAIL')
     .map((check) => ({ id: check.id, severity: check.severity, detail: check.detail }));
-  const unexpected = failures.filter((failure) => !allowed.has(failure.id));
-  const documentedButPassing = [...allowed].filter((id) => !failures.some((failure) => failure.id === id));
+  const reproduced = allChecks
+    .filter((check) => check.status === 'OBSERVED_PROTOTYPE_DEFECT')
+    .map((check) => ({ id: check.id, divergence: check.divergence.id }));
+  const declared = [...divergenceIndex(contract).keys()];
+  const notReproduced = declared.filter((id) => !reproduced.some((entry) => entry.id === id));
   return {
-    valid: unexpected.length === 0 && documentedButPassing.length === 0,
+    mode: 'prototype_observed',
+    question: 'did the harness measure the Prototype correctly?',
+    valid: unexplained.length === 0 && notReproduced.length === 0,
     total_checks: result.summary.total_checks,
-    expected_failures: [...allowed],
-    unexpected_failures: unexpected,
-    documented_failures_that_now_pass: documentedButPassing,
+    prototype_defects_reproduced: reproduced,
+    unexplained_failures: unexplained,
+    declared_defects_not_observed: notReproduced,
+  };
+}
+
+// PRODUCTION TARGET INTEGRITY.
+//
+// Proves the acceptance standard is genuinely stricter than the Prototype: every
+// geometry-observable Prototype defect must actually FAIL in production_target
+// mode. If one of them passed, a candidate could satisfy the standard by copying
+// the defect, which is the failure mode this split exists to prevent.
+export function validateProductionTargetIntegrity({ contract, captures, destinations }) {
+  const result = evaluateContract({
+    contract, captures: asBothSides(captures), destinations, mode: 'production_target',
+  });
+  const failed = new Set(Object.values(result.routes)
+    .flatMap((route) => route.checks)
+    .filter((check) => check.status === 'FAIL')
+    .map((check) => check.id));
+  const rejected = [];
+  const wronglyAccepted = [];
+  for (const [checkId, divergence] of divergenceIndex(contract)) {
+    (failed.has(checkId) ? rejected : wronglyAccepted).push({ check_id: checkId, divergence: divergence.id });
+  }
+  return {
+    mode: 'production_target',
+    question: 'would the acceptance standard reject a candidate that copied a Prototype defect?',
+    valid: wronglyAccepted.length === 0,
+    prototype_routes_failing_the_production_target: result.summary.routes_failing_guardrails,
+    defects_rejected_by_the_production_target: rejected,
+    defects_the_production_target_would_wrongly_accept: wronglyAccepted,
   };
 }

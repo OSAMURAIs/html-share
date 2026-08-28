@@ -7,7 +7,7 @@ Three versioned schemas. Their identifiers are constants in the harness and are 
 | --- | --- | --- |
 | `html-share.visual.capture/1` | `captures/<name>.json` | `scripts/visual/capture.mjs` |
 | `html-share.visual.metrics/1` | `metrics` inside each capture | `scripts/visual/metrics.mjs` |
-| `html-share.visual.acceptance/1` | `acceptance/guardrails.json` | `scripts/visual/check.mjs` |
+| `html-share.visual.acceptance/2` | `acceptance/guardrails.json` | `scripts/visual/check.mjs` |
 | `html-share.visual.run/1` | `run.json` | `scripts/visual/run.mjs` |
 | `html-share.visual.contract/1` | `visual/route-geometry.contract.json` | committed data |
 
@@ -105,18 +105,55 @@ grammar.classHistogram        every emitted class and its count — also the evi
 - **Clipping** — content past the viewport with no scrollable ancestor. A wide table inside
   an `overflow-x:auto` wrapper is the intended pattern, not clipping.
 
-## `html-share.visual.acceptance/1`
+## `html-share.visual.acceptance/2`
 
 ```
-schema, tolerances
-routes.<id>.checks[]          { id, title, status: PASS|FAIL|SKIP, severity, detail }
-routes.<id>.counts            { pass, fail, skip, critical, major, minor }
+schema
+mode                          production_target | prototype_observed
+acceptance_standard           prose statement of what this document graded against
+tolerances
+routes.<id>.divergences[]     the recorded Prototype-vs-target divergences for this route
+routes.<id>.checks[]          { id, title, status, severity, detail, divergence? }
+routes.<id>.counts            { pass, fail, skip, observed_prototype_defect,
+                                critical, major, minor }
 routes.<id>.guardrail_status  PASS | FAIL
-summary                       route and check totals
+summary                       mode plus route and check totals
 ```
+
+### Modes
+
+`production_target` is the acceptance standard and the default: Prototype v5 plus the
+explicit production deltas the final handoff requires. **Recorded Prototype defects are not
+part of it**, so a candidate can never pass by copying one.
+
+`prototype_observed` exists only to prove the harness measured the Prototype correctly. It
+evaluates the *same* contract and then applies named, enumerated relaxations drawn from
+`contract.divergences[].relaxed_in_prototype_observation`. It must never grade a candidate.
+
+### Statuses
+
+| Status | Meaning |
+| --- | --- |
+| `PASS` | The check was satisfied. |
+| `FAIL` | The check was not satisfied. Carries `severity`. |
+| `SKIP` | The comparison was not possible (value missing on one side, or no contract declared). Reported, never counted as a pass. |
+| `OBSERVED_PROTOTYPE_DEFECT` | `prototype_observed` mode only. The Prototype fails this check because of a recorded divergence; the entry carries that divergence's `prototype_observed`, `production_target` and `authority_source`. In `production_target` mode the same check is a plain `FAIL`. |
 
 Every `detail` carries both the Prototype value and the current value, so a failure states
 what was expected and what was measured rather than only that something differed.
 
-`SKIP` means the comparison was not possible (a value missing on one side, or no contract
-declared). It is reported, never counted as a pass.
+## `divergences[]` in the contract
+
+```
+id                                stable identifier
+where                             a destination_id, or "global"
+aspect                            shell | layout | typography | colour | domain-grammar |
+                                  mobile | motion | information-preservation
+prototype_observed                what the Prototype actually does
+production_target                 what a candidate must do instead
+authority_source                  the document and section that requires the target
+rationale                         why the target differs from the Prototype
+relaxed_in_prototype_observation  check ids the Prototype legitimately fails, tolerated in
+                                  prototype_observed mode only (omit when the divergence is
+                                  not geometry-observable, e.g. motion)
+```

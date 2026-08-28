@@ -40,6 +40,22 @@ function figure(label, side, file) {
     + `<div class="scroll"><img src="../${escape(file)}" alt="${escape(`${label} ${side}`)}"></div></figure>`;
 }
 
+// Where the Prototype is not the standard, the reviewer has to be told so on the
+// sheet itself — otherwise they will grade against the left column regardless.
+function divergenceBlock(route) {
+  const divergences = route?.divergences ?? [];
+  if (!divergences.length) return '';
+  const rows = divergences.map((divergence) => `<tr>`
+    + `<td>${escape(divergence.aspect)}</td>`
+    + `<td>${escape(divergence.prototype_observed)}</td>`
+    + `<td>${escape(divergence.production_target)}</td>`
+    + `<td>${escape(divergence.authority_source)}</td>`
+    + `</tr>`).join('\n');
+  return `<h2>Where the Prototype is NOT the standard on this route</h2>
+<table><thead><tr><th>Aspect</th><th>Prototype observed</th><th>Production target</th><th>Authority</th></tr></thead>
+<tbody>${rows}</tbody></table>`;
+}
+
 function checksTable(route) {
   const rows = route.checks.map((check) => `<tr>`
     + `<td class="${check.status}">${check.status}</td>`
@@ -81,9 +97,13 @@ html-share-hub ${escape(String(runContext.repositories['html-share-hub']).slice(
   <b>Context-free review question</b>
   ${escape(REVIEW_QUESTION)}
   <ul><li>Allowed verdicts: ${VERDICTS.join(' · ')}</li>
-  <li>The left column is the design authority. The right column is the candidate.</li>
+  <li>The left column is Prototype v5, the primary visual and composition baseline. The right column is the candidate.</li>
+  <li>Acceptance is against the <b>production target</b> = Prototype v5 plus the explicit production deltas
+  required by the final handoff. Where this route has a recorded divergence, it is listed below; in those
+  places the Prototype is <b>not</b> the standard.</li>
   <li>Page text differs by design: the candidate renders sanitized fixture content. Judge presentation, not wording.</li></ul>
 </div>
+${divergenceBlock(route)}
 
 <h2>Required captures — first fold at the specified viewport</h2>
 <div class="grid">
@@ -127,9 +147,16 @@ Chrome ${escape(runContext.browser.product)}.</p>
     '',
     `Allowed verdicts: ${VERDICTS.join(' | ')}`,
     '',
-    'The left column of each sheet is Prototype v5 (the design authority).',
-    'The right column is the current candidate. Page wording differs by design —',
-    'the candidate renders sanitized fixture content. Judge presentation only.',
+    'The left column of each sheet is Prototype v5, the primary visual and',
+    'composition baseline. The right column is the current candidate.',
+    '',
+    'Acceptance is against the PRODUCTION TARGET: Prototype v5 plus the explicit',
+    'production deltas required by the final handoff. Prototype comparison is',
+    'mandatory, but the Prototype is not by itself the standard. Each sheet lists',
+    'the recorded divergences for its route, where the Prototype must NOT be copied.',
+    '',
+    'Page wording differs by design — the candidate renders sanitized fixture',
+    'content. Judge presentation only.',
     '',
     '| Destination | Comparison sheet |',
     '| --- | --- |',

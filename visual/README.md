@@ -1,10 +1,37 @@
 # V0 visual acceptance harness
 
-An objective harness for comparing the **current presentation** against **Prototype v5**,
-the only visual authority. It exists so that a materially non-conformant page cannot be
-declared acceptable again on impression alone.
+An objective harness for comparing the **current presentation** against the **production
+target**. It exists so that a materially non-conformant page cannot be declared acceptable
+again on impression alone.
 
 V0 builds the harness. It does **not** repair the presentation.
+
+## Authority model — read this first
+
+Prototype screenshot comparison is **mandatory**, **but** visual acceptance is against the
+**normative production target**, which is:
+
+> **Prototype v5 + the explicit final production deltas.**
+
+Precedence:
+
+| Rank | Source | Role |
+| --- | --- | --- |
+| 1 | `html-share-ui-v5-to-implementation-master-handoff.md` | **Normative.** Explicit requirements here override Prototype rough edges, omissions and implementation limitations. |
+| 2 | Prototype v5 as it actually renders | **Primary visual and composition baseline** — geometry, hierarchy, palette, typography, spacing, composition, domain grammar, desktop/mobile gestalt — unless a rank 1 delta applies. |
+| 3 | `DESIGN-DECISIONS.md`, `INFORMATION-PRESERVATION.md`, `REVIEW-v5.md` | **Intent and constraint clarification.** Not discarded merely because the Prototype's JS or CSS failed to implement an intended production behaviour. |
+
+A candidate **never** becomes acceptable by reproducing a Prototype defect or omission.
+
+> An earlier revision of this harness let the Prototype override the written authority
+> wherever the two disagreed. That rule was **wrong** and is not the project contract. It
+> has been corrected. If you find anything that still elevates the Prototype above the
+> written authority, it is stale.
+
+Every place the Prototype and the production target differ is enumerated in the contract's
+`divergences`, each carrying `prototype_observed`, `production_target`, `authority_source`
+and `rationale`. Those places are also printed on the affected route's comparison sheet, so
+a reviewer is told where the left-hand column is **not** the standard.
 
 ## One command
 
@@ -78,10 +105,14 @@ It is **not** a screenshot hash. It records, per destination:
   "desktop columns stack"
 - route-specific visual grammar (wide tables, sticky identity, quantitative figures)
 
-It also records `known_prototype_defects` — places where the Prototype implementation is
-wrong and V1 must reconstruct the intent rather than replicate the defect — and a
-`motion_contract` defining normal and `prefers-reduced-motion` behaviour for every
-transition V1+ will implement.
+It also records `divergences` — every place the Prototype and the production target differ,
+each with `prototype_observed`, `production_target`, `authority_source` and `rationale` —
+and a `motion_contract` classifying each behaviour as `IMPLEMENTED_IN_PROTOTYPE`,
+`REQUIRED_PRODUCTION_DELTA` or `NOT_REQUIRED`, with normal and `prefers-reduced-motion`
+expectations wherever production motion is required.
+
+Route views describe the **production target**. Where the Prototype does not meet it, the
+route carries a divergence rather than a weakened expectation.
 
 ### Guardrail tolerances
 
@@ -98,12 +129,27 @@ transition V1+ will implement.
 
 These detect gross drift. They are deliberately not a pixel-perfect diff.
 
-### The contract validates itself
+### Two validations, two different questions
 
-Every run evaluates the contract with the Prototype standing in as both sides. If the
-design authority cannot satisfy its own contract — outside the failures listed in
-`expected_prototype_failures` — the run fails. A contract that has drifted away from the
-Prototype cannot keep quietly grading the candidate.
+Every run answers both, and fails if either does.
+
+**Prototype observation** — *did the harness measure the Prototype correctly?*
+Evaluates the contract with the Prototype standing in as both sides, in
+`prototype_observed` mode. Every check must pass or be a named, recorded Prototype defect.
+This mode tolerates the defects, which is exactly why it must never grade a candidate.
+
+**Production target integrity** — *would the acceptance standard reject a candidate that
+copied a Prototype defect?* Evaluates the Prototype in `production_target` mode and
+requires every geometry-observable recorded defect to actually **fail**. If one passed, a
+candidate could satisfy the standard by copying it — the failure mode this split exists to
+prevent.
+
+Both modes read the *same* contract. Observation mode does not use a weaker one; it applies
+named, enumerated relaxations on top of the production target, so the two cannot drift
+apart.
+
+Written to `acceptance/guardrails.json` (production target) and
+`acceptance/prototype-observation.json` (both validations).
 
 ## Reviewing
 
@@ -117,7 +163,8 @@ answers one question:
 Allowed verdicts: `CLOSE`, `PARTIAL`, `MATERIAL GAP`, `FUNDAMENTALLY DIFFERENT`.
 
 Page wording differs by design — the current side renders sanitized fixture content — so
-the reviewer judges presentation, not wording.
+the reviewer judges presentation, not wording. Each sheet also prints that route's
+divergences, so the reviewer knows where the Prototype column is *not* the standard.
 
 ## Known limitations
 
@@ -130,6 +177,11 @@ the reviewer judges presentation, not wording.
   across machines.
 - **Second-machine reproduction is pending.** The harness is portable and deterministic,
   but has so far only been run on one machine.
+- **Current-side rasters carry the build timestamp.** The local build stamps a wall-clock
+  `updated_at` per page and the shell renders it, so current-side PNGs are byte-identical
+  between back-to-back runs but differ across time. Prototype-side PNGs are byte-identical
+  always. **Computed geometry is unaffected** — all 60 metric documents compare byte-identical
+  across the authority correction. Judge reproducibility on `metrics`, not on PNG bytes.
 
 ## Options
 

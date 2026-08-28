@@ -15,6 +15,13 @@ question per route:
 
 The current baseline was expected to fail. No threshold was adjusted to make it pass.
 
+> **Unchanged by the V0.1 authority correction.** V0.1 corrected what the acceptance
+> *target* means — written authority takes precedence over the Prototype, and a Prototype
+> defect is never a production target. It did not change what was measured. All 60 capture
+> metric documents compare byte-identical before and after the correction, every verdict
+> below stands as recorded, and the candidate still passes 0 of 15 routes. Because the
+> correction only ever tightens the target, none of these verdicts could improve under it.
+
 ## Verdicts
 
 | Destination | Verdict | Worse viewport |
