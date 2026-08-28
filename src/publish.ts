@@ -23,6 +23,12 @@ const PACKAGE_ROOT = (() => {
 })();
 const JOURNAL_VERSION = 1;
 const TRANSACTION_METADATA = 'html-share-transaction';
+export const JOURNAL_STATES = ['prepared', 'uploading', 'cleaning', 'verifying', 'committed', 'rolled_back', 'superseded'] as const;
+// A terminal record is one whose outcome is decided, so the strict verifier may ignore it.
+// `committed` succeeded; `rolled_back` was undone in S3; `superseded` was abandoned without
+// rollback after being *proven* to own no current production version. Every other state is
+// genuinely unresolved and must keep failing the verifier.
+export const JOURNAL_TERMINAL_STATES = ['committed', 'rolled_back', 'superseded'] as const;
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml',
@@ -37,13 +43,29 @@ export type BucketJournal = {
   bucket: string; kind: 'content' | 'console'; desiredKeys: string[]; managedKeys: string[];
   baseline: BaselineObject[]; uploaded: VersionRef[]; cleanup: VersionRef[];
 };
+export type JournalState = (typeof JOURNAL_STATES)[number];
+// Audit trail for a transaction terminalized without S3 rollback. History is never deleted:
+// the original record keeps its buckets, baseline and uploaded refs, and gains the proof that
+// justified abandoning it.
+export type JournalReconciliation = {
+  reconciledAt: string;
+  reason: 'superseded-by-later-committed-transaction';
+  supersededBy: string;
+  stateBefore: JournalState;
+  predicates: { id: string; description: string }[];
+};
 export type PublicationJournal = {
   version: number; transactionId: string; startedAt: string;
-  state: 'prepared' | 'uploading' | 'cleaning' | 'verifying' | 'committed' | 'rolled_back';
+  state: JournalState;
   buckets: BucketJournal[];
+  reconciliation?: JournalReconciliation;
 };
 
 type Journal = PublicationJournal;
+
+export function isTerminalJournalState(state: string): boolean {
+  return (JOURNAL_TERMINAL_STATES as readonly string[]).includes(state);
+}
 
 export type ProductionCheck = {
   bucket: string;
@@ -157,7 +179,7 @@ function validateJournal(journal: unknown): asserts journal is Journal {
   const candidate = journal as Partial<Journal>;
   if (candidate.version !== JOURNAL_VERSION || typeof candidate.transactionId !== 'string' || !candidate.transactionId
     || typeof candidate.startedAt !== 'string' || !Array.isArray(candidate.buckets)
-    || !['prepared', 'uploading', 'cleaning', 'verifying', 'committed', 'rolled_back'].includes(candidate.state ?? '')) {
+    || !(JOURNAL_STATES as readonly string[]).includes(candidate.state ?? '')) {
     throw journalError('journal structure is invalid');
   }
   if (candidate.buckets.length !== 2 || new Set(candidate.buckets.map((bucket) => bucket.kind)).size !== 2
@@ -189,22 +211,26 @@ function requiredUploadedVersions(bucket: BucketJournal): Map<string, string> {
   return versions;
 }
 
-function readCommittedJournal(config: HtmlShareConfig): Journal {
+function readAllJournals(config: HtmlShareConfig): Journal[] {
   if (!existsSync(journalDir(config))) throw journalError('publication journal directory is missing');
   const entries = readdirSync(journalDir(config), { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith('.json'));
   if (!entries.length) throw journalError('publication journal is empty');
-  const journals = entries.map((entry) => {
+  return entries.map((entry) => {
     let parsed: unknown;
     try { parsed = JSON.parse(readFileSync(path.join(journalDir(config), entry.name), 'utf8')); }
     catch { throw journalError(`journal file ${entry.name} is malformed`); }
     validateJournal(parsed);
     return parsed;
-  });
-  const unresolved = journals.filter((journal) => !['committed', 'rolled_back'].includes(journal.state));
+  }).sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+}
+
+function readCommittedJournal(config: HtmlShareConfig): Journal {
+  const journals = readAllJournals(config);
+  const unresolved = journals.filter((journal) => !isTerminalJournalState(journal.state));
   if (unresolved.length) throw journalError('an incomplete publication transaction is unresolved');
   const committed = journals.filter((journal) => journal.state === 'committed');
   if (!committed.length) throw journalError('no committed publication transaction exists');
-  return committed.sort((a, b) => a.startedAt.localeCompare(b.startedAt)).at(-1)!;
+  return committed.at(-1)!;
 }
 
 function desiredKeys(root: string): string[] {
@@ -378,12 +404,12 @@ export async function recoverPublish(config: HtmlShareConfig, transactionId?: st
   const client = providedClient ?? new S3Client({ region: config.aws.region });
   const id = transactionId ?? (() => {
     const candidates = readdirSync(journalDir(config), { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.endsWith('.json'));
-    const active = candidates.map((entry) => loadJournal(config, entry.name.slice(0, -5))).filter((journal) => !['committed', 'rolled_back'].includes(journal.state));
+    const active = candidates.map((entry) => loadJournal(config, entry.name.slice(0, -5))).filter((journal) => !isTerminalJournalState(journal.state));
     if (active.length !== 1) throw new Error(active.length ? 'Recovery refused: multiple active publish transactions' : 'No active publish transaction to recover');
     return active[0].transactionId;
   })();
   const journal = loadJournal(config, id);
-  if (journal.state === 'committed' || journal.state === 'rolled_back') return { recovered: id };
+  if (isTerminalJournalState(journal.state)) return { recovered: id };
   for (const bucket of journal.buckets) await requireVersioning(client, bucket.bucket);
   try {
     for (const bucket of journal.buckets) await deleteRefs(client, await transactionRefs(client, bucket, journal), bucket.bucket);
@@ -394,6 +420,120 @@ export async function recoverPublish(config: HtmlShareConfig, transactionId?: st
     saveJournal(config, journal);
     throw new Error(`Recovery incomplete for ${id}: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+export type JournalReconciliationResult = {
+  reconciled: string;
+  supersededBy: string;
+  stateBefore: JournalState;
+  state: 'superseded';
+  predicates: { id: string; description: string }[];
+};
+
+function reconciliationRefused(message: string): never {
+  throw new Error(`Journal reconciliation refused: ${message}`);
+}
+
+/**
+ * Terminalize one incomplete transaction that a later committed publication has superseded.
+ *
+ * This exists for exactly one situation: a publication process died between `verifying` and
+ * `committed`, and a subsequent publication then committed over every object it had uploaded.
+ * `recoverPublish` cannot resolve that record -- it would delete the stranded transaction's
+ * versions and then require the *current* versions to equal that transaction's baseline, which
+ * the later commit has already replaced, so it throws `Rollback baseline mismatch` after having
+ * already deleted. Leaving the record unresolved instead keeps the strict verifier failing
+ * forever even though production is correct.
+ *
+ * This operation performs no S3 mutation of any kind: it only lists object versions. It never
+ * deletes, restores or overwrites content, and it never rewrites history -- the record keeps its
+ * buckets, baseline and uploaded refs and gains an audit trail explaining why it was abandoned.
+ *
+ * It is not a "mark complete" escape hatch. It refuses unless every predicate below holds, and a
+ * genuinely unresolved transaction -- one that still owns current production, or has no later
+ * committed checkpoint, or is contemporaneous with another incomplete transaction -- keeps
+ * failing the verifier.
+ *
+ * Callers on the trusted host must additionally hold the hub publish lock across this call, so
+ * that a worker cannot begin a publication between the checks and the journal write. The
+ * journal set is re-read immediately before the write as a second, narrower guard.
+ */
+export async function reconcileSupersededPublish(
+  config: HtmlShareConfig,
+  transactionId?: string,
+  providedClient?: S3Client,
+): Promise<JournalReconciliationResult> {
+  const client = providedClient ?? new S3Client({ region: config.aws.region });
+  const predicates: { id: string; description: string }[] = [];
+
+  const journals = readAllJournals(config);
+  const identities = journals.map((journal) => `${journal.transactionId}:${journal.state}`).sort().join('|');
+
+  // P1 -- the target is incomplete, and it is the only incomplete transaction. A second
+  // incomplete record could be a live publication, or could depend on this one, so refuse.
+  const unresolved = journals.filter((journal) => !isTerminalJournalState(journal.state));
+  if (!unresolved.length) reconciliationRefused('no incomplete publication transaction exists');
+  if (unresolved.length > 1) {
+    reconciliationRefused(`multiple incomplete publication transactions exist: ${unresolved.map((journal) => journal.transactionId).join(', ')}`);
+  }
+  const target = unresolved[0];
+  if (transactionId && transactionId !== target.transactionId) {
+    reconciliationRefused(`${transactionId} is not the incomplete transaction; ${target.transactionId} is`);
+  }
+  const stateBefore = target.state;
+  predicates.push({ id: 'incomplete-target', description: `${target.transactionId} is the only incomplete transaction (state ${stateBefore})` });
+
+  // P2 -- a committed transaction started after it, so the target is not the newest effective
+  // production checkpoint.
+  const committed = journals.filter((journal) => journal.state === 'committed');
+  if (!committed.length) reconciliationRefused('no committed publication transaction exists');
+  const checkpoint = committed.at(-1)!;
+  if (checkpoint.startedAt <= target.startedAt) {
+    reconciliationRefused(`${target.transactionId} is not superseded: no committed transaction started after ${target.startedAt}`);
+  }
+  predicates.push({ id: 'later-committed-checkpoint', description: `${checkpoint.transactionId} committed after the target (${checkpoint.startedAt})` });
+
+  // P3 -- nothing the target uploaded or deleted is a current version any more, in either
+  // bucket. This is what makes rollback both unnecessary and unsafe.
+  for (const bucket of target.buckets) {
+    const current = new Map(currentObjects(await listVersions(client, bucket.bucket)).map((item) => [item.key, item]));
+    const owned = [...bucket.uploaded, ...bucket.cleanup].filter((ref) => current.get(ref.key)?.versionId === ref.versionId);
+    if (owned.length) {
+      reconciliationRefused(`${target.transactionId} still owns current ${bucket.kind} versions: ${owned.map((ref) => ref.key).join(', ')}`);
+    }
+  }
+  predicates.push({ id: 'fully-superseded', description: 'no uploaded or cleanup version of the target is current in either bucket' });
+
+  // P4 -- production matches the later committed checkpoint exactly. Runs last of the S3
+  // checks so a publication landing mid-operation fails this closed rather than slipping past.
+  for (const bucket of checkpoint.buckets) {
+    try {
+      await verifyCurrent(client, bucket);
+    } catch (error) {
+      reconciliationRefused(`production does not match committed checkpoint ${checkpoint.transactionId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  predicates.push({ id: 'production-matches-checkpoint', description: `current production equals ${checkpoint.transactionId} in both buckets` });
+
+  // P5 -- the journal has not changed while the predicates were being proven.
+  const after = readAllJournals(config);
+  if (after.map((journal) => `${journal.transactionId}:${journal.state}`).sort().join('|') !== identities) {
+    reconciliationRefused('the publication journal changed during reconciliation; a publication is likely active');
+  }
+  predicates.push({ id: 'journal-stable', description: 'the journal set was unchanged across the whole operation' });
+
+  const record = loadJournal(config, target.transactionId);
+  record.state = 'superseded';
+  record.reconciliation = {
+    reconciledAt: new Date().toISOString(),
+    reason: 'superseded-by-later-committed-transaction',
+    supersededBy: checkpoint.transactionId,
+    stateBefore,
+    predicates,
+  };
+  validateJournal(record);
+  saveJournal(config, record);
+  return { reconciled: target.transactionId, supersededBy: checkpoint.transactionId, stateBefore, state: 'superseded', predicates };
 }
 
 export interface PublicManifestPage {
