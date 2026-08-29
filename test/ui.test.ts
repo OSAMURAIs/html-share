@@ -72,6 +72,34 @@ test('R5 uses canonical Home as the primary surface and keeps the legacy browser
   assert.match(dashboard, /prefers-reduced-motion/);
 });
 
+test('the mobile compact-nav shell reconstruction activates only under a confirmed candidate profile 2 manifest', () => {
+  // The browser shell (web/app/index.html) is never versioned by presentation
+  // profile — it is the same file for every route regardless of which
+  // content profile is active. A shell CSS change that applies unconditionally
+  // would reach every user the moment this branch merges, not only once a
+  // controlled profile-2 activation happens. The three-row mobile nav stack
+  // is exactly the shape production shipped before V1; the compact one-row
+  // reconstruction must stay behind an explicit, manifest-confirmed signal.
+  const dashboard = readFileSync(path.join(root, 'web', 'app', 'index.html'), 'utf8');
+  assert.match(
+    dashboard,
+    /@media \(max-width: 700px\) \{ \.global-nav \{ order: 3; flex-basis: 100%; \} \.operational-nav \{ order: 4; flex-basis: 100%;/,
+    'the exact prior three-row rule must be present, unconditional, and unchanged — this is what profile 1 renders',
+  );
+  assert.match(
+    dashboard,
+    /html\[data-html-share-shell-profile="2"\] \.topbar-inner \{ flex-wrap: wrap;/,
+    'the compact one-row reconstruction must be scoped behind the shell-profile attribute selector',
+  );
+  // The attribute is set only from a manifest actually resolved by the boot
+  // script — never a default, never ambient, never true before that load
+  // completes — and is removed outright when the loaded manifest carries no
+  // presentation version (the v1 legacy-manifest fallback path).
+  assert.match(dashboard, /const shellProfile = loaded\.manifest\?\.presentation\?\.version;/);
+  assert.match(dashboard, /if \(shellProfile\) document\.documentElement\.dataset\.htmlShareShellProfile = shellProfile;/);
+  assert.match(dashboard, /else delete document\.documentElement\.dataset\.htmlShareShellProfile;/);
+});
+
 test('content frame is swapped, not re-navigated in place, so one destination change stays one history entry', () => {
   // Reassigning `frame.src`/`frame.removeAttribute('src')` on the same persistent
   // <iframe> makes the browser record the subframe's own navigation in the joint

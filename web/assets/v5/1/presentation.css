@@ -70,15 +70,6 @@ a { color: var(--v5-color-blue); }
 .v5-split-primary, .v5-split-secondary { min-width: 0; }
 .v5-collection, .v5-cards, .cards { display: grid; gap: var(--v5-space-3); }
 .v5-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-/* Home's research band lost its .v5-cards wrapper in a V1 markup change (the
-   wrapper's extra DOM depth was hiding the band from the visual harness's
-   structural geometry checks). This keeps profile 1's rendered layout exactly
-   as it was: the band itself now carries the grid that .v5-cards used to. */
-.home-research {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--v5-space-3);
-  padding: var(--v5-space-5); border: var(--v5-border-width) solid var(--v5-color-line);
-  border-radius: var(--v5-radius-lg); background: var(--v5-surface-raised); box-shadow: 0 8px 24px rgba(16, 35, 63, .05);
-}
 .cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .v5-card, .card, .home-card { min-width: 0; padding: var(--v5-space-4); border: var(--v5-border-width) solid var(--v5-color-line); border-radius: var(--v5-radius-md); background: var(--v5-surface-raised); }
 .v5-card h3, .card h3, .home-card h3 { margin: 0 0 var(--v5-space-2); color: var(--v5-color-navy); font-size: var(--v5-font-heading-3); }
@@ -130,7 +121,7 @@ a { color: var(--v5-color-blue); }
   .v5-page-header h1 { font-size: 1.8rem; }
   .v5-section-header { display: block; }
   .v5-section-detail { margin-top: var(--v5-space-2); }
-  .v5-cards, .cards, .v5-metadata-row, .properties, .home-stats, .kv, .home-research { grid-template-columns: 1fr; }
+  .v5-cards, .cards, .v5-metadata-row, .properties, .home-stats, .kv { grid-template-columns: 1fr; }
   .v5-timeline li { display: block; }
   .v5-timeline time { display: block; margin-bottom: var(--v5-space-1); }
   .v5-data-table-wrap, .v5-table-wrap, .table-wrap { margin-inline: calc(-1 * var(--v5-space-2)); padding-inline: var(--v5-space-2); }

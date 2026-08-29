@@ -544,17 +544,24 @@ body.page-controls-hidden #page-actions {
   body.page-open #page-actions { right: .75rem; }
 }
 .tb-glyph { font-size: 1rem; line-height: 1; }
-/* One compact sticky header: brand + actions on row one, ALL navigation
-   (global + operational) sharing ONE scrollable second row — not the
-   three-row stack (brand/actions, then global-nav, then operational-nav each
-   on their own full-width line) this used to force via separate order/
-   flex-basis:100% rules on each nav. */
+/* Profile 1 (production default, and the default before the loaded manifest
+   says otherwise — see the boot script's presentationProfile assignment):
+   exact prior three-row stack. Unchanged from before V1. */
+@media (max-width: 700px) { .global-nav { order: 3; flex-basis: 100%; } .operational-nav { order: 4; flex-basis: 100%; justify-content: flex-start; padding-left: max(var(--gutter), env(safe-area-inset-left)); } .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; } #browser-toggle { display: inline-flex; } }
+/* Candidate profile 2 only: one compact sticky header — brand + actions on
+   row one, ALL navigation (global + operational) sharing ONE scrollable
+   second row, instead of the three-row stack above. The shell has no
+   presentation-profile concept of its own; html[data-html-share-shell-profile]
+   is set by the boot script below from the loaded manifest's
+   presentation.version, defaulting to unset (= profile 1) until that
+   resolves, so this rule can never apply before a profile-2 manifest is
+   actually confirmed loaded. */
 @media (max-width: 700px) {
-  .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; row-gap: .3rem; }
-  .global-nav, .operational-nav { order: 3; flex: 0 1 auto; min-width: 0; }
-  .global-nav { flex-basis: auto; }
-  .operational-nav .operational-link { margin-top: 0; border-top: 0; border-radius: .55rem; padding-top: 0; padding-left: .5rem; margin-left: .3rem; border-left: 1px solid rgba(255,255,255,.22); }
-  #browser-toggle { display: inline-flex; }
+  html[data-html-share-shell-profile="2"] .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; row-gap: .3rem; }
+  html[data-html-share-shell-profile="2"] .global-nav,
+  html[data-html-share-shell-profile="2"] .operational-nav { order: 3; flex: 0 1 auto; min-width: 0; flex-basis: auto; }
+  html[data-html-share-shell-profile="2"] .operational-nav .operational-link { margin-top: 0; border-top: 0; border-radius: .55rem; padding-top: 0; padding-left: .5rem; margin-left: .3rem; border-left: 1px solid rgba(255,255,255,.22); }
+  html[data-html-share-shell-profile="2"] #browser-toggle { display: inline-flex; }
 }
 @media (max-width: 46rem) { #home.on { padding-top: calc(4.5rem + var(--safe-top-inset)); } }
 @media (max-width: 46rem) { body.page-open .brand { visibility: hidden; } }
@@ -1260,6 +1267,14 @@ body.page-controls-hidden #page-actions {
       const destinationId = current?.destination_id;
       meta = loaded;
       allPages = loaded.pages;
+      // The shell has no presentation-profile concept of its own; this is
+      // the one explicit signal that lets candidate-only shell CSS (see the
+      // max-width:700px rules above) activate only once a profile-2
+      // manifest is actually confirmed loaded — never by default, and never
+      // before the manifest resolves.
+      const shellProfile = loaded.manifest?.presentation?.version;
+      if (shellProfile) document.documentElement.dataset.htmlShareShellProfile = shellProfile;
+      else delete document.documentElement.dataset.htmlShareShellProfile;
       let state;
       try {
         stateWriteBlocked = false;
