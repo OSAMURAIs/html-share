@@ -1,1 +1,59 @@
-/* html-share v5 profile 2 — domain: investment. Candidate profile: not production. */
+/*
+ * html-share v5 presentation profile 2 — Investment domain grammar.
+ *
+ * Investment Dashboard pilot: real quantitative figures (an allocation
+ * donut, a divergent P/L bar set) with 1:1 visual-to-legend correspondence,
+ * built with the same technique the V0 harness's Prototype observation
+ * measures — an inline conic-gradient and inline `--w:<percent>` custom
+ * properties — never an SVG/canvas library and never JavaScript-only data
+ * (the values are baked into the static HTML by investment/rendering.py's
+ * _donut/_divergent_pl; presentation.js does nothing to them). Both figures
+ * sit directly beside the pre-existing accessible table, which remains the
+ * exact numeric fallback — the figure augments it, never replaces it.
+ *
+ * Candidate profile: inactive in production. See docs/presentation-profiles.md.
+ */
+.chart-panel { display: flex; flex-direction: column; gap: var(--v5-space-4); }
+
+/* The dominant portfolio summary: its own headline total is THE largest
+   heading on the page, not a plain section label. */
+.v5-summary h2 { margin: 7px 0 var(--v5-space-2); font-size: 32px; }
+@media (max-width: 560px) {
+  .v5-summary h2 { font-size: 30px; }
+}
+
+.v5-donut-grid { display: grid; grid-template-columns: 190px 1fr; gap: var(--v5-space-5); align-items: center; }
+.v5-donut {
+  position: relative; width: 176px; height: 176px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--segments, conic-gradient(var(--v5-color-line) 0 100%));
+}
+.v5-donut::before { content: ""; position: absolute; width: 114px; height: 114px; border-radius: 50%; background: var(--v5-color-white); }
+.v5-donut > div { position: relative; z-index: 1; text-align: center; }
+.v5-donut strong { display: block; font-size: 19px; }
+.v5-donut span { display: block; color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+.v5-legend { display: grid; gap: var(--v5-space-2); align-content: center; }
+.v5-legend > div { display: grid; grid-template-columns: 12px 1fr auto; gap: var(--v5-space-2); align-items: center; font-size: var(--v5-font-body); }
+.v5-legend i { width: 10px; height: 10px; border-radius: 3px; }
+.v5-legend strong { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+.v5-divergent { display: grid; gap: var(--v5-space-2); margin-bottom: var(--v5-space-4); }
+.v5-divergent-row { display: grid; grid-template-columns: 160px 1fr 100px; gap: var(--v5-space-2); align-items: center; font-size: var(--v5-font-body); }
+.v5-divergent-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.v5-divergent-track {
+  position: relative; height: 18px; overflow: hidden; border-radius: 4px;
+  background: linear-gradient(90deg, var(--v5-color-coral-soft) 0 49.5%, var(--v5-color-line) 49.5% 50.5%, #e7f6ee 50.5% 100%);
+}
+.v5-divergent-track i { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; }
+.v5-divergent-track .plus { left: 50%; width: calc(var(--w) * .5); background: var(--v5-color-green); }
+.v5-divergent-track .minus { right: 50%; width: calc(var(--w) * .5); background: var(--v5-color-coral); }
+.v5-divergent-row .positive { justify-self: end; }
+.v5-divergent-row .negative { justify-self: end; }
+
+@media (max-width: 860px) {
+  /* Charts stay readable, not dropped, at mobile width: the donut centers
+     and its legend goes full width below it; divergent rows keep a usable
+     track rather than shrinking it illegibly. */
+  .v5-donut-grid { grid-template-columns: 1fr; justify-items: center; }
+  .v5-legend { width: 100%; }
+  .v5-divergent-row { grid-template-columns: 92px 1fr 85px; font-size: var(--v5-font-secondary); }
+}
