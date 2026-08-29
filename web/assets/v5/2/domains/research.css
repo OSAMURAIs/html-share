@@ -116,8 +116,12 @@ section.v5-focus .v5-list { padding-left: 1.1rem; }
 
 /* Focus records: three rich records first (Prototype .focus-list — three
    columns, 33/33/33), each its own card with relevance/result detail lines,
-   never a plain list. */
-.focus-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--v5-space-3); margin-bottom: var(--v5-space-5); }
+   never a plain list. auto-fit + a min track width means 3 real records take
+   3 equal columns exactly as the Prototype does, but fewer records (as few
+   as 1, the current sanitized fixture's actual count) fill the available
+   row width instead of a fixed 3-track grid stranding a narrow card beside
+   dead whitespace. */
+.focus-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: var(--v5-space-3); margin-bottom: var(--v5-space-5); }
 .focus-paper { padding: var(--v5-space-4); background: linear-gradient(150deg, #f8fbff, var(--v5-color-blue-soft)); border-color: #cdddf5; }
 .focus-paper h3 { font-size: var(--v5-font-heading-4); line-height: 1.35; }
 .focus-paper .feed-meta { margin-bottom: var(--v5-space-2); }
