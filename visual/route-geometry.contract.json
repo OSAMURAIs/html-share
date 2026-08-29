@@ -624,101 +624,88 @@
     },
     "research.knowledge-review": {
       "label": "Knowledge Review",
-      "domain_grammar": "The single actionable question plus the review workflow state come first; explicit review tasks second; the unreviewed backlog last, as a kind-partitioned disclosure.",
+      "prototype_observed": {
+        "domain_grammar": "The Prototype composition: a single actionable question plus the review workflow state, then explicit review tasks as one undifferentiated group, then a kind-partitioned backlog. Three regions.",
+        "section_order": ["focus-and-workflow", "explicit-tasks", "unreviewed-backlog"],
+        "note": "This is the measurable Prototype baseline only. It is NOT the production target — see production_target below and divergence id knowledge-review.restructured."
+      },
+      "domain_grammar": "Review workflow state comes first, without inferring priority on any single item. The two named workflow categories — 事実・記述を確認する (verify facts/description) and 研究への適用を検討する (consider research application) — are the primary, first-class regions a reader acts on. Uncertain and Conflict follow as distinct review states. The unreviewed backlog is last, as a kind-partitioned disclosure (Papers / Notes / Conversations / Other).",
       "desktop": {
         "global_chrome_orientation": "vertical-rail",
-        "layout": "62.5/37.5 focus-and-workflow band over single-column task and backlog stacks",
-        "expected_column_count": 2,
-        "expected_column_ratios": [
-          62.5,
-          37.5
-        ],
-        "expected_content_column_count": 2,
-        "primary_first_fold": "The review question callout beside the workflow summary tiles.",
+        "layout": "single-column sequential stack: workflow-state summary, then the two named task categories, then Uncertain/Conflict, then the backlog disclosure",
+        "expected_column_count": 1,
+        "expected_column_ratios": [100],
+        "primary_first_fold": "The review workflow state summary (Explicit / Uncertain / Conflict counts, no item singled out as highest priority) immediately followed by the 事実・記述を確認する task category.",
         "section_order": [
           {
-            "id": "focus-and-workflow",
+            "id": "review-workflow-state",
             "match": {
-              "classAny": [
-                "review-focus",
-                "review-card",
-                "review-summary",
-                "v5-focus"
-              ],
-              "heading": "review workflow|確認する|Review|代表測定"
+              "classAny": ["review-focus", "review-summary", "v5-focus"],
+              "heading": "review workflow|今レビューすべき|workflow state"
             }
           },
           {
-            "id": "explicit-tasks",
+            "id": "fact-review-tasks",
             "match": {
-              "classAny": [
-                "stack"
-              ],
-              "heading": "Explicit|事実・記述|適用を検討|task"
+              "classAny": ["stack", "review-card"],
+              "heading": "事実・記述を確認する|Explicit"
+            }
+          },
+          {
+            "id": "research-application-tasks",
+            "match": {
+              "classAny": ["stack", "review-card"],
+              "heading": "研究への適用を検討する"
+            }
+          },
+          {
+            "id": "uncertain-items",
+            "match": {
+              "classAny": ["v5-uncertain", "stack"],
+              "heading": "Uncertain"
+            }
+          },
+          {
+            "id": "conflict-items",
+            "match": {
+              "classAny": ["v5-conflict", "stack"],
+              "heading": "Conflict"
             }
           },
           {
             "id": "unreviewed-backlog",
             "match": {
-              "classAny": [
-                "stack",
-                "backlog-group"
-              ],
+              "classAny": ["stack", "backlog-group", "v5-wide"],
               "heading": "backlog|未review|Unreviewed"
             }
           }
         ],
         "visual_grammar": {
           "sections": {
-            "min": 3,
-            "why": "Focus/workflow, explicit tasks and backlog are three distinct regions."
+            "min": 6,
+            "why": "Workflow state, the two named task categories, Uncertain, Conflict and the backlog are six distinct regions per the handoff restructuring (L402-L446). Collapsing the two task categories into one undifferentiated list, or dropping the Uncertain/Conflict split, regresses to the Prototype's under-constrained baseline."
           }
         }
       },
       "mobile": {
         "global_chrome_orientation": "horizontal-bar",
         "section_order": [
-          {
-            "id": "focus-and-workflow",
-            "match": {
-              "classAny": [
-                "review-focus",
-                "review-card",
-                "review-summary",
-                "v5-focus"
-              ],
-              "heading": "review workflow|確認する|Review|代表測定"
-            }
-          },
-          {
-            "id": "explicit-tasks",
-            "match": {
-              "classAny": [
-                "stack"
-              ],
-              "heading": "Explicit|事実・記述|適用を検討|task"
-            }
-          },
-          {
-            "id": "unreviewed-backlog",
-            "match": {
-              "classAny": [
-                "stack",
-                "backlog-group"
-              ],
-              "heading": "backlog|未review|Unreviewed"
-            }
-          }
+          { "id": "review-workflow-state", "match": { "classAny": ["review-focus", "review-summary", "v5-focus"], "heading": "review workflow|今レビューすべき|workflow state" } },
+          { "id": "fact-review-tasks", "match": { "classAny": ["stack", "review-card"], "heading": "事実・記述を確認する|Explicit" } },
+          { "id": "research-application-tasks", "match": { "classAny": ["stack", "review-card"], "heading": "研究への適用を検討する" } },
+          { "id": "uncertain-items", "match": { "classAny": ["v5-uncertain", "stack"], "heading": "Uncertain" } },
+          { "id": "conflict-items", "match": { "classAny": ["v5-conflict", "stack"], "heading": "Conflict" } },
+          { "id": "unreviewed-backlog", "match": { "classAny": ["stack", "backlog-group", "v5-wide"], "heading": "backlog|未review|Unreviewed" } }
         ],
         "critical_first_screen": [
-          "the actionable review question",
-          "review workflow counts"
+          "the review workflow state summary, with no item singled out as highest priority",
+          "the 事実・記述を確認する task category heading"
         ],
         "table_overflow_strategy": "none",
         "sticky_identity": false,
-        "hierarchy_note": "Backlog uses in-place disclosure, never a nested scroll region. Order focus → tasks → backlog is preserved."
+        "hierarchy_note": "Backlog uses in-place disclosure, never a nested scroll region. Order workflow-state → fact tasks → application tasks → uncertain → conflict → backlog is preserved. Mobile does not merely restack the desktop regions in a different grouping; the same six regions apply in the same order."
       },
-      "production_target_note": "html-share-ui-v5-to-implementation-master-handoff.md L400 requires this route to be RESTRUCTURED for production. The section order below reflects the Prototype baseline and is retained only as the measurable starting point; V1 must implement the handoff structure in html-share-ui-v5-to-implementation-master-handoff.md L402-L446, and this route's contract must be re-derived at that point."
+      "production_target_note": "html-share-ui-v5-to-implementation-master-handoff.md L400 required this route to be RESTRUCTURED for production; that restructuring is now encoded directly above (six sequential regions) rather than left as the Prototype's three-region placeholder. Authority: html-share-ui-v5-to-implementation-master-handoff.md L402-L446. See divergence id knowledge-review.restructured for the prototype_observed / production_target contrast this section_order implements."
     },
     "personal.current": {
       "label": "Personal Current",
@@ -1776,10 +1763,17 @@
       "where": "research.knowledge-review",
       "aspect": "layout",
       "authority_strength": "explicit-normative",
-      "prototype_observed": "The Prototype composition: a focus/workflow band, then explicit review tasks, then a kind-partitioned backlog.",
-      "production_target": "Restructured for production. Primary split into 事実・記述を確認する and 研究への適用を検討する; beneath them Uncertain, Conflict and the unreviewed backlog; backlog foldable by Papers / Notes / Conversations / Other; Japanese primary labels.",
+      "prototype_observed": "The Prototype composition: a focus/workflow band, then explicit review tasks as one undifferentiated group, then a kind-partitioned backlog. Three regions.",
+      "production_target": "Restructured for production as six sequential regions (routes['research.knowledge-review'].desktop.section_order): review-workflow-state summary (no item singled out as highest priority) first; then the two named primary categories 事実・記述を確認する (fields: 確認事項/なぜ確認するか/確認先/related entity/state) and 研究への適用を検討する (fields: 検討事項/なぜ必要か/related project/source paper-note) as distinct first-class regions, not one merged task list; then Uncertain and Conflict as distinct regions; then the unreviewed backlog, foldable by Papers / Notes / Conversations / Other. Japanese primary labels throughout. Explicit/Uncertain/Conflict source semantics are preserved, not invented.",
       "authority_source": "html-share-ui-v5-to-implementation-master-handoff.md L400 \"v5はまだ認知負荷が高いためproductionでは再構成。\"; L402-L446",
-      "rationale": "The one destination where the handoff displaces the Prototype composition wholesale. Matching the Prototype here is NOT the target."
+      "rationale": "The one destination where the handoff displaces the Prototype composition wholesale. Matching the Prototype's three-region baseline here is NOT the target; the contract's own section_order previously repeated that baseline as an unresolved placeholder, which is the V0 under-constraint this divergence and the route's production_target now close.",
+      "relaxed_in_prototype_observation": [
+        "research.knowledge-review.desktop.section-order",
+        "research.knowledge-review.desktop.main.column-count",
+        "research.knowledge-review.desktop.main.column-ratios",
+        "research.knowledge-review.desktop.grammar.sections",
+        "research.knowledge-review.mobile.section-order"
+      ]
     },
     {
       "id": "library.production-order",
