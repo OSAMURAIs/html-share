@@ -121,7 +121,12 @@ section.v5-focus .v5-list { padding-left: 1.1rem; }
    as 1, the current sanitized fixture's actual count) fill the available
    row width instead of a fixed 3-track grid stranding a narrow card beside
    dead whitespace. */
-.focus-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: var(--v5-space-3); margin-bottom: var(--v5-space-5); }
+/* Sized so 3 real focus records take exactly 3 columns at the 1280px
+   desktop viewport (content column ~942px net of the rail and page
+   padding): 3*272 + 2*gap(12px) = 840px, comfortably under that budget,
+   while auto-fit still lets fewer records fill the row instead of leaving
+   dead whitespace beside a stranded narrow card. */
+.focus-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(272px, 100%), 1fr)); gap: var(--v5-space-3); margin-bottom: var(--v5-space-5); }
 .focus-paper { padding: var(--v5-space-4); background: linear-gradient(150deg, #f8fbff, var(--v5-color-blue-soft)); border-color: #cdddf5; }
 .focus-paper h3 { font-size: var(--v5-font-heading-4); line-height: 1.35; }
 .focus-paper .feed-meta { margin-bottom: var(--v5-space-2); }
