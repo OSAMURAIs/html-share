@@ -68,8 +68,9 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* research-filter-reflow — REQUIRED_PRODUCTION_DELTA (research.feed). A
-   filtered-out candidate collapses instead of vanishing instantly; the
-   filtered result is correct and reachable immediately either way. */
-.v5-filterable, [data-v5-feed-candidate] { overflow: hidden; transition: opacity .18s ease, max-height .18s ease, margin .18s ease; }
-.v5-filterable[hidden], [data-v5-feed-candidate][hidden] { display: block; opacity: 0; max-height: 0; margin: 0; pointer-events: none; }
+/* research-filter-reflow — REQUIRED_PRODUCTION_DELTA (research.feed,
+   research.papers). A filtered-out candidate or paper row collapses instead
+   of vanishing instantly; the filtered result is correct and reachable
+   immediately either way, on both routes named in the contract entry. */
+.v5-filterable, [data-v5-feed-candidate], [data-v5-paper-row] { overflow: hidden; transition: opacity .18s ease, max-height .18s ease, margin .18s ease; }
+.v5-filterable[hidden], [data-v5-feed-candidate][hidden], [data-v5-paper-row][hidden] { display: block; opacity: 0; max-height: 0; margin: 0; pointer-events: none; }
