@@ -9,6 +9,37 @@
  *
  * Candidate profile: inactive in production. See docs/presentation-profiles.md.
  */
+
+/* Current: two co-equal priority records (priority-pair reuses the shared
+   v5-grid 50/50 primitive so the page's own first layout band is genuinely
+   two columns), each carrying an explicit 次の一手 next-action emphasis. */
+.priority-pair .priority-card { background: linear-gradient(150deg, #f3f8ff, #eaf2ff); border-color: var(--v5-color-blue-soft); }
+.priority-next { margin-top: var(--v5-space-3); padding-top: var(--v5-space-3); border-top: var(--v5-border-width) solid var(--v5-color-line); }
+.priority-next strong { display: block; margin-top: 2px; }
+/* Dated / continuing bands: distinct multi-column grammar, never merged into
+   one flat list — three columns for near-date items, four for undated
+   continuing context. */
+.v5-dated-grid, .v5-continuing-grid { display: grid; gap: var(--v5-space-3); margin: 0; padding: 0; list-style: none; }
+.v5-dated-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.v5-continuing-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.v5-dated-grid > li, .v5-continuing-grid > li { padding: var(--v5-space-4); }
+
+/* Library: distinct lifecycle/state regions stacked vertically, each a tinted
+   surface containing a three-column item grid. Region tint is the entire
+   mechanism that distinguishes state — never one flat equal-card collection. */
+.library-region-active { background: linear-gradient(150deg, #f3f8ff, #eaf2ff); border-color: var(--v5-color-blue-soft); }
+.library-region-saved { background: var(--v5-color-paper-2); }
+.library-region-acquired { background: linear-gradient(150deg, #f2fbf6, #e7f6ee); border-color: var(--v5-color-green-text); }
+.library-region-considering { background: linear-gradient(150deg, #fff8ec, #fef1d8); border-color: var(--v5-color-amber, #d99a2b); }
+.library-region-complete, .library-region-dismissed { opacity: .82; }
+.library-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--v5-space-3); margin: var(--v5-space-3) 0 0; padding: 0; list-style: none; }
+.library-grid-3 > li { padding: var(--v5-space-4); border: var(--v5-border-width) solid var(--v5-color-line); border-radius: var(--v5-radius-md); background: var(--v5-color-white); }
+/* A region deep enough to overflow one screenful stays a native disclosure —
+   no JS reconstruction, and the region stops dwarfing its neighbours. */
+.library-region-more { margin-top: var(--v5-space-3); }
+.library-region-more > summary { cursor: pointer; color: var(--v5-color-blue); font-size: var(--v5-font-secondary); font-weight: 700; }
+.library-region-more[open] > summary { margin-bottom: var(--v5-space-2); }
+
 .v5-travel-collection-band { display: grid; grid-template-columns: .8fr 1.2fr; gap: var(--v5-space-4); align-items: start; }
 .trip-active { background: linear-gradient(150deg, #f3f8ff, #eaf2ff); border-color: var(--v5-color-blue-soft); }
 .trip-row .v5-collection { display: grid; gap: 0; }
@@ -61,6 +92,10 @@
      collapse to one, per route-geometry.contract.json's hierarchy_note. */
   .v5-itinerary { grid-template-columns: 1fr; }
   .v5-critical-fallback { grid-template-columns: 1fr; }
+  /* Everything becomes one column with order preserved (Current/Library
+     mobile hierarchy notes) — region and priority distinction survive via
+     tint and stacking, not via a nested scroll region. */
+  .v5-dated-grid, .v5-continuing-grid, .library-grid-3 { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
   /* Booking confirmation state must stay visible at 390px — reflow is fine,
