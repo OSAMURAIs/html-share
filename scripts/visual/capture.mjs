@@ -27,7 +27,12 @@ export const SHELL_PROBES = Object.freeze({
     // is listed first because it is the Prototype's real, verified shape;
     // the rest remain as defense-in-depth for markup this probe hasn't seen.
     globalNav: 'nav.nav, .global-nav, nav.global, nav[aria-label*="global" i], header nav',
-    domainNav: '.domain-nav, nav.domain, nav[aria-label*="domain" i], .subnav',
+    // Same historical defect as globalNav above: the Prototype's actual
+    // second-level nav, rendered by the `subnav()` helper in assets/app.js, is
+    // `<nav class="workspace-tabs" aria-label="{domain}の二次ナビゲーション">`
+    // — never classed "domain" or "subnav", and its Japanese aria-label never
+    // contains "domain". None of the four alternatives after it could match.
+    domainNav: 'nav.workspace-tabs, .domain-nav, nav.domain, nav[aria-label*="domain" i], .subnav',
     utility: '.topbar-actions, .actions, .utility, header .actions',
     main: 'main, .v5-main, .content',
   },

@@ -71,5 +71,5 @@
 /* research-filter-reflow — REQUIRED_PRODUCTION_DELTA (research.feed). A
    filtered-out candidate collapses instead of vanishing instantly; the
    filtered result is correct and reachable immediately either way. */
-.v5-filterable { overflow: hidden; transition: opacity .18s ease, max-height .18s ease, margin .18s ease; }
-.v5-filterable[hidden] { display: block; opacity: 0; max-height: 0; margin: 0; pointer-events: none; }
+.v5-filterable, [data-v5-feed-candidate] { overflow: hidden; transition: opacity .18s ease, max-height .18s ease, margin .18s ease; }
+.v5-filterable[hidden], [data-v5-feed-candidate][hidden] { display: block; opacity: 0; max-height: 0; margin: 0; pointer-events: none; }

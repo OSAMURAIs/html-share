@@ -365,6 +365,40 @@ test('the global-nav probe finds shell-owned navigation, by whatever shape it ac
   );
 });
 
+test('the domain-nav probe finds shell-owned navigation, by whatever shape it actually takes', () => {
+  // The same historical defect, one level down: the Prototype's second-level
+  // nav — rendered by assets/app.js's `subnav()` helper as
+  // `<nav class="workspace-tabs" aria-label="{domain}の二次ナビゲーション">` —
+  // matched none of ".domain-nav", "nav.domain", `nav[aria-label*="domain" i]`,
+  // or ".subnav" (it is classed "workspace-tabs", and its Japanese aria-label
+  // never contains "domain").
+  const prototypeSubnavShape = { tag: 'nav', classes: ['workspace-tabs'], attrs: { 'aria-label': 'researchの二次ナビゲーション' } };
+  const matchesPrototypeShape = (selector) => {
+    if (selector === 'nav.workspace-tabs') return prototypeSubnavShape.tag === 'nav' && prototypeSubnavShape.classes.includes('workspace-tabs');
+    if (selector === '.domain-nav') return prototypeSubnavShape.classes.includes('domain-nav');
+    if (selector === 'nav.domain') return prototypeSubnavShape.classes.includes('domain');
+    if (selector === 'nav[aria-label*="domain" i]') return /domain/i.test(prototypeSubnavShape.attrs['aria-label']);
+    if (selector === '.subnav') return prototypeSubnavShape.classes.includes('subnav');
+    return false;
+  };
+  assert.equal(
+    firstMatchingSelector(SHELL_PROBES.prototype.domainNav, matchesPrototypeShape),
+    'nav.workspace-tabs',
+    'the corrected probe list must find the Prototype\'s real second-level navigation',
+  );
+  const oldDomainNavProbe = '.domain-nav, nav.domain, nav[aria-label*="domain" i], .subnav';
+  assert.equal(
+    firstMatchingSelector(oldDomainNavProbe, matchesPrototypeShape),
+    null,
+    'demonstrates the historical defect: the pre-fix probe list could never match the Prototype\'s actual subnav shape',
+  );
+  assert.equal(
+    firstMatchingSelector(SHELL_PROBES.prototype.domainNav, () => false),
+    null,
+    'a page with no matching element anywhere must still be reported as missing domain navigation',
+  );
+});
+
 test('the metric extractor reports computed browser values, never CSS source declarations', () => {
   assert.equal(METRICS_SCHEMA, 'html-share.visual.metrics/1');
   assert.match(METRICS_SOURCE, /getComputedStyle/);
