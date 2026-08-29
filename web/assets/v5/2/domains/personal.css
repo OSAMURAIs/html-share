@@ -1,1 +1,70 @@
-/* html-share v5 profile 2 — domain: personal. Candidate profile: not production. */
+/*
+ * html-share v5 presentation profile 2 — Personal domain grammar.
+ *
+ * Personal Travel pilot: a 40/60 trip-collection band (current/next trip
+ * preview beside the trip list) above ONE selected-trip workspace grouped as
+ * a single large container, carrying four distinct grammars — timeline,
+ * bookings, critical times, and fallback — as separate visual treatments,
+ * never a generic equal-weight card list.
+ *
+ * Candidate profile: inactive in production. See docs/presentation-profiles.md.
+ */
+.v5-travel-collection-band { display: grid; grid-template-columns: .8fr 1.2fr; gap: var(--v5-space-4); align-items: start; }
+.trip-active { background: linear-gradient(150deg, #f3f8ff, #eaf2ff); border-color: var(--v5-color-blue-soft); }
+.trip-row .v5-collection { display: grid; gap: 0; }
+.v5-trip-link {
+  display: block; padding: var(--v5-space-3) 0; border-top: var(--v5-border-width) solid var(--v5-color-line);
+  color: inherit;
+}
+.v5-collection > .v5-trip-link:first-child { border-top: 0; }
+.v5-trip-link small { display: block; margin-top: 2px; color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+.v5-trip-link[aria-current="true"] { color: var(--v5-color-blue); }
+
+/* Selected-trip workspace: one large grouped container. */
+.trip-detail-v5 { margin-top: var(--v5-space-5); }
+.trip-overview { display: grid; grid-template-columns: 1.12fr .88fr; gap: var(--v5-space-4); margin-bottom: var(--v5-space-5); }
+.v5-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--v5-space-3); }
+
+/* Timeline: a vertical day-by-day itinerary with a continuous connector —
+   vertical by construction (grid-template-columns is a fixed time column
+   plus content, never a media-query-driven stack), never dropped on mobile. */
+.v5-itinerary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--v5-space-4); margin-top: var(--v5-space-4); }
+.v5-itinerary > section { padding: var(--v5-space-5); border: var(--v5-border-width) solid var(--v5-color-line); border-radius: var(--v5-radius-md); background: var(--v5-color-white); }
+.v5-itinerary h4 { font-size: 20px; }
+.v5-timeline { position: relative; }
+.v5-timeline li { position: relative; grid-template-columns: 58px 1fr; }
+.v5-timeline time { font-size: var(--v5-font-body); }
+.v5-timeline span { display: block; color: var(--v5-color-muted); font-size: var(--v5-font-body); }
+
+/* Bookings: an explicit confirmation marker on every record, never folded
+   anonymously into a generic chip and never dropped at any width. */
+.v5-booking { position: relative; }
+.v5-booking-state {
+  flex: none; padding: 2px 8px; border-radius: 999px; background: #e7f6ee; color: var(--v5-color-green-text);
+  font-size: var(--v5-font-eyebrow); font-style: normal; font-weight: 850; white-space: nowrap;
+}
+
+/* Critical / fallback: a 50/50 pair, each its own distinct visual treatment —
+   critical times in an alerted tone, fallback as its own clearly separate
+   "what if the plan slips" block. */
+.v5-critical-fallback { display: grid; grid-template-columns: 1fr 1fr; gap: var(--v5-space-4); margin-top: var(--v5-space-4); }
+.v5-critical { padding: var(--v5-space-5); border: var(--v5-border-width) solid var(--v5-color-coral-soft); border-radius: var(--v5-radius-md); background: var(--v5-color-coral-soft); }
+.v5-critical h3 { color: var(--v5-color-coral); }
+.v5-critical li strong { color: var(--v5-color-coral); }
+.v5-fallback { padding: var(--v5-space-5); border: var(--v5-border-width) solid var(--v5-color-line); border-radius: var(--v5-radius-md); background: var(--v5-color-paper-2); }
+
+@media (max-width: 860px) {
+  .v5-travel-collection-band { grid-template-columns: 1fr; }
+  .trip-overview { grid-template-columns: 1fr; }
+  /* The itinerary stays a vertical timeline by construction (the time column
+     is fixed-width, not media-query stacked) — only the day-pair columns
+     collapse to one, per route-geometry.contract.json's hierarchy_note. */
+  .v5-itinerary { grid-template-columns: 1fr; }
+  .v5-critical-fallback { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  /* Booking confirmation state must stay visible at 390px — reflow is fine,
+     deletion is the Prototype's own known defect
+     (travel.confirmed-marker-dropped-on-mobile) and is not reproduced here. */
+  .v5-booking .v5-detail-head { flex-wrap: wrap; }
+}
