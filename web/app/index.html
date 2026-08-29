@@ -544,7 +544,18 @@ body.page-controls-hidden #page-actions {
   body.page-open #page-actions { right: .75rem; }
 }
 .tb-glyph { font-size: 1rem; line-height: 1; }
-@media (max-width: 700px) { .global-nav { order: 3; flex-basis: 100%; } .operational-nav { order: 4; flex-basis: 100%; justify-content: flex-start; padding-left: max(var(--gutter), env(safe-area-inset-left)); } .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; } #browser-toggle { display: inline-flex; } }
+/* One compact sticky header: brand + actions on row one, ALL navigation
+   (global + operational) sharing ONE scrollable second row — not the
+   three-row stack (brand/actions, then global-nav, then operational-nav each
+   on their own full-width line) this used to force via separate order/
+   flex-basis:100% rules on each nav. */
+@media (max-width: 700px) {
+  .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; row-gap: .3rem; }
+  .global-nav, .operational-nav { order: 3; flex: 0 1 auto; min-width: 0; }
+  .global-nav { flex-basis: auto; }
+  .operational-nav .operational-link { margin-top: 0; border-top: 0; border-radius: .55rem; padding-top: 0; padding-left: .5rem; margin-left: .3rem; border-left: 1px solid rgba(255,255,255,.22); }
+  #browser-toggle { display: inline-flex; }
+}
 @media (max-width: 46rem) { #home.on { padding-top: calc(4.5rem + var(--safe-top-inset)); } }
 @media (max-width: 46rem) { body.page-open .brand { visibility: hidden; } }
 </style>

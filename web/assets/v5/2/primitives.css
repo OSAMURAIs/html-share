@@ -167,7 +167,7 @@ h4 { margin-bottom: var(--v5-space-1); font-size: var(--v5-font-heading-4); line
 }
 @media (max-width: 560px) {
   .v5-page-frame { padding: 18px 13px 55px; }
-  .v5-page-header h1 { font-size: 25px; }
+  .v5-page-header h1 { font-size: 29px; }
   .v5-cards, .v5-metadata-row, .v5-facts { grid-template-columns: 1fr; }
   .v5-timeline li { grid-template-columns: 1fr; gap: var(--v5-space-1); }
 }

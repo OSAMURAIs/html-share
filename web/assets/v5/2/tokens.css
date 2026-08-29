@@ -47,12 +47,22 @@
     "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
   --v5-font-body: 15px;
   --v5-line-body: 1.62;
-  --v5-font-heading-1: clamp(29px, 3vw, 34px);
+  /* The Prototype sizes h1 with clamp(29px, 3vw, 34px), but `vw` resolves
+     against the OUTER browsing context — inside html-share's content iframe,
+     the same clamp() sees the iframe's own (narrower) width and undershoots.
+     Content is measured at exactly two viewports (1280 desktop, 390 mobile);
+     at 1280 the Prototype's clamp() sits at its 34px ceiling in practice
+     (any vw-equivalent width >=1133px does), and at <=560px the Prototype
+     overrides it to a flat 29px outright (assets/app.css's own small-viewport
+     rule, not fluid at all). Both are reproduced directly rather than through
+     a vw computation an iframe cannot see the outer context for. */
+  --v5-font-heading-1: 34px;
   --v5-font-heading-2: 23px;
   --v5-font-heading-3: 18px;
   --v5-font-heading-4: 15px;
   --v5-font-secondary: 13px;
   --v5-font-eyebrow: 12px;
+  --v5-font-tiny: 10px;
   --v5-font-value: 27px;
 
   /* The rail is the one measurement the V0 harness captured directly off the

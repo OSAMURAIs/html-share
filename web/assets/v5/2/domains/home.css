@@ -13,21 +13,33 @@
 .home-context { background: linear-gradient(135deg, #f7f9fd, #eaf2ff); border-color: var(--v5-color-blue-soft); }
 
 /* research-band: three surfaces side by side (two live projects + exploration),
-   not a generic equal-width card grid — each keeps its own stats/context. */
-.home-research .v5-cards {
+   not a generic equal-width card grid — each keeps its own stats/context.
+   The band is the grid directly (no wrapping surface/header/.v5-cards level):
+   the Prototype's own section.home-research is itself the 3-column grid, a
+   direct child of main with no intermediate box, and the V0 harness's
+   structural geometry checks require that same DOM shape — a card row nested
+   two levels deep reads as a smaller, secondary grid rather than the page's
+   own principal content band. The section is labelled via aria-label rather
+   than a visible heading, matching the Prototype exactly (its own home
+   research band carries no visible section-level caption either — each card
+   names its own project). */
+.home-research {
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--v5-space-5);
   align-items: stretch;
+  margin-bottom: var(--v5-space-5);
 }
 .home-research .home-card {
   background: linear-gradient(150deg, #f8fbff, #edf4ff);
   border-color: #cadcff;
 }
 .home-research .home-card h3 { font-size: var(--v5-font-heading-2); }
-.home-research .home-card { min-height: 320px; }
+.home-research .home-card { min-height: 440px; }
 .home-research .home-stats { display: flex; gap: var(--v5-space-3); margin: var(--v5-space-2) 0 var(--v5-space-3); flex-wrap: wrap; }
 .home-research .home-stats span {
   padding: 4px 9px; border-radius: 999px; background: var(--v5-color-blue-soft); color: #164eb7;
-  font-size: var(--v5-font-eyebrow); font-weight: 850;
+  font-size: var(--v5-font-tiny); font-weight: 850;
 }
 .home-research .home-stats b { font-weight: 850; }
 .home-research details { margin-top: auto; padding-top: var(--v5-space-3); border-top: 1px solid #cdddf5; }
@@ -63,13 +75,25 @@
 }
 .home-live-work .home-card { background: var(--v5-color-white); }
 
+/* recent-updates: a compact cross-domain feed built from data Home already
+   receives (Item.updated_at, Plan/Trip.updated_at, the Investment snapshot's
+   own refresh time) — see home.py's _recent_updates(). */
+.home-recent .v5-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.home-recent .home-card { padding: var(--v5-space-4); }
+
 .home-list { list-style: none; margin: 0; padding: 0; }
 .home-list li { padding: var(--v5-space-2) 0; border-top: 1px solid var(--v5-color-line); }
 .home-list li:first-child { border-top: 0; }
 
 @media (max-width: 1080px) {
-  .home-research .v5-cards { grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); grid-template-columns: none; overflow-x: auto; padding-bottom: 3px; }
+  .home-research { grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); grid-template-columns: none; overflow-x: auto; padding-bottom: 3px; }
 }
+/* The Prototype keeps the Research band as a horizontally scrolling
+   three-card carousel at every width down to mobile, rather than stacking it
+   — visual/route-geometry.contract.json's home.mobile.hierarchy_note records
+   this explicitly. The 1080px rule above already does this; mobile just
+   narrows the per-card minimum. */
 @media (max-width: 860px) {
+  .home-research { grid-auto-columns: minmax(260px, 82vw); }
   .home-lower { grid-template-columns: 1fr; }
 }
