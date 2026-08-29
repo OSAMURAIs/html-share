@@ -585,6 +585,43 @@ test('the recorded V0 baseline verdicts are unchanged by the authority correctio
   assert.doesNotMatch(verdicts, /CONFORMANT/);
 });
 
+test('research.knowledge-review carries a strengthened, separately-derived production target', () => {
+  const route = contract.routes['research.knowledge-review'];
+  assert.ok(route.prototype_observed, 'the Prototype-baseline composition must be recorded as its own metadata block');
+  assert.deepEqual(route.prototype_observed.section_order, ['focus-and-workflow', 'explicit-tasks', 'unreviewed-backlog'],
+    'prototype_observed must retain the original three-region baseline, unweakened');
+
+  // The production target must not merely repeat the Prototype baseline it supersedes.
+  const desktopIds = route.desktop.section_order.map((entry: { id: string }) => entry.id);
+  assert.notDeepEqual(desktopIds, route.prototype_observed.section_order,
+    'the production section order must be materially restructured, not a relabeled copy of the Prototype baseline');
+  assert.deepEqual(desktopIds, [
+    'review-workflow-state', 'fact-review-tasks', 'research-application-tasks',
+    'uncertain-items', 'conflict-items', 'unreviewed-backlog',
+  ], 'the production target must split explicit tasks into the two handoff-named workflow categories, and keep Uncertain/Conflict distinct');
+  assert.deepEqual(route.mobile.section_order.map((entry: { id: string }) => entry.id), desktopIds,
+    'mobile must define the same six-region priority as desktop, not merely restack a subset');
+  assert.equal(route.desktop.visual_grammar.sections.min, 6,
+    'the strengthened contract must require at least six distinct regions on desktop');
+
+  // The strengthened target must be traceable to the handoff, not invented.
+  const divergence = (contract.divergences ?? []).find((entry: { id: string }) => entry.id === 'knowledge-review.restructured');
+  assert.ok(divergence, 'the restructuring must be declared as an authority-backed divergence, not a silent contract edit');
+  assert.match(divergence.authority_source, /L400/);
+  assert.match(divergence.authority_source, /L402-L446/);
+  assert.equal(divergence.authority_strength, 'explicit-normative');
+
+  // The divergence must relax exactly the geometry checks this restructuring displaces,
+  // so prototype-observation validation stays honest instead of silently passing.
+  assert.deepEqual(new Set(divergence.relaxed_in_prototype_observation), new Set([
+    'research.knowledge-review.desktop.section-order',
+    'research.knowledge-review.desktop.main.column-count',
+    'research.knowledge-review.desktop.main.column-ratios',
+    'research.knowledge-review.desktop.grammar.sections',
+    'research.knowledge-review.mobile.section-order',
+  ]));
+});
+
 test('every run records both validations so reproducibility covers them', () => {
   const runner = readFileSync(path.join(root, 'scripts/visual/run.mjs'), 'utf8');
   assert.match(runner, /validatePrototypeObservation/);
