@@ -2,6 +2,7 @@ import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { parse, stringify } from 'yaml';
+import { DEFAULT_PRESENTATION_VERSION, PRESENTATION_PROFILES } from './v5-contract.js';
 
 export interface PageConfig {
   path: string;
@@ -33,6 +34,14 @@ export interface HtmlShareConfig {
     maximumAssetBytes: number;
     allowedInternalCidrs: string[];
   };
+  /**
+   * The presentation profile this deployment publishes.
+   *
+   * Absent from configuration means `DEFAULT_PRESENTATION_VERSION` ('1'), so an
+   * existing production config keeps publishing v1 with no edit. Activating a
+   * candidate profile is a deliberate, reviewed configuration change.
+   */
+  presentationVersion: string;
   configFile: string;
   baseDir: string;
 }
@@ -64,6 +73,16 @@ function cidr(value: unknown, name: string): string {
     throw new Error(`${name} must be an IPv4 CIDR`);
   }
   return result;
+}
+
+function presentationVersionFrom(raw: unknown): string {
+  const value = (raw as Record<string, unknown> | undefined)?.profile;
+  if (value === undefined || value === null) return DEFAULT_PRESENTATION_VERSION;
+  const version = String(value).trim();
+  if (!PRESENTATION_PROFILES[version]) {
+    throw new Error(`presentation.profile must be one of: ${Object.keys(PRESENTATION_PROFILES).join(', ')}`);
+  }
+  return version;
 }
 
 export function resolveFromConfig(config: HtmlShareConfig, value: string): string {
@@ -139,6 +158,7 @@ export function loadConfig(file?: string): HtmlShareConfig {
       maximumAssetBytes: positiveInteger(content.maximumAssetBytes, 10 * 1024 * 1024, 'content.maximumAssetBytes'),
       allowedInternalCidrs,
     },
+    presentationVersion: presentationVersionFrom(raw?.presentation),
     configFile,
     baseDir: path.dirname(configFile),
   };
