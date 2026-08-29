@@ -15,7 +15,7 @@
 <link rel="manifest" href="/app.webmanifest" crossorigin="use-credentials">
 <meta name="apple-mobile-web-app-title" content="HTML共有くん">
 <!-- 上バーの上端と同じ色。ここがずれるとステータスバーの周りが継ぎはぎになる -->
-<meta name="theme-color" content="#0a4695">
+<meta name="theme-color" content="#172a46">
 <!-- 一覧の見た目と描画の正本。スマホの個別ページ側も同じものを読む -->
 <script src="/page-list.js"></script>
 <script src="/app/manifest.js"></script>
@@ -547,6 +547,46 @@ body.page-controls-hidden #page-actions {
 @media (max-width: 700px) { .global-nav { order: 3; flex-basis: 100%; } .operational-nav { order: 4; flex-basis: 100%; justify-content: flex-start; padding-left: max(var(--gutter), env(safe-area-inset-left)); } .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; } #browser-toggle { display: inline-flex; } }
 @media (max-width: 46rem) { #home.on { padding-top: calc(4.5rem + var(--safe-top-inset)); } }
 @media (max-width: 46rem) { body.page-open .brand { visibility: hidden; } }
+/* ── v5 reading-first shell ───────────────────────────────────────────── */
+:root {
+  --blue-deep: #172a46;
+  --blue: #2563eb;
+  --blue-mid: #1d4ed8;
+  --blue-bright: #60a5fa;
+  --blue-soft: #eaf2ff;
+  --blue-line: #d6e0ed;
+  --safe-top: #172a46;
+  --ink: #18263a;
+  --sub: #49617e;
+  --mut: #74849a;
+  --line: #d6e0ed;
+  --soft: #f7f9fd;
+  --bg: #f7f9fd;
+  --panel: #fff;
+  --accent: #2563eb;
+  --accent-soft: #eaf2ff;
+}
+main { background: var(--bg); }
+.topbar { background: var(--blue-deep); box-shadow: 8px 0 28px rgba(23,42,70,.13); }
+.brand { letter-spacing: .02em; }
+.brand:hover { background: rgba(255,255,255,.09); }
+.brand-meta { color: #b9c9df; }
+.global-nav a[aria-current="page"] { background: rgba(75,128,213,.28); box-shadow: inset 3px 0 var(--blue-bright); }
+.domain-nav { background: transparent; border-color: var(--blue-line); }
+.domain-nav a[aria-current="page"] { background: var(--blue-soft); color: var(--blue-mid); }
+#home.on { background: var(--bg); }
+@media (min-width: 46.01rem) {
+  .topbar { background: var(--blue-deep); }
+  .topbar-inner { padding-top: 1.65rem; }
+  .global-nav a, .operational-nav a { color: #c7d5ea; }
+  .operational-nav a { color: #aacaef; }
+  .topbar-actions #review { grid-column: 2; grid-row: 1; width: 2.2rem; padding: 0; justify-content: center; }
+  .topbar-actions #review .label { display: none; }
+}
+@media (max-width: 46rem) {
+  .topbar { background: var(--blue-deep); }
+  .topbar-inner { min-height: 3.45rem; }
+}
 </style>
 </head>
 <body>

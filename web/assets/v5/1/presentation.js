@@ -33,4 +33,18 @@
       item.setAttribute('aria-current', 'true');
     });
   });
+  document.querySelectorAll('[data-trip-mode]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const mode = button.getAttribute('data-trip-mode');
+      const workspace = button.closest('[data-travel-workspace]');
+      if (!mode || !workspace) return;
+      workspace.setAttribute('data-travel-mode', mode);
+      workspace.querySelectorAll('[data-trip-mode]').forEach((item) => {
+        item.setAttribute('aria-pressed', String(item === button));
+      });
+      workspace.querySelectorAll('[data-trip-next]').forEach((item) => {
+        item.toggleAttribute('hidden', mode !== 'active');
+      });
+    });
+  });
 })();

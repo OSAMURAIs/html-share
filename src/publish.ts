@@ -105,7 +105,7 @@ function copyConsole(buildRoot: string, manifest: object, manifestV2: ManifestV2
   writeFileSync(path.join(consoleRoot, 'app', 'manifest.v2.json'), `${JSON.stringify(manifestV2, null, 2)}\n`);
   writeFileSync(path.join(consoleRoot, 'app.webmanifest'), `${JSON.stringify({
     name: 'HTML共有くん', short_name: '共有くん', lang: 'ja', start_url: '/app/index.html', scope: '/', display: 'standalone',
-    background_color: '#f6f7f9', theme_color: '#0e0d6a',
+    background_color: '#f6f7f9', theme_color: '#172a46',
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
