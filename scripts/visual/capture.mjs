@@ -14,8 +14,25 @@ export const SHELL_PROBES = Object.freeze({
     globalChrome: 'aside.rail, .rail',
     rail: '.rail, .sidebar, aside.rail',
     header: '.topbar, header.topbar, header[role="banner"], body > header',
-    globalNav: '.global-nav, nav.global, nav[aria-label*="global" i], header nav',
-    domainNav: '.domain-nav, nav.domain, nav[aria-label*="domain" i], .subnav',
+    // The Prototype's actual rail navigation, rendered by assets/app.js, is
+    // `<nav class="nav" aria-label="メインナビゲーション">` inside `<aside
+    // class="rail">` — never inside a <header>, never classed "global", and
+    // its Japanese aria-label never contains the substring "global". None of
+    // the four alternatives below it can ever match that element. That made
+    // this probe encode ONE implementation's incidental naming (a hypothetical
+    // page that classes its nav "global-nav" or nests it in <header>) rather
+    // than the normative question the check exists to ask — "does this
+    // product view have global navigation at all" — and silently returned
+    // present:false for the Prototype on every route, every time. `nav.nav`
+    // is listed first because it is the Prototype's real, verified shape;
+    // the rest remain as defense-in-depth for markup this probe hasn't seen.
+    globalNav: 'nav.nav, .global-nav, nav.global, nav[aria-label*="global" i], header nav',
+    // Same historical defect as globalNav above: the Prototype's actual
+    // second-level nav, rendered by the `subnav()` helper in assets/app.js, is
+    // `<nav class="workspace-tabs" aria-label="{domain}の二次ナビゲーション">`
+    // — never classed "domain" or "subnav", and its Japanese aria-label never
+    // contains "domain". None of the four alternatives after it could match.
+    domainNav: 'nav.workspace-tabs, .domain-nav, nav.domain, nav[aria-label*="domain" i], .subnav',
     utility: '.topbar-actions, .actions, .utility, header .actions',
     main: 'main, .v5-main, .content',
   },

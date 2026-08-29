@@ -1,0 +1,36 @@
+/*
+ * html-share v5 presentation profile 2 — embedded / standalone frame contract.
+ *
+ * html-share is the sole owner of the browser application shell (the navy
+ * rail, global nav, domain nav). `annotate_generated_html` in the hub HARD
+ * REJECTS any generated document that contains app-shell/global-nav/domain-nav
+ * classes, so a content document never carries shell markup to begin with —
+ * there is no second shell to strip at runtime.
+ *
+ * The "double framing" V0 flagged (shell + domain bar + iframe + a large
+ * generated dark page header) was not two shells; it was ONE shell plus a
+ * content page-lead heavy enough to read as a second, competing hero. That is
+ * fixed structurally in primitives.css: `.v5-page-header` is compact — an
+ * eyebrow, a title, right-aligned metadata on the page background — matching
+ * the Prototype's own page-head exactly, in both the embedded and the
+ * standalone case. There is no context-dependent variant to select, so this
+ * file needs no fragile DOM deletion and no JS is required for correctness:
+ * a shared link opened with no shell around it (standalone) and the same
+ * document inside the browser's iframe (embedded) are the same coherent page.
+ *
+ * The one thing that legitimately differs by context is spacing: embedded,
+ * the shell's own domain-nav bar already sits directly above the iframe, so
+ * the content repeating the same amount of top air reads as wasted space
+ * rather than as a second header. `data-html-share-frame` is a *cosmetic*,
+ * additive refinement only — presentation.js sets it as soon as it runs,
+ * before which the page already renders correctly under the plain rule below.
+ */
+.v5-page-frame { padding-top: var(--v5-page-padding-top); }
+
+[data-html-share-frame="embedded"] .v5-page-frame {
+  padding-top: calc(var(--v5-page-padding-top) * .55);
+}
+
+@media (max-width: 860px) {
+  [data-html-share-frame="embedded"] .v5-page-frame { padding-top: 14px; }
+}

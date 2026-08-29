@@ -13,9 +13,12 @@ import { fileURLToPath } from 'node:url';
 import type { HtmlShareConfig, PageConfig } from './config.js';
 import { resolveFromConfig, validatedRoots } from './config.js';
 import {
+  declaredPresentationVersion,
   readGeneratedV5Metadata,
+  resolvePresentationProfile,
   V5_PRESENTATION,
   type GeneratedV5Metadata,
+  type PresentationProfile,
 } from './v5-contract.js';
 
 function packageRoot(): string {
@@ -72,8 +75,8 @@ export interface BuildManifest {
   pages: BuiltPage[];
 }
 
-function copyManagedV5Assets(contentRoot: string): void {
-  for (const publicPath of V5_PRESENTATION.assets) {
+function copyManagedV5Assets(contentRoot: string, profile: PresentationProfile): void {
+  for (const publicPath of profile.staged_assets) {
     const relative = publicPath.replace(/^\//, '');
     const source = path.join(packageRoot(), 'web', relative);
     if (!existsSync(source)) throw new Error(`Managed v5 presentation asset is missing: ${publicPath}`);
@@ -119,15 +122,31 @@ function dataUrl(file: string, maxBytes: number): string {
   return `data:${mime};base64,${readFileSync(file).toString('base64')}`;
 }
 
-export function bundleHtml(sourceFile: string, roots: string[], maxAssetBytes: number): string {
+export function bundleHtml(
+  sourceFile: string,
+  roots: string[],
+  maxAssetBytes: number,
+  profile: PresentationProfile = V5_PRESENTATION,
+): string {
   const source = realpathSync(sourceFile);
   if (!inside(source, roots)) throw new Error(`Page is outside content.roots: ${sourceFile}`);
   const sourceDirectory = path.dirname(source);
   let html = readFileSync(source, 'utf8');
+  // Explicit contract check, ahead of any asset handling: a page that declares
+  // a different presentation profile than the one this build is publishing is
+  // rejected by name, not by an incidental "local asset not found" once the
+  // inliner later trips over one of its foreign asset references.
+  const declaredVersion = declaredPresentationVersion(html);
+  if (declaredVersion !== null && declaredVersion !== profile.version) {
+    throw new Error(
+      `presentation profile mismatch: ${sourceFile} declares presentation-version `
+      + `"${declaredVersion}" but this build is publishing profile "${profile.version}"`,
+    );
+  }
   const reference = /\b(src|href)\s*=\s*(["'])([^"']+)\2/gi;
   html = html.replace(reference, (full, attribute: string, quote: string, raw: string) => {
     const value = raw.trim();
-    if ((V5_PRESENTATION.assets as readonly string[]).includes(value)) return full;
+    if (profile.staged_assets.includes(value)) return full;
     if (!value || /^(?:https?:|data:|blob:|mailto:|tel:|javascript:|#|\/\/)/i.test(value)) return full;
     const pathname = decodeURIComponent(value.split(/[?#]/, 1)[0]);
     if (path.extname(pathname).toLowerCase() === '.html') return full;
@@ -254,7 +273,8 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
   const nextTokens: Record<string, string> = {};
   rmSync(buildRoot, { recursive: true, force: true });
   mkdirSync(contentRoot, { recursive: true });
-  copyManagedV5Assets(contentRoot);
+  const presentation = resolvePresentationProfile(config.presentationVersion);
+  copyManagedV5Assets(contentRoot, presentation);
   const used = new Set<string>();
   const planned = config.content.pages.map((page) => {
     const sourceReal = realpathSync(pagePath(config, page));
@@ -280,7 +300,7 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
   }]));
   const pages = planned.map(({ page, sourceReal, fallback, slug, navigationToken }) => {
     const html = injectPageNavigation(
-      rewritePageLinks(bundleHtml(sourceReal, roots, config.content.maximumAssetBytes), sourceReal, `${contentOrigin}/pages/${slug}/index.html`, pageLinks),
+      rewritePageLinks(bundleHtml(sourceReal, roots, config.content.maximumAssetBytes, presentation), sourceReal, `${contentOrigin}/pages/${slug}/index.html`, pageLinks),
       consoleOrigin,
       navigationToken,
     );
@@ -290,7 +310,7 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
     const updatedAt = statSync(sourceReal).mtime.toISOString();
     const repository = page.repository || defaultGroup(page);
     const stream = page.stream || repository;
-    const v5 = readGeneratedV5Metadata(html);
+    const v5 = readGeneratedV5Metadata(html, presentation);
     return {
       slug,
       navigationToken,

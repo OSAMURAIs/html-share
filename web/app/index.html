@@ -544,7 +544,25 @@ body.page-controls-hidden #page-actions {
   body.page-open #page-actions { right: .75rem; }
 }
 .tb-glyph { font-size: 1rem; line-height: 1; }
+/* Profile 1 (production default, and the default before the loaded manifest
+   says otherwise — see the boot script's presentationProfile assignment):
+   exact prior three-row stack. Unchanged from before V1. */
 @media (max-width: 700px) { .global-nav { order: 3; flex-basis: 100%; } .operational-nav { order: 4; flex-basis: 100%; justify-content: flex-start; padding-left: max(var(--gutter), env(safe-area-inset-left)); } .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; } #browser-toggle { display: inline-flex; } }
+/* Candidate profile 2 only: one compact sticky header — brand + actions on
+   row one, ALL navigation (global + operational) sharing ONE scrollable
+   second row, instead of the three-row stack above. The shell has no
+   presentation-profile concept of its own; html[data-html-share-shell-profile]
+   is set by the boot script below from the loaded manifest's
+   presentation.version, defaulting to unset (= profile 1) until that
+   resolves, so this rule can never apply before a profile-2 manifest is
+   actually confirmed loaded. */
+@media (max-width: 700px) {
+  html[data-html-share-shell-profile="2"] .topbar-inner { flex-wrap: wrap; height: auto; min-height: 3.2rem; padding-bottom: .25rem; row-gap: .3rem; }
+  html[data-html-share-shell-profile="2"] .global-nav,
+  html[data-html-share-shell-profile="2"] .operational-nav { order: 3; flex: 0 1 auto; min-width: 0; flex-basis: auto; }
+  html[data-html-share-shell-profile="2"] .operational-nav .operational-link { margin-top: 0; border-top: 0; border-radius: .55rem; padding-top: 0; padding-left: .5rem; margin-left: .3rem; border-left: 1px solid rgba(255,255,255,.22); }
+  html[data-html-share-shell-profile="2"] #browser-toggle { display: inline-flex; }
+}
 @media (max-width: 46rem) { #home.on { padding-top: calc(4.5rem + var(--safe-top-inset)); } }
 @media (max-width: 46rem) { body.page-open .brand { visibility: hidden; } }
 </style>
@@ -644,7 +662,8 @@ body.page-controls-hidden #page-actions {
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const frame = $('frame'), home = $('home'), tilesEl = $('tiles'), brandMeta = $('brand-meta');
+  let frame = $('frame');
+  const home = $('home'), tilesEl = $('tiles'), brandMeta = $('brand-meta');
   const globalNav = $('global-nav'), operationalNav = $('operational-nav'), domainNav = $('domain-nav'), liveWorkSummary = $('live-work-summary');
   const searchBox = $('search'), searchToggle = $('search-toggle'), searchClear = $('search-clear');
   const refresh = $('refresh'), pageRefresh = $('page-refresh'), browserToggle = $('browser-toggle');
@@ -1145,6 +1164,24 @@ body.page-controls-hidden #page-actions {
     if (meta) brandMeta.textContent = `${pages.length}ページ ／ ${fmtDateTime(meta.generatedAt)} 更新`;
   }
 
+  // iframe を同じ要素のまま frame.src で再ナビゲートすると、2 回目以降の遷移が
+  // ブラウザの joint session history に独自の履歴エントリを追加してしまい、
+  // トップ側の location.hash 1 回分の遷移と合わせて「1 クリックで履歴 2 件」になる。
+  // 要素ごと差し替えれば、その遷移はフレームにとって常に「最初のナビゲーション」
+  // 扱いになり、履歴エントリを増やさない。
+  let loadedDestinationId = null;
+  function swapFrame({ hidden, url }) {
+    const fresh = document.createElement('iframe');
+    fresh.id = 'frame';
+    fresh.title = frame.title;
+    fresh.hidden = hidden;
+    fresh.addEventListener('load', watchFrameScroll);
+    if (url) fresh.src = url;
+    frame.replaceWith(fresh);
+    frame = fresh;
+    return frame;
+  }
+
   function select(route) {
     const resolved = window.HtmlShareDestinationRouting.resolve(route, { pages: allPages });
     const destinationId = resolved || (allPages.some((page) => page.destination_id === 'home') ? 'home' : null);
@@ -1154,8 +1191,8 @@ body.page-controls-hidden #page-actions {
     closePagePopovers();
 
     if (!current) {
-      frame.hidden = true;
-      frame.removeAttribute('src');
+      if (loadedDestinationId !== null) swapFrame({ hidden: true, url: null });
+      loadedDestinationId = null;
       renderHome();
       home.classList.add('on');
       home.setAttribute('aria-hidden', 'false');
@@ -1165,14 +1202,18 @@ body.page-controls-hidden #page-actions {
       home.classList.remove('on');
       home.setAttribute('aria-hidden', 'true');
       browserToggle?.setAttribute('aria-expanded', 'false');
-      frame.hidden = false;
       if (!current.href) {
         frame.hidden = true;
         home.classList.add('on');
         brandMeta.textContent = 'このページは現在開けません';
         return;
       }
-      frame.src = current.href;
+      if (loadedDestinationId !== current.destination_id) {
+        swapFrame({ hidden: false, url: current.href });
+        loadedDestinationId = current.destination_id;
+      } else {
+        frame.hidden = false;
+      }
       document.title = `${current.title}｜HTML共有くん`;
       // ブックマークやURL直打ちで開いた場合もここを通るので、未読解除はまとめてここで行う
       markRead(current);
@@ -1226,6 +1267,14 @@ body.page-controls-hidden #page-actions {
       const destinationId = current?.destination_id;
       meta = loaded;
       allPages = loaded.pages;
+      // The shell has no presentation-profile concept of its own; this is
+      // the one explicit signal that lets candidate-only shell CSS (see the
+      // max-width:700px rules above) activate only once a profile-2
+      // manifest is actually confirmed loaded — never by default, and never
+      // before the manifest resolves.
+      const shellProfile = loaded.manifest?.presentation?.version;
+      if (shellProfile) document.documentElement.dataset.htmlShareShellProfile = shellProfile;
+      else delete document.documentElement.dataset.htmlShareShellProfile;
       let state;
       try {
         stateWriteBlocked = false;
@@ -1458,7 +1507,6 @@ body.page-controls-hidden #page-actions {
     updateTrashToggle();
     renderHome();
   });
-  frame.addEventListener('load', watchFrameScroll);
   addEventListener('message', (event) => {
     const external = window.HtmlShareNavigation.externalUrl(event, frame, current);
     if (external) {

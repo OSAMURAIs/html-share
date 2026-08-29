@@ -3,6 +3,25 @@
 // self-contained. It reports COMPUTED browser values, never CSS source text.
 export const METRICS_SCHEMA = 'html-share.visual.metrics/1';
 
+/**
+ * Mirrors the in-page `pick()` helper's comma-separated-selector fallback
+ * algorithm — first selector in the list an element is found (and, in-page,
+ * visible) for wins; none matching is a genuine absence. `extractVisualMetrics`
+ * below keeps its own inline copy because it must stay one self-contained
+ * string for browser evaluation (see the assertion in
+ * test/visual-harness.test.ts that no import/require leaks into it); this
+ * export exists so the ALGORITHM — not real DOM matching, which requires a
+ * browser — is unit-testable in Node against a fake matcher.
+ */
+export function firstMatchingSelector(selectorList, isPresent) {
+  if (!selectorList) return null;
+  for (const raw of selectorList.split(',')) {
+    const selector = raw.trim();
+    if (selector && isPresent(selector)) return selector;
+  }
+  return null;
+}
+
 function extractVisualMetrics(options) {
   var round = function (value) { return Math.round(value * 10) / 10; };
   var rect = function (element) {

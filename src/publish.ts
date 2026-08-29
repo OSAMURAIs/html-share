@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import type { BuildManifest, BuiltPage } from './bundle.js';
 import { buildSite } from './bundle.js';
 import { buildManifestV2 } from './manifest-v2.js';
-import type { ManifestV2 } from './v5-contract.js';
+import { resolvePresentationProfile, type ManifestV2 } from './v5-contract.js';
 import type { HtmlShareConfig, StackOutputs } from './config.js';
 import { loadOutputs, resolveFromConfig } from './config.js';
 import { signUrl } from './sign.js';
@@ -238,7 +238,7 @@ function desiredKeys(root: string): string[] {
 }
 
 export function cacheControlFor(kind: 'content' | 'console', key: string): string {
-  if (kind === 'content' && key.startsWith('assets/v5/1/')) return 'public, max-age=31536000, immutable';
+  if (kind === 'content' && /^assets[/]v5[/][0-9]+[/]/.test(key)) return 'public, max-age=31536000, immutable';
   // Shell, manifests, canonical HTML, and the operational document are
   // mutable owner content. Explicit reload/resume must be able to observe it.
   return 'no-store, max-age=0';
@@ -584,8 +584,9 @@ export function buildOnly(config: HtmlShareConfig): { buildRoot: string; manifes
   const manifest = buildSite(config, buildRoot);
   const localPreview = process.env.HTML_SHARE_PREVIEW_LOCAL === '1';
   const hrefForPage = (page: BuiltPage): string | null => localPreview ? `/content/${page.objectKey}` : null;
-  const manifestV2 = buildManifestV2(manifest);
-  const previewManifestV2 = localPreview ? buildManifestV2(manifest, hrefForPage) : manifestV2;
+  const presentation = resolvePresentationProfile(config.presentationVersion);
+  const manifestV2 = buildManifestV2(manifest, () => null, presentation);
+  const previewManifestV2 = localPreview ? buildManifestV2(manifest, hrefForPage, presentation) : manifestV2;
   copyConsole(buildRoot, { generatedAt: manifest.generatedAt, pages: manifest.pages.map((page) => toConsoleManifestPage(page, hrefForPage(page))) }, previewManifestV2);
   return { buildRoot, manifest, manifestV2 };
 }
@@ -593,7 +594,7 @@ export function buildOnly(config: HtmlShareConfig): { buildRoot: string; manifes
 export async function publish(config: HtmlShareConfig): Promise<{ consoleUrl: string; pages: number; transactionId: string }> {
   const outputs = loadOutputs(path.resolve(config.baseDir, '.html-share', 'outputs.json'));
   const { buildRoot, manifest } = buildOnly(config);
-  copyConsole(buildRoot, ownerManifest(manifest, outputs, config), buildManifestV2(manifest));
+  copyConsole(buildRoot, ownerManifest(manifest, outputs, config), buildManifestV2(manifest, () => null, resolvePresentationProfile(config.presentationVersion)));
   const client = new S3Client({ region: config.aws.region });
   const buckets = [
     await prepareBucket(client, outputs.ContentBucketName, 'content', path.join(buildRoot, 'content')),

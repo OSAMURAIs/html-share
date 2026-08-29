@@ -1,0 +1,93 @@
+/*
+ * html-share v5 presentation profile 2 — design tokens.
+ *
+ * Values are the EFFECTIVE computed Prototype v5 tokens: assets/app.css
+ * declares a warm-paper :root near the top of the file, then unconditionally
+ * overrides it with a second :root block ("v5: reading-first blue system")
+ * later in the same cascade. The later declaration wins with no media query
+ * involved, so it — not the earlier warm palette — is the actual rendered
+ * value the V0 harness measured. These tokens are that later block.
+ *
+ * Candidate profile: inactive in production. See docs/presentation-profiles.md.
+ */
+:root {
+  /* Deep navy / clear blue / pale blue / off-white, per the production target. */
+  --v5-color-paper: #f7f9fd;
+  --v5-color-paper-2: #edf2fa;
+  --v5-color-ink: #18263a;
+  --v5-color-muted: #526276;
+  --v5-color-faint: #75849a;
+  --v5-color-line: #d7e0ed;
+  --v5-color-navy: #172a46;
+  --v5-color-navy-2: #203b63;
+  --v5-color-blue: #2563eb;
+  --v5-color-blue-soft: #eaf2ff;
+  --v5-color-white: #fff;
+
+  /* Semantic: green / amber / red. */
+  --v5-color-green: #1e9b63;
+  --v5-color-green-text: #168151;
+  --v5-color-amber: #b86a12;
+  --v5-color-amber-soft: #fff2dd;
+  --v5-color-red: #c74351;
+  --v5-color-red-text: #b83242;
+  --v5-color-coral: #bd3c4b;
+  --v5-color-coral-soft: #fff0f1;
+
+  /* A fourth qualitative series color, for a 4-slice allocation donut. */
+  --v5-color-violet: #7965c1;
+
+  --v5-radius: 15px;
+  --v5-radius-lg: 15px;
+  --v5-radius-md: 10px;
+  --v5-shadow: 0 12px 30px rgba(23, 42, 70, .06);
+  --v5-border-width: 1px;
+
+  --v5-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  --v5-font-body: 15px;
+  --v5-line-body: 1.62;
+  /* The Prototype sizes h1 with clamp(29px, 3vw, 34px), but `vw` resolves
+     against the OUTER browsing context — inside html-share's content iframe,
+     the same clamp() sees the iframe's own (narrower) width and undershoots.
+     Content is measured at exactly two viewports (1280 desktop, 390 mobile);
+     at 1280 the Prototype's clamp() sits at its 34px ceiling in practice
+     (any vw-equivalent width >=1133px does), and at <=560px the Prototype
+     overrides it to a flat 29px outright (assets/app.css's own small-viewport
+     rule, not fluid at all). Both are reproduced directly rather than through
+     a vw computation an iframe cannot see the outer context for. */
+  --v5-font-heading-1: 34px;
+  --v5-font-heading-2: 23px;
+  --v5-font-heading-3: 18px;
+  --v5-font-heading-4: 15px;
+  --v5-font-secondary: 13px;
+  --v5-font-eyebrow: 12px;
+  --v5-font-tiny: 10px;
+  --v5-font-value: 27px;
+
+  /* The rail is the one measurement the V0 harness captured directly off the
+     Prototype's computed geometry: aside.rail, width 236, x 0, y 0. */
+  --v5-rail-width: 236px;
+
+  --v5-space-1: 4px;
+  --v5-space-2: 8px;
+  --v5-space-3: 12px;
+  --v5-space-4: 15px;
+  --v5-space-5: 22px;
+  --v5-space-6: 28px;
+  --v5-space-7: 38px;
+
+  --v5-page-max-width: 1420px;
+  --v5-page-padding-inline: clamp(24px, 4vw, 68px);
+  --v5-page-padding-top: 38px;
+  --v5-page-padding-bottom: 86px;
+
+  /* Prototype breakpoints, in the order they cascade. */
+  --v5-breakpoint-narrow-columns: 1080px;
+  --v5-breakpoint-mobile-shell: 860px;
+  --v5-breakpoint-compact: 560px;
+
+  color: var(--v5-color-ink);
+  background: var(--v5-color-paper);
+  font-family: var(--v5-font-family);
+}

@@ -44,7 +44,6 @@ test('ships the full dashboard UI and inbox wording', () => {
   assert.match(dashboard, /Signed content is cross-origin and CSP-sandboxed/);
   assert.match(dashboard, /function pageRoute\(page\)/);
   assert.match(dashboard, /location\.hash = pageRoute\(page\);/);
-  assert.match(dashboard, /frame\.src = current\.href;/);
   assert.match(dashboard, /navigator\.share\(data\)/);
   assert.match(dashboard, /error\?\.name === 'AbortError'/);
   assert.match(dashboard, /navigator\.clipboard\.writeText\(url\)/);
@@ -71,6 +70,53 @@ test('R5 uses canonical Home as the primary surface and keeps the legacy browser
   assert.match(dashboard, /@media \(min-width: 46\.01rem\)/);
   assert.match(dashboard, /@media \(max-width: 46rem\)/);
   assert.match(dashboard, /prefers-reduced-motion/);
+});
+
+test('the mobile compact-nav shell reconstruction activates only under a confirmed candidate profile 2 manifest', () => {
+  // The browser shell (web/app/index.html) is never versioned by presentation
+  // profile — it is the same file for every route regardless of which
+  // content profile is active. A shell CSS change that applies unconditionally
+  // would reach every user the moment this branch merges, not only once a
+  // controlled profile-2 activation happens. The three-row mobile nav stack
+  // is exactly the shape production shipped before V1; the compact one-row
+  // reconstruction must stay behind an explicit, manifest-confirmed signal.
+  const dashboard = readFileSync(path.join(root, 'web', 'app', 'index.html'), 'utf8');
+  assert.match(
+    dashboard,
+    /@media \(max-width: 700px\) \{ \.global-nav \{ order: 3; flex-basis: 100%; \} \.operational-nav \{ order: 4; flex-basis: 100%;/,
+    'the exact prior three-row rule must be present, unconditional, and unchanged — this is what profile 1 renders',
+  );
+  assert.match(
+    dashboard,
+    /html\[data-html-share-shell-profile="2"\] \.topbar-inner \{ flex-wrap: wrap;/,
+    'the compact one-row reconstruction must be scoped behind the shell-profile attribute selector',
+  );
+  // The attribute is set only from a manifest actually resolved by the boot
+  // script — never a default, never ambient, never true before that load
+  // completes — and is removed outright when the loaded manifest carries no
+  // presentation version (the v1 legacy-manifest fallback path).
+  assert.match(dashboard, /const shellProfile = loaded\.manifest\?\.presentation\?\.version;/);
+  assert.match(dashboard, /if \(shellProfile\) document\.documentElement\.dataset\.htmlShareShellProfile = shellProfile;/);
+  assert.match(dashboard, /else delete document\.documentElement\.dataset\.htmlShareShellProfile;/);
+});
+
+test('content frame is swapped, not re-navigated in place, so one destination change stays one history entry', () => {
+  // Reassigning `frame.src`/`frame.removeAttribute('src')` on the same persistent
+  // <iframe> makes the browser record the subframe's own navigation in the joint
+  // session history, on top of the shell's own `location.hash` push — one click
+  // then produces two entries and Back appears to do nothing the first time.
+  // Recreating the element makes every content navigation look like that fresh
+  // frame's first load, which browsers never add to joint session history.
+  const dashboard = readFileSync(path.join(root, 'web', 'app', 'index.html'), 'utf8');
+  assert.match(dashboard, /let frame = \$\('frame'\);/);
+  assert.match(dashboard, /function swapFrame\(\{ hidden, url \}\)/);
+  assert.match(dashboard, /frame\.replaceWith\(fresh\);/);
+  assert.match(dashboard, /if \(loadedDestinationId !== current\.destination_id\) \{\s*\n\s*swapFrame\(\{ hidden: false, url: current\.href \}\);/);
+  assert.match(dashboard, /if \(loadedDestinationId !== null\) swapFrame\(\{ hidden: true, url: null \}\);/);
+  // The old direct-reassignment shape must not come back: it is the exact
+  // pattern that created the extra, unwanted history entry.
+  assert.doesNotMatch(dashboard, /frame\.src = current\.href;/);
+  assert.doesNotMatch(dashboard, /frame\.removeAttribute\('src'\);/);
 });
 
 test('folds overflowing tables on the viewing origin without network access', () => {

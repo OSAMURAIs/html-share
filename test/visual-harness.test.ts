@@ -8,7 +8,7 @@ import { DESTINATIONS, VIEWPORTS } from '../scripts/visual/build-sides.mjs';
 // @ts-expect-error -- see above
 import { CAPTURE_METADATA_SCHEMA, SHELL_PROBES } from '../scripts/visual/capture.mjs';
 // @ts-expect-error -- see above
-import { METRICS_SCHEMA, METRICS_SOURCE } from '../scripts/visual/metrics.mjs';
+import { METRICS_SCHEMA, METRICS_SOURCE, firstMatchingSelector } from '../scripts/visual/metrics.mjs';
 // @ts-expect-error -- see above
 import {
   ACCEPTANCE_SCHEMA, MODES, divergenceIndex, evaluateContract, mapSections,
@@ -316,6 +316,87 @@ test('shell probes name an explicit element per side rather than guessing', () =
   }
   assert.equal(SHELL_PROBES.prototype.contentFrame, null, 'the Prototype is a single document');
   assert.equal(SHELL_PROBES.current.contentFrame, '#frame', 'the current shell renders content in an iframe');
+});
+
+test('the global-nav probe finds shell-owned navigation, by whatever shape it actually takes', () => {
+  // Historical defect: the Prototype's own rail nav — rendered by
+  // assets/app.js as `<nav class="nav" aria-label="メインナビゲーション">`
+  // inside `<aside class="rail">` — matched NONE of ".global-nav", "nav.global",
+  // `nav[aria-label*="global" i]`, or "header nav" (it is classed plainly "nav",
+  // its Japanese aria-label never contains "global", and it is never inside a
+  // <header>). The probe was encoding one hypothetical implementation's naming
+  // convention rather than the normative question — does this product view
+  // have global navigation at all — and so reported the Prototype's own global
+  // navigation as absent on every route, every time.
+  const prototypeNavShape = { tag: 'nav', classes: ['nav'], attrs: { 'aria-label': 'メインナビゲーション' }, inHeader: false };
+  const matchesPrototypeShape = (selector) => {
+    if (selector === 'nav.nav') return prototypeNavShape.tag === 'nav' && prototypeNavShape.classes.includes('nav');
+    if (selector === '.global-nav') return prototypeNavShape.classes.includes('global-nav');
+    if (selector === 'nav.global') return prototypeNavShape.classes.includes('global');
+    if (selector === 'nav[aria-label*="global" i]') return /global/i.test(prototypeNavShape.attrs['aria-label']);
+    if (selector === 'header nav') return prototypeNavShape.inHeader;
+    return false;
+  };
+  assert.equal(
+    firstMatchingSelector(SHELL_PROBES.prototype.globalNav, matchesPrototypeShape),
+    'nav.nav',
+    'the corrected probe list must find the Prototype\'s real global navigation',
+  );
+  const oldGlobalNavProbe = '.global-nav, nav.global, nav[aria-label*="global" i], header nav';
+  assert.equal(
+    firstMatchingSelector(oldGlobalNavProbe, matchesPrototypeShape),
+    null,
+    'demonstrates the historical defect: the pre-fix probe list could never match the Prototype\'s actual nav shape',
+  );
+
+  // The fix must not paper over a genuinely missing navigation: a page with no
+  // element any listed selector can find must still report absent.
+  assert.equal(
+    firstMatchingSelector(SHELL_PROBES.prototype.globalNav, () => false),
+    null,
+    'a page with no matching element anywhere must still be reported as missing global navigation',
+  );
+
+  // The current side is shell-owned by html-share's own app/index.html
+  // (#global-nav) and is unaffected by this correction — it already matched.
+  assert.equal(
+    firstMatchingSelector(SHELL_PROBES.current.globalNav, (selector) => selector === '#global-nav'),
+    '#global-nav',
+  );
+});
+
+test('the domain-nav probe finds shell-owned navigation, by whatever shape it actually takes', () => {
+  // The same historical defect, one level down: the Prototype's second-level
+  // nav — rendered by assets/app.js's `subnav()` helper as
+  // `<nav class="workspace-tabs" aria-label="{domain}の二次ナビゲーション">` —
+  // matched none of ".domain-nav", "nav.domain", `nav[aria-label*="domain" i]`,
+  // or ".subnav" (it is classed "workspace-tabs", and its Japanese aria-label
+  // never contains "domain").
+  const prototypeSubnavShape = { tag: 'nav', classes: ['workspace-tabs'], attrs: { 'aria-label': 'researchの二次ナビゲーション' } };
+  const matchesPrototypeShape = (selector) => {
+    if (selector === 'nav.workspace-tabs') return prototypeSubnavShape.tag === 'nav' && prototypeSubnavShape.classes.includes('workspace-tabs');
+    if (selector === '.domain-nav') return prototypeSubnavShape.classes.includes('domain-nav');
+    if (selector === 'nav.domain') return prototypeSubnavShape.classes.includes('domain');
+    if (selector === 'nav[aria-label*="domain" i]') return /domain/i.test(prototypeSubnavShape.attrs['aria-label']);
+    if (selector === '.subnav') return prototypeSubnavShape.classes.includes('subnav');
+    return false;
+  };
+  assert.equal(
+    firstMatchingSelector(SHELL_PROBES.prototype.domainNav, matchesPrototypeShape),
+    'nav.workspace-tabs',
+    'the corrected probe list must find the Prototype\'s real second-level navigation',
+  );
+  const oldDomainNavProbe = '.domain-nav, nav.domain, nav[aria-label*="domain" i], .subnav';
+  assert.equal(
+    firstMatchingSelector(oldDomainNavProbe, matchesPrototypeShape),
+    null,
+    'demonstrates the historical defect: the pre-fix probe list could never match the Prototype\'s actual subnav shape',
+  );
+  assert.equal(
+    firstMatchingSelector(SHELL_PROBES.prototype.domainNav, () => false),
+    null,
+    'a page with no matching element anywhere must still be reported as missing domain navigation',
+  );
 });
 
 test('the metric extractor reports computed browser values, never CSS source declarations', () => {
