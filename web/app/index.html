@@ -7,13 +7,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="color-scheme" content="light">
-<title>HTML共有くん</title>
+<title>ORBIT</title>
 <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <!-- crossorigin は必須。これが無いと manifest だけ Cookie 無しで取りに行き 403 になる -->
 <link rel="manifest" href="/app.webmanifest" crossorigin="use-credentials">
-<meta name="apple-mobile-web-app-title" content="HTML共有くん">
+<meta name="apple-mobile-web-app-title" content="ORBIT">
 <!-- 上バーの上端と同じ色。ここがずれるとステータスバーの周りが継ぎはぎになる -->
 <meta name="theme-color" content="#172a46">
 <!-- 一覧の見た目と描画の正本。スマホの個別ページ側も同じものを読む -->
@@ -587,6 +587,113 @@ main { background: var(--bg); }
   .topbar { background: var(--blue-deep); }
   .topbar-inner { min-height: 3.45rem; }
 }
+
+/* C1R shell foundation: one compact navigation band, with Live Work kept apart. */
+:root {
+  --orbit-nav-surface: #fff;
+  --orbit-nav-line: #d6e0ed;
+  --orbit-nav-active: #eaf2ff;
+  --orbit-nav-active-ink: #1d4ed8;
+}
+.domain-nav {
+  gap: .35rem;
+  background: var(--orbit-nav-surface);
+  border-bottom-color: var(--orbit-nav-line);
+}
+.domain-nav-heading {
+  flex: none;
+  padding: .35rem .2rem;
+  color: var(--blue-deep);
+  font-size: .84rem;
+  font-weight: 750;
+  letter-spacing: .02em;
+}
+.domain-nav a[aria-current="page"] {
+  background: var(--orbit-nav-active);
+  color: var(--orbit-nav-active-ink);
+}
+/* The global Home link and brand already provide the canonical return path. */
+#home-btn { display: none !important; }
+body.page-open .brand { visibility: visible; }
+
+@media (max-width: 46rem) {
+  .topbar-inner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand global actions"
+      "operational operational operational";
+    align-items: center;
+    gap: .2rem .35rem;
+    height: auto;
+    min-height: 0;
+    padding-top: .35rem;
+    padding-bottom: .3rem;
+  }
+  .brand {
+    grid-area: brand;
+    margin: 0;
+    padding: .4rem .25rem;
+    font-size: .9rem;
+    letter-spacing: .03em;
+  }
+  .brand svg { width: 1rem; height: 1rem; }
+  .brand-meta { display: none; }
+  .global-nav {
+    grid-area: global;
+    order: 0;
+    min-width: 0;
+    width: 100%;
+    flex: initial;
+    flex-basis: auto;
+    gap: .1rem;
+  }
+  .global-nav a {
+    min-height: 2.45rem;
+    padding: .5rem .35rem;
+    font-size: .76rem;
+  }
+  .topbar-actions {
+    grid-area: actions;
+    min-width: 0;
+    margin-left: 0;
+    gap: .2rem;
+  }
+  /* The legacy browser is still available through its desktop/utility path;
+     it is not allowed to force a fourth control into the primary mobile row. */
+  #browser-toggle { display: none !important; }
+  /* Keep the canonical domain links readable in the primary row.  Refresh
+     remains available from page actions; Inbox remains available from its
+     dedicated review surface. */
+  #review,
+  #refresh { display: none !important; }
+  .operational-nav {
+    grid-area: operational;
+    order: 0;
+    width: 100%;
+    flex-basis: auto;
+    justify-content: flex-start;
+    margin: 0;
+    padding: .25rem 0 .1rem;
+    border-top: 1px solid rgba(255,255,255,.14);
+  }
+  .operational-nav .operational-link {
+    margin: 0;
+    padding: .28rem .5rem .2rem;
+    border-top: 0;
+    color: #b9d9f0;
+  }
+  .domain-nav {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+    min-height: 2.8rem;
+    padding: .3rem max(.75rem, env(safe-area-inset-left, 0px)) .35rem;
+  }
+  .domain-nav-heading { padding: .45rem .2rem; font-size: .82rem; }
+  .domain-nav a { padding: .45rem .5rem; font-size: .78rem; }
+  #home.on { padding-top: calc(5.8rem + var(--safe-top-inset)); }
+}
 </style>
 </head>
 <body>
@@ -596,7 +703,7 @@ main { background: var(--bg); }
         <div class="topbar-inner">
           <button class="brand" id="brand" type="button" title="トップへ戻る">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 4.5l8 6.7M6.4 9.6V19h11.2V9.6"/></svg>
-            <span class="label">HTML共有くん</span>
+            <span class="label">ORBIT</span>
           </button>
            <span class="brand-meta" id="brand-meta"></span>
              <nav class="global-nav" id="global-nav" aria-label="グローバル移動">
@@ -723,6 +830,11 @@ main { background: var(--bg); }
     'investment.positions': 'Positions',
     'investment.decisions': 'Decisions',
     'investment.journal': 'Journal',
+  });
+  const DOMAIN_NAV_HEADINGS = Object.freeze({
+    research: 'Research',
+    personal: '暮らし',
+    investment: 'Investment',
   });
 
   // 日付の区切り・新着判定・☆は page-list.js が正本。ここでは委譲するだけにする。
@@ -895,7 +1007,7 @@ main { background: var(--bg); }
 
   async function hidePage(page) {
     if (!pageIdentity(page)) return;
-    if (!confirm(`「${page.title}」を共有くんの一覧から削除します。\n\n原本と発行済みURLは残り、一覧の末尾の「削除済み」から戻せます。`)) return;
+    if (!confirm(`「${page.title}」をORBITの一覧から削除します。\n\n原本と発行済みURLは残り、一覧の末尾の「削除済み」から戻せます。`)) return;
     const previousHidden = new Set(hiddenSources);
     const previousStarred = new Set(starred);
     hiddenSources.add(pageIdentity(page));
@@ -1219,7 +1331,7 @@ main { background: var(--bg); }
       home.classList.add('on');
       home.setAttribute('aria-hidden', 'false');
       browserToggle?.setAttribute('aria-expanded', 'true');
-      document.title = 'HTML共有くん';
+      document.title = 'ORBIT';
     } else {
       home.classList.remove('on');
       home.setAttribute('aria-hidden', 'true');
@@ -1236,7 +1348,7 @@ main { background: var(--bg); }
       } else {
         frame.hidden = false;
       }
-      document.title = `${current.title}｜HTML共有くん`;
+      document.title = `${current.title}｜ORBIT`;
       // ブックマークやURL直打ちで開いた場合もここを通るので、未読解除はまとめてここで行う
       markRead(current);
     }
@@ -1258,6 +1370,10 @@ main { background: var(--bg); }
     domainNav.replaceChildren();
     const domain = active?.domain;
     if (!domain || !['research', 'personal', 'investment'].includes(domain)) { domainNav.hidden = true; return; }
+    const heading = document.createElement('span');
+    heading.className = 'domain-nav-heading';
+    heading.textContent = DOMAIN_NAV_HEADINGS[domain];
+    domainNav.append(heading);
     const pagesForDomain = allPages.filter((page) => page.domain === domain).sort((a, b) => (a.navigation?.order ?? 0) - (b.navigation?.order ?? 0));
     for (const page of pagesForDomain) {
       const link = document.createElement('a');

@@ -10,7 +10,10 @@ import type { HtmlShareConfig } from '../src/config.js';
 test('managed v5 foundation has tokens, progressive enhancement, and no external runtime', () => {
   const css = readFileSync(path.resolve(import.meta.dirname, '..', 'web/assets/v5/1/presentation.css'), 'utf8');
   const js = readFileSync(path.resolve(import.meta.dirname, '..', 'web/assets/v5/1/presentation.js'), 'utf8');
-  for (const token of ['--v5-color-navy', '--v5-font-body', '--v5-space-4', '--v5-radius-md', '--v5-content-workspace', '--v5-table-min-width', '--v5-breakpoint-mobile', '--v5-motion-standard']) assert.match(css, new RegExp(token));
+  for (const token of ['--v5-color-navy', '--v5-font-body', '--v5-space-4', '--v5-radius-md', '--v5-content-workspace', '--v5-table-min-width', '--v5-breakpoint-mobile', '--v5-motion-standard', '--v5-surface-research', '--v5-surface-current', '--v5-surface-operational', '--v5-surface-investment']) assert.match(css, new RegExp(token));
+  assert.match(css, /--v5-font-body: 16px/);
+  assert.match(css, /--v5-content-reading: 62ch/);
+  assert.match(css, /\.home-stats \{\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /\.v5-grid, \.grid \{ display: grid/);
   assert.match(css, /\.v5-data-table-wide \{ min-width: 96rem/);
