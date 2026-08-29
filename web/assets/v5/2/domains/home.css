@@ -96,4 +96,9 @@
 @media (max-width: 860px) {
   .home-research { grid-auto-columns: minmax(260px, 82vw); }
   .home-lower { grid-template-columns: 1fr; }
+  /* This selector's specificity beats primitives.css's own mobile collapse
+     of the generic .v5-cards rule, so it needs its own — otherwise each
+     Recently-updated card is squeezed to ~1/3 width and English titles wrap
+     one word per line. */
+  .home-recent .v5-cards { grid-template-columns: 1fr; }
 }
