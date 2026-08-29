@@ -72,6 +72,11 @@ export interface BuildManifest {
   pages: BuiltPage[];
 }
 
+export interface BuildSiteOptions {
+  /** Override the parent shell origin for an explicitly local preview build. */
+  consoleOrigin?: string;
+}
+
 function copyManagedV5Assets(contentRoot: string): void {
   for (const publicPath of V5_PRESENTATION.assets) {
     const relative = publicPath.replace(/^\//, '');
@@ -168,6 +173,30 @@ function isParentMediatedExternalHref(value: string, contentHref: string): boole
   }
 }
 
+function resolveConsoleOrigin(config: HtmlShareConfig, override?: string): string {
+  if (override === undefined) return `https://${config.aws.consoleDomain}`;
+  let url: URL;
+  try {
+    url = new URL(override);
+  } catch {
+    throw new Error('consoleOrigin override must be the supported local loopback origin');
+  }
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    !url.port ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash ||
+    url.origin !== override
+  ) {
+    throw new Error('consoleOrigin override must be the supported local loopback origin');
+  }
+  return url.origin;
+}
+
 function rewritePageLinks(html: string, sourceFile: string, contentHref: string, pageLinks: Map<string, PageLink>): string {
   const sourceDirectory = path.dirname(sourceFile);
   return html.replace(/<a\b[^>]*>/gi, (anchor) => {
@@ -240,7 +269,7 @@ function defaultGroup(page: PageConfig): string {
   return parent && parent !== '.' ? parent : 'pages';
 }
 
-export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildManifest {
+export function buildSite(config: HtmlShareConfig, buildRoot: string, options: BuildSiteOptions = {}): BuildManifest {
   const roots = validatedRoots(config);
   const contentRoot = path.join(buildRoot, 'content');
   const tokenFile = path.join(config.baseDir, '.html-share', 'navigation-tokens.json');
@@ -272,7 +301,7 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
   });
   mkdirSync(path.dirname(tokenFile), { recursive: true });
   writeFileSync(tokenFile, `${JSON.stringify(nextTokens, null, 2)}\n`, { mode: 0o600 });
-  const consoleOrigin = `https://${config.aws.consoleDomain}`;
+  const consoleOrigin = resolveConsoleOrigin(config, options.consoleOrigin);
   const contentOrigin = `https://${config.aws.contentDomain}`;
   const pageLinks = new Map(planned.map(({ sourceReal, slug }) => [sourceReal, {
     href: `${consoleOrigin}/app/index.html#/${slug}`,

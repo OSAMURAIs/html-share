@@ -114,6 +114,14 @@ function copyConsole(buildRoot: string, manifest: object, manifestV2: ManifestV2
   }, null, 2)}\n`);
 }
 
+function localPreviewConsoleOrigin(): string {
+  const rawPort = process.env.HTML_SHARE_PREVIEW_PORT ?? '4311';
+  if (!/^\d+$/.test(rawPort)) throw new Error('HTML_SHARE_PREVIEW_PORT must be a valid TCP port');
+  const port = Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('HTML_SHARE_PREVIEW_PORT must be a valid TCP port');
+  return `http://127.0.0.1:${port}`;
+}
+
 function journalDir(config: HtmlShareConfig): string {
   return path.resolve(config.baseDir, '.html-share', 'publish-transactions');
 }
@@ -581,8 +589,10 @@ function ownerManifest(manifest: BuildManifest, outputs: StackOutputs, config: H
 
 export function buildOnly(config: HtmlShareConfig): { buildRoot: string; manifest: BuildManifest; manifestV2: ManifestV2 } {
   const buildRoot = path.resolve(config.baseDir, '.html-share', 'build');
-  const manifest = buildSite(config, buildRoot);
   const localPreview = process.env.HTML_SHARE_PREVIEW_LOCAL === '1';
+  const manifest = buildSite(config, buildRoot, {
+    consoleOrigin: localPreview ? localPreviewConsoleOrigin() : undefined,
+  });
   const hrefForPage = (page: BuiltPage): string | null => localPreview ? `/content/${page.objectKey}` : null;
   const manifestV2 = buildManifestV2(manifest);
   const previewManifestV2 = localPreview ? buildManifestV2(manifest, hrefForPage) : manifestV2;
