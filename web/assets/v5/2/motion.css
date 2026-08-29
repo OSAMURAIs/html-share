@@ -1,1 +1,75 @@
-/* html-share v5 presentation profile 2 — motion. Candidate profile: not production. */
+/*
+ * html-share v5 presentation profile 2 — motion.
+ *
+ * Scoped to the V0 motion contract's classification for the five V1
+ * representative routes only (visual/route-geometry.contract.json
+ * `motion_contract.behaviours`). Nothing here is decorative: every rule ties
+ * to a REQUIRED_PRODUCTION_DELTA or IMPLEMENTED_IN_PROTOTYPE entry actually in
+ * scope, and every one has a prefers-reduced-motion fallback that keeps the
+ * content fully usable and immediately correct.
+ *
+ * entry-reveal-stagger is classified NOT_REQUIRED by the contract (no
+ * authority names it; nearest statement calls generic entry stagger the
+ * closest thing to decorative ambient animation) and is deliberately absent.
+ *
+ * cross-route-transition is IMPLEMENTED_IN_PROTOTYPE but the contract itself
+ * caveats it as coupled to the still-undecided browser history/deep-link
+ * architecture (visual/route-geometry.contract.json navigation_invariant) —
+ * it is intentionally deferred to the history-architecture work, not
+ * implemented here as a content-profile rule.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* disclosure — REQUIRED_PRODUCTION_DELTA (research.knowledge-review,
+   personal.current, investment.pulse, operational.live-work). The Prototype
+   treats open/close as a hard display switch; production treats it as
+   semantic motion. <details> is fully open/closed and reachable with no JS —
+   presentation.js only adds the .is-open class the transition keys on. */
+.v5-disclosure summary { transition: color .15s ease; }
+.v5-disclosure[open] summary { color: var(--v5-color-blue); }
+.v5-disclosure > :not(summary) { animation: v5-disclosure-reveal .18s ease both; }
+@keyframes v5-disclosure-reveal {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* travel-timeline-draw — IMPLEMENTED_IN_PROTOTYPE, retained (personal.travel).
+   The connector between itinerary stops draws top-to-bottom. Reduced motion
+   draws it at full extent immediately (the transform:none below, combined
+   with the global animation-duration override, satisfies that without a
+   second rule). */
+.v5-timeline--drawn li:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  left: 3.05rem;
+  top: -12px;
+  bottom: calc(100% - 12px);
+  width: 2px;
+  background: var(--v5-color-blue-soft);
+  transform-origin: top;
+  animation: v5-timeline-draw .7s ease both;
+}
+@keyframes v5-timeline-draw { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+/* travel-current-marker — REQUIRED_PRODUCTION_DELTA (personal.travel). The
+   Prototype only hard-cuts a "next move" block; production surfaces the
+   current-position marker as motion. Reduced motion shows it statically, in
+   its correct position (the marker itself never depends on the animation). */
+.v5-trip-current-marker { animation: v5-marker-enter .3s ease both; }
+@keyframes v5-marker-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* research-filter-reflow — REQUIRED_PRODUCTION_DELTA (research.feed). A
+   filtered-out candidate collapses instead of vanishing instantly; the
+   filtered result is correct and reachable immediately either way. */
+.v5-filterable { overflow: hidden; transition: opacity .18s ease, max-height .18s ease, margin .18s ease; }
+.v5-filterable[hidden] { display: block; opacity: 0; max-height: 0; margin: 0; pointer-events: none; }

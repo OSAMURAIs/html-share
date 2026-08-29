@@ -1,1 +1,75 @@
-/* html-share v5 profile 2 — domain: home. Candidate profile: not production. */
+/*
+ * html-share v5 presentation profile 2 — Home domain grammar.
+ *
+ * Proves cross-domain composition: visual/route-geometry.contract.json's home
+ * entry requires a three-column Research band over a two-column
+ * Personal/Investment band, a distinct Live Work strip, and no single card
+ * template standing in for all four domains. Section order follows the
+ * contract's desktop section_order exactly: research-band,
+ * personal-investment-band, live-work-strip, recent-updates.
+ *
+ * Candidate profile: inactive in production. See docs/presentation-profiles.md.
+ */
+.home-context { background: linear-gradient(135deg, #f7f9fd, #eaf2ff); border-color: var(--v5-color-blue-soft); }
+
+/* research-band: three surfaces side by side (two live projects + exploration),
+   not a generic equal-width card grid — each keeps its own stats/context. */
+.home-research .v5-cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+}
+.home-research .home-card {
+  background: linear-gradient(150deg, #f8fbff, #edf4ff);
+  border-color: #cadcff;
+}
+.home-research .home-card h3 { font-size: var(--v5-font-heading-2); }
+.home-research .home-card { min-height: 320px; }
+.home-research .home-stats { display: flex; gap: var(--v5-space-3); margin: var(--v5-space-2) 0 var(--v5-space-3); flex-wrap: wrap; }
+.home-research .home-stats span {
+  padding: 4px 9px; border-radius: 999px; background: var(--v5-color-blue-soft); color: #164eb7;
+  font-size: var(--v5-font-eyebrow); font-weight: 850;
+}
+.home-research .home-stats b { font-weight: 850; }
+.home-research details { margin-top: auto; padding-top: var(--v5-space-3); border-top: 1px solid #cdddf5; }
+
+/* personal-investment-band: an explicit two-column band, each side owning its
+   own visual identity rather than sharing one surface treatment. */
+.home-lower { grid-template-columns: 1.05fr .95fr; }
+.home-personal { background: var(--v5-color-white); }
+.home-investment {
+  color: #fff;
+  background: linear-gradient(130deg, var(--v5-color-navy), #245ba9);
+  border-color: transparent;
+}
+.home-investment h2, .home-investment .v5-section-detail { color: #fff; }
+.home-investment .v5-section-detail { color: #d9e7ff; }
+.home-investment .home-stats { display: flex; gap: var(--v5-space-5); margin: var(--v5-space-3) 0; flex-wrap: wrap; }
+.home-investment .home-stats span { display: block; }
+.home-investment .home-stats b { display: block; font-size: var(--v5-font-heading-2); }
+.home-investment p { color: #d9e7ff; }
+.home-investment a { color: #fff; font-weight: 700; }
+.home-investment .home-muted { color: #b9cdf0; }
+
+/* live-work-strip: a compact horizontal overview, not another card grid the
+   same width as Research — Live Work is operational access, not a fifth
+   domain competing for the same visual weight. */
+.home-live-work { background: var(--v5-color-paper-2); }
+.home-live-work .v5-cards {
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(220px, 1fr);
+  grid-template-columns: none;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.home-live-work .home-card { background: var(--v5-color-white); }
+
+.home-list { list-style: none; margin: 0; padding: 0; }
+.home-list li { padding: var(--v5-space-2) 0; border-top: 1px solid var(--v5-color-line); }
+.home-list li:first-child { border-top: 0; }
+
+@media (max-width: 1080px) {
+  .home-research .v5-cards { grid-auto-flow: column; grid-auto-columns: minmax(210px, 1fr); grid-template-columns: none; overflow-x: auto; padding-bottom: 3px; }
+}
+@media (max-width: 860px) {
+  .home-lower { grid-template-columns: 1fr; }
+}

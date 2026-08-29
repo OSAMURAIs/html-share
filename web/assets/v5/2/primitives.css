@@ -1,1 +1,173 @@
-/* html-share v5 presentation profile 2 — primitives. Candidate profile: not production. */
+/*
+ * html-share v5 presentation profile 2 — shared, cross-domain primitives.
+ *
+ * Styles the class vocabulary html-share-hub's rendering/v5.py module already
+ * emits on every domain (v5-page-header, v5-surface, v5-status-chip, v5-state,
+ * v5-data-table, v5-disclosure, v5-timeline, …). Domain-owned composition and
+ * grammar (grid shape, chart primitives, timelines) live in domains/*.css —
+ * this file stays low-level.
+ *
+ * Candidate profile: inactive in production. See docs/presentation-profiles.md.
+ */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  overflow-wrap: anywhere;
+  background: var(--v5-color-paper);
+  color: var(--v5-color-ink);
+  font-family: var(--v5-font-family);
+  font-size: var(--v5-font-body);
+  line-height: var(--v5-line-body);
+}
+a { color: var(--v5-color-blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 3px solid var(--v5-color-blue); outline-offset: 3px; }
+h1, h2, h3, h4, p { margin-top: 0; }
+h2 { margin-bottom: var(--v5-space-3); font-size: var(--v5-font-heading-2); line-height: 1.2; letter-spacing: -.02em; color: var(--v5-color-navy); }
+h3 { margin-bottom: var(--v5-space-2); font-size: var(--v5-font-heading-3); line-height: 1.3; letter-spacing: -.01em; color: var(--v5-color-navy); }
+h4 { margin-bottom: var(--v5-space-1); font-size: var(--v5-font-heading-4); line-height: 1.35; }
+
+/* ── Page frame + PageLead ─────────────────────────────────────────
+   The Prototype's own page-head has no filled box: an uppercase eyebrow,
+   the title, and right-aligned metadata sit directly on the page background.
+   Profile 1's navy-filled `.v5-page-header` is exactly the "second competing
+   hero" the V0 review flagged when this content is framed inside the browser
+   shell's own navy rail. Profile 2 corrects it at the source: there is no
+   second hero to hide at runtime, so no runtime DOM removal is needed. */
+.v5-page-frame {
+  width: min(100%, var(--v5-page-max-width));
+  margin: 0 auto;
+  padding: var(--v5-page-padding-top) var(--v5-page-padding-inline) var(--v5-page-padding-bottom);
+}
+.v5-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--v5-space-5);
+  margin-bottom: var(--v5-space-4);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+}
+.v5-eyebrow {
+  margin: 0 0 var(--v5-space-1);
+  color: var(--v5-color-blue);
+  font-size: var(--v5-font-eyebrow);
+  font-weight: 900;
+  letter-spacing: .1em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.v5-page-header h1 { margin: var(--v5-space-1) 0 var(--v5-space-1); color: var(--v5-color-ink); font-size: var(--v5-font-heading-1); line-height: 1.1; letter-spacing: -.03em; }
+.v5-page-description { max-width: 44rem; margin: 0; color: var(--v5-color-muted); font-size: var(--v5-font-body); }
+.v5-page-meta { flex: 0 0 auto; margin: 0; padding-top: var(--v5-space-1); color: var(--v5-color-muted); font-size: var(--v5-font-secondary); line-height: 1.8; text-align: right; }
+.v5-main { display: grid; gap: var(--v5-space-5); }
+
+.v5-section-header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--v5-space-3); margin: var(--v5-space-6) 0 var(--v5-space-4); }
+.v5-section-header:first-child { margin-top: 0; }
+.v5-section-header h2 { margin: 0; }
+.v5-section-detail { margin: 0; color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+
+.v5-surface {
+  min-width: 0;
+  padding: var(--v5-space-5);
+  border: var(--v5-border-width) solid var(--v5-color-line);
+  border-radius: var(--v5-radius-lg);
+  background: rgba(255, 255, 255, .92);
+  box-shadow: var(--v5-shadow);
+}
+.v5-surface > h2, .v5-surface > h3 { color: var(--v5-color-navy); }
+.v5-wide { grid-column: 1 / -1; }
+
+.v5-split-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(18rem, .65fr); gap: var(--v5-space-5); align-items: start; }
+.v5-split-primary, .v5-split-secondary { min-width: 0; }
+
+.v5-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--v5-space-5); }
+.v5-collection, .v5-cards { display: grid; gap: var(--v5-space-3); }
+.v5-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.v5-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--v5-space-5);
+  border: var(--v5-border-width) solid var(--v5-color-line);
+  border-radius: var(--v5-radius-md);
+  background: var(--v5-color-white);
+}
+.v5-card h3 { margin: 0 0 var(--v5-space-2); }
+
+.v5-metadata-row, .v5-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--v5-space-3); margin: var(--v5-space-4) 0; }
+.v5-metadata-row div, .v5-fact { min-width: 0; padding: var(--v5-space-3); border: var(--v5-border-width) solid var(--v5-color-line); border-radius: 8px; background: var(--v5-color-paper-2); }
+.v5-metadata-row dt, .v5-fact-label { color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+.v5-metadata-row dd { margin: 0; overflow-wrap: anywhere; }
+
+.v5-status-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-height: 1.6rem; padding: 3px 9px;
+  border-radius: 999px; background: var(--v5-color-blue-soft); color: #164eb7;
+  font-size: var(--v5-font-eyebrow); font-weight: 850; line-height: 1.35; white-space: nowrap;
+}
+.v5-status-green { color: var(--v5-color-green-text); background: #e7f6ee; }
+.v5-status-amber { color: var(--v5-color-amber); background: var(--v5-color-amber-soft); }
+.v5-status-red { color: var(--v5-color-red-text); background: var(--v5-color-coral-soft); }
+.positive { color: var(--v5-color-green-text); }
+.negative { color: var(--v5-color-red-text); }
+.warn { color: var(--v5-color-amber); }
+.v5-uncertain { color: var(--v5-color-amber); }
+.v5-conflict { color: var(--v5-color-red-text); }
+
+.v5-state { display: flex; gap: var(--v5-space-3); padding: var(--v5-space-3) var(--v5-space-4); border-left: 4px solid currentColor; border-radius: 0 8px 8px 0; background: var(--v5-color-paper-2); }
+.v5-state strong { color: var(--v5-color-ink); }
+.v5-state span { color: var(--v5-color-muted); }
+.v5-state-unknown { color: var(--v5-color-red-text); }
+.v5-state-stale { color: var(--v5-color-amber); }
+
+.v5-empty-state, .v5-empty { padding: var(--v5-space-6) var(--v5-space-4); color: var(--v5-color-muted); text-align: center; }
+
+.v5-prose { max-width: 44rem; }
+.v5-prose p:first-child { margin-top: 0; }
+.v5-list { margin: 0; padding-left: 1.2rem; }
+.v5-list li { margin: var(--v5-space-2) 0; }
+.v5-section-list { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+
+.v5-data-table-wrap { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+.v5-data-table { width: 100%; border-collapse: collapse; font-size: var(--v5-font-body); }
+.v5-data-table th, .v5-data-table td { padding: 12px 14px; border-bottom: var(--v5-border-width) solid var(--v5-color-line); text-align: left; vertical-align: top; }
+.v5-data-table th { background: var(--v5-color-paper-2); color: var(--v5-color-muted); font-size: var(--v5-font-eyebrow); font-weight: 700; }
+.v5-data-table td { font-variant-numeric: tabular-nums; }
+.v5-data-table td.num, .v5-data-table th.num, .num { text-align: right !important; white-space: nowrap; }
+.v5-data-table-wide { min-width: 64rem; }
+.v5-data-table-sticky-first th:first-child, .v5-data-table-sticky-first td:first-child { position: sticky; left: 0; }
+.v5-data-table-sticky-first th:first-child { z-index: 2; background: var(--v5-color-paper-2); }
+.v5-data-table-sticky-first td:first-child { z-index: 1; background: var(--v5-color-paper); box-shadow: 4px 0 8px rgba(23, 42, 70, .08); }
+
+.v5-disclosure { margin-top: var(--v5-space-3); }
+.v5-disclosure summary { cursor: pointer; font-weight: 700; color: var(--v5-color-navy); }
+
+.v5-timeline { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.v5-timeline li { display: grid; grid-template-columns: 6.5rem 1fr; gap: var(--v5-space-3); padding: var(--v5-space-3) 0; border-top: var(--v5-border-width) solid var(--v5-color-line); }
+.v5-timeline li:first-child { border-top: 0; }
+.v5-timeline time { font-weight: 800; color: var(--v5-color-blue); }
+
+.v5-stat { display: block; padding: var(--v5-space-3); border: var(--v5-border-width) solid var(--v5-color-line); border-radius: 8px; background: var(--v5-color-paper-2); }
+.v5-label { display: block; color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+.v5-number { display: block; margin-top: 2px; font-size: var(--v5-font-value); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.v5-muted { color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+.v5-preview-badge { display: inline-block; margin: 0 0 var(--v5-space-4); padding: var(--v5-space-2) var(--v5-space-3); border: 1px dashed var(--v5-color-blue); border-radius: 8px; color: var(--v5-color-blue); font-size: var(--v5-font-secondary); font-weight: 700; }
+
+@media (max-width: 860px) {
+  .v5-page-frame { padding-top: 22px; }
+  .v5-page-header { display: block; }
+  .v5-page-meta { margin-top: var(--v5-space-2); padding-top: 0; text-align: left; }
+  .v5-split-layout, .v5-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .v5-page-frame { padding: 18px 13px 55px; }
+  .v5-page-header h1 { font-size: 25px; }
+  .v5-cards, .v5-metadata-row, .v5-facts { grid-template-columns: 1fr; }
+  .v5-timeline li { grid-template-columns: 1fr; gap: var(--v5-space-1); }
+}
