@@ -1,1 +1,47 @@
-/* html-share v5 profile 2 — domain: live-work. Candidate profile: not production. */
+/*
+ * html-share v5 presentation profile 2 — Live Work domain grammar.
+ *
+ * Three strict tiers: Active as a large tinted dominant panel — ONLY when
+ * genuinely active, never a fabricated dominant panel over an empty state —
+ * then Recent and Current/Next as an equal 55/45 pair, then History
+ * collapsed and secondary.
+ *
+ * Candidate profile: inactive in production. See docs/presentation-profiles.md.
+ */
+.live-active { padding: var(--v5-space-6); border-radius: var(--v5-radius-lg); }
+.live-active:has(.card) {
+  background: linear-gradient(135deg, var(--v5-color-blue-soft), #f7f9fd);
+  border: var(--v5-border-width) solid var(--v5-color-blue-soft);
+  box-shadow: var(--v5-shadow);
+}
+.live-active h2 { margin-bottom: var(--v5-space-3); }
+.live-active .card {
+  padding: var(--v5-space-5); border: 0; border-radius: var(--v5-radius-md);
+  background: var(--v5-color-white); box-shadow: 0 8px 20px rgba(23, 42, 70, .06);
+}
+.live-active .card h3 { font-size: 22px; }
+
+.live-recent { display: grid; grid-template-columns: 1.22fr .95fr; gap: var(--v5-space-4); margin-top: var(--v5-space-5); align-items: start; }
+.live-list { padding: var(--v5-space-5); border: var(--v5-border-width) solid var(--v5-color-line); border-radius: var(--v5-radius-md); background: var(--v5-color-paper-2); }
+.live-next-preview { padding: var(--v5-space-3) 0; border-top: var(--v5-border-width) solid var(--v5-color-line); }
+.live-next-preview:first-child { border-top: 0; padding-top: 0; }
+.live-next-preview strong { display: block; margin-bottom: 4px; }
+.live-next-preview span { display: block; color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+
+.history { margin-top: var(--v5-space-5); }
+.history summary { cursor: pointer; font-weight: 700; color: var(--v5-color-muted); }
+
+/* The generic legacy `.grid`/`.card` vocabulary this route still shares with
+   its plain-HTML admin origins gets the same tone accents used elsewhere. */
+.card.blocked { border-left: 4px solid var(--v5-color-coral); }
+.card.waiting { border-left: 4px solid var(--v5-color-blue); }
+.status { font-weight: 700; }
+
+@media (max-width: 860px) {
+  .live-recent { grid-template-columns: 1fr; }
+  /* The side rail of a card (repo/agent/updated meta) rotates from a right
+     column into a block below with a top rule — it's already block-flow in
+     this markup, so this just tightens the divider per the contract's
+     hierarchy_note rather than introducing a new layout. */
+  .live-active .card .meta { padding-top: var(--v5-space-2); border-top: var(--v5-border-width) solid var(--v5-color-line); }
+}
