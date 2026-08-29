@@ -116,6 +116,49 @@ test('configuration selects the profile explicitly, and absence means production
 
   write({ presentation: { profile: '9' } });
   assert.throws(() => loadConfig(file), /presentation[.]profile must be one of/);
+
+  write({ presentation: { profile: '1' } });
+  assert.equal(loadConfig(file).presentationVersion, '1');
+
+  write({ presentation: { profile: null } });
+  assert.equal(loadConfig(file).presentationVersion, '1');
+
+  write({ presentation: {} });
+  assert.equal(loadConfig(file).presentationVersion, '1');
+});
+
+test('a malformed presentation section is a hard configuration error, never a silent v1', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'html-share-profile-malformed-'));
+  writeFileSync(path.join(root, 'page.html'), '<main>x</main>');
+  const base = {
+    ownerEmail: 'owner@example.com',
+    aws: {
+      region: 'ap-northeast-1', consoleDomain: 'console.example.com', contentDomain: 'content.example.com',
+      certificateArn: 'arn:aws:acm:us-east-1:111122223333:certificate/00000000-0000-4000-8000-000000000000',
+      cognitoDomainPrefix: 'test', publicKeyPath: 'public.pem', privateKeyPath: 'private.pem', privateKeyParameterName: 'k',
+    },
+    content: { roots: ['.'], pages: ['page.html'] },
+  };
+  const file = path.join(root, 'html-share.config.yaml');
+  const write = (extra: Record<string, unknown>) => writeFileSync(file, stringify({ ...base, ...extra }));
+
+  // A `presentation:` value that isn't a mapping (a typo, not an absent
+  // section) must fail loudly rather than resolve to v1 by accident.
+  write({ presentation: 'v2' });
+  assert.throws(() => loadConfig(file), /presentation must be a mapping/);
+
+  write({ presentation: ['2'] });
+  assert.throws(() => loadConfig(file), /presentation must be a mapping/);
+
+  // A profile value of the wrong type must fail the same way, not coerce.
+  write({ presentation: { profile: true } });
+  assert.throws(() => loadConfig(file), /presentation[.]profile must be one of/);
+
+  write({ presentation: { profile: {} } });
+  assert.throws(() => loadConfig(file), /presentation[.]profile must be one of/);
+
+  write({ presentation: { profile: '' } });
+  assert.throws(() => loadConfig(file), /presentation[.]profile must be one of/);
 });
 
 test('the example production configuration does not activate the candidate profile', () => {
@@ -160,16 +203,27 @@ test('the v5 contract rejects a page declaring a different profile', () => {
   assert.throws(() => readGeneratedV5Metadata(page('1'), v2), /invalid v5 generated metadata/);
 });
 
-test('a build refuses content from the profile it is not publishing', () => {
-  // End to end, a cross-profile page cannot survive a build. It fails even
-  // earlier than the contract check above: only the *selected* profile's assets
-  // are exempt from local-asset inlining, so a foreign asset reference is
-  // treated as a missing local file. Either way the build fails closed, which
-  // is the property that matters — candidate pages cannot ride a production
-  // publish even if candidate HTML reaches the content root by mistake.
-  assert.throws(() => buildWith(undefined, '2').run(), /Local asset not found: [/]assets[/]v5[/]2[/]/);
+test('a build refuses content from the profile it is not publishing, by an explicit named check', () => {
+  // The primary rejection is a deliberate presentation-profile-mismatch error,
+  // raised before any asset handling runs — not an incidental "local asset not
+  // found" once the inliner later trips over a foreign asset reference.
+  assert.throws(() => buildWith(undefined, '2').run(), /presentation profile mismatch/);
+  assert.throws(() => buildWith(undefined, '2').run(), /declares presentation-version "2".*publishing profile "1"/);
   // And the reverse, so a candidate build cannot silently republish v1 content.
-  assert.throws(() => buildWith('2', '1').run(), /Local asset not found: [/]assets[/]v5[/]1[/]/);
+  assert.throws(() => buildWith('2', '1').run(), /presentation profile mismatch/);
+  assert.throws(() => buildWith('2', '1').run(), /declares presentation-version "1".*publishing profile "2"/);
+});
+
+test('the asset inliner independently rejects a foreign-profile asset as defense in depth', () => {
+  // Even a page whose declared presentation-version matches the build (so the
+  // explicit check above passes) must not be able to smuggle in a link to
+  // another profile's asset — it is not in the selected profile's exemption
+  // list, so the inliner treats it as a missing local file and fails closed.
+  const root = mkdtempSync(path.join(tmpdir(), 'html-share-profile-foreign-asset-'));
+  const foreignAsset = PRESENTATION_PROFILES['1'].assets[0];
+  writeFileSync(path.join(root, 'research-pulse.html'),
+    page('2').replace('</head>', `<link rel="stylesheet" href="${foreignAsset}"></head>`));
+  assert.throws(() => buildOnly(config(root, '2')), new RegExp(`Local asset not found: ${foreignAsset.replace(/\//g, '.')}`));
 });
 
 test('a page may not reference another domain sheet from its own profile', () => {

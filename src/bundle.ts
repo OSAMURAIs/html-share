@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import type { HtmlShareConfig, PageConfig } from './config.js';
 import { resolveFromConfig, validatedRoots } from './config.js';
 import {
+  declaredPresentationVersion,
   readGeneratedV5Metadata,
   resolvePresentationProfile,
   V5_PRESENTATION,
@@ -131,6 +132,17 @@ export function bundleHtml(
   if (!inside(source, roots)) throw new Error(`Page is outside content.roots: ${sourceFile}`);
   const sourceDirectory = path.dirname(source);
   let html = readFileSync(source, 'utf8');
+  // Explicit contract check, ahead of any asset handling: a page that declares
+  // a different presentation profile than the one this build is publishing is
+  // rejected by name, not by an incidental "local asset not found" once the
+  // inliner later trips over one of its foreign asset references.
+  const declaredVersion = declaredPresentationVersion(html);
+  if (declaredVersion !== null && declaredVersion !== profile.version) {
+    throw new Error(
+      `presentation profile mismatch: ${sourceFile} declares presentation-version `
+      + `"${declaredVersion}" but this build is publishing profile "${profile.version}"`,
+    );
+  }
   const reference = /\b(src|href)\s*=\s*(["'])([^"']+)\2/gi;
   html = html.replace(reference, (full, attribute: string, quote: string, raw: string) => {
     const value = raw.trim();

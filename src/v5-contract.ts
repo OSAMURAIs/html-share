@@ -253,6 +253,15 @@ function meta(html: string, name: string): string | null {
   return html.match(new RegExp(`<meta\\s+name=["']${escaped}["']\\s+content=["']([^"']+)["']`, 'i'))?.[1] ?? null;
 }
 
+/**
+ * The `html-share:presentation-version` a page declares, read directly off the
+ * raw source HTML — before any bundling or asset inlining runs. `null` means
+ * the page carries no v5 presentation metadata at all (a legacy page).
+ */
+export function declaredPresentationVersion(html: string): string | null {
+  return meta(html, 'html-share:presentation-version');
+}
+
 export function readGeneratedV5Metadata(
   html: string,
   profile: PresentationProfile = V5_PRESENTATION,

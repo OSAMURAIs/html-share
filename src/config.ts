@@ -76,10 +76,21 @@ function cidr(value: unknown, name: string): string {
 }
 
 function presentationVersionFrom(raw: unknown): string {
-  const value = (raw as Record<string, unknown> | undefined)?.profile;
+  // Absence of the whole section is the common, supported case: an existing
+  // production config with no `presentation:` key keeps publishing v1 with no
+  // edit. Anything present but not a plain mapping is a typo, not an absent
+  // section, and must fail loudly rather than silently resolve to v1.
+  if (raw === undefined || raw === null) return DEFAULT_PRESENTATION_VERSION;
+  if (typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error('presentation must be a mapping with a profile key');
+  }
+  const value = (raw as Record<string, unknown>).profile;
   if (value === undefined || value === null) return DEFAULT_PRESENTATION_VERSION;
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    throw new Error(`presentation.profile must be one of: ${Object.keys(PRESENTATION_PROFILES).join(', ')}`);
+  }
   const version = String(value).trim();
-  if (!PRESENTATION_PROFILES[version]) {
+  if (!version || !PRESENTATION_PROFILES[version]) {
     throw new Error(`presentation.profile must be one of: ${Object.keys(PRESENTATION_PROFILES).join(', ')}`);
   }
   return version;
