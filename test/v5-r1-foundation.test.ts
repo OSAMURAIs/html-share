@@ -54,6 +54,30 @@ test('explicit local preview writes same-origin content hrefs into both manifest
   }
 });
 
+test('generated source links converge on canonical v5 routes', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'html-share-v5-canonical-links-'));
+  const source = '<!doctype html><html><head><title>Overview</title><meta name="html-share:destination-id" content="research.overview"><meta name="html-share:domain" content="research"><meta name="html-share:artifact-class" content="canonical_static_page"><meta name="html-share:content-id" content="sha256:' + 'a'.repeat(64) + '"><meta name="html-share:presentation-contract" content="html-share-v5"><meta name="html-share:presentation-version" content="1"><link rel="stylesheet" href="/assets/v5/1/presentation.css"><script defer src="/assets/v5/1/presentation.js"></script></head><body><main><h1>Meaningful static content</h1><p>Available before JavaScript.</p></main></body></html>';
+  const home = source.replace('research.overview', 'home').replace('domain" content="research"', 'domain" content="home"').replace('<p>Available before JavaScript.</p>', '<p><a href="research-pulse.html">Open Research</a></p>');
+  writeFileSync(path.join(root, 'home.html'), home);
+  writeFileSync(path.join(root, 'research-pulse.html'), source);
+  const previous = process.env.HTML_SHARE_PREVIEW_LOCAL;
+  process.env.HTML_SHARE_PREVIEW_LOCAL = '1';
+  try {
+    const config: HtmlShareConfig = {
+      ownerEmail: 'owner@example.com',
+      aws: { region: 'ap-northeast-1', consoleDomain: 'console.example.com', contentDomain: 'content.example.com', certificateArn: 'arn:aws:acm:us-east-1:111122223333:certificate/00000000-0000-4000-8000-000000000000', cognitoDomainPrefix: 'test', publicKeyPath: 'public.pem', privateKeyPath: 'private.pem', privateKeyParameterName: 'test-key' },
+      content: { roots: [root], pages: [{ path: 'home.html', slug: 'home' }, { path: 'research-pulse.html', slug: 'research-pulse' }], ownerLinkDays: 30, maximumShareDays: 30, maximumAssetBytes: 1024, allowedInternalCidrs: [] },
+      configFile: path.join(root, 'preview.yaml'), baseDir: root,
+    };
+    const result = buildOnly(config);
+    const html = readFileSync(path.join(result.buildRoot, 'content/pages/home/index.html'), 'utf8');
+    assert.match(html, /href="http:\/\/127\.0\.0\.1:4311\/app\/index\.html#\/research\/overview"/);
+  } finally {
+    if (previous === undefined) delete process.env.HTML_SHARE_PREVIEW_LOCAL;
+    else process.env.HTML_SHARE_PREVIEW_LOCAL = previous;
+  }
+});
+
 test('preview origin override accepts only the supported loopback origin', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'html-share-v5-origin-'));
   const source = '<!doctype html><html><head><title>Overview</title><meta name="html-share:destination-id" content="research.overview"><meta name="html-share:domain" content="research"><meta name="html-share:artifact-class" content="canonical_static_page"><meta name="html-share:content-id" content="sha256:' + 'b'.repeat(64) + '"><meta name="html-share:presentation-contract" content="html-share-v5"><meta name="html-share:presentation-version" content="1"><link rel="stylesheet" href="/assets/v5/1/presentation.css"><script defer src="/assets/v5/1/presentation.js"></script></head><body><main><h1>Overview</h1></main></body></html>';

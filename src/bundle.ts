@@ -14,6 +14,7 @@ import type { HtmlShareConfig, PageConfig } from './config.js';
 import { resolveFromConfig, validatedRoots } from './config.js';
 import {
   readGeneratedV5Metadata,
+  resolveDestination,
   V5_PRESENTATION,
   type GeneratedV5Metadata,
 } from './v5-contract.js';
@@ -303,10 +304,15 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string, options: B
   writeFileSync(tokenFile, `${JSON.stringify(nextTokens, null, 2)}\n`, { mode: 0o600 });
   const consoleOrigin = resolveConsoleOrigin(config, options.consoleOrigin);
   const contentOrigin = `https://${config.aws.contentDomain}`;
-  const pageLinks = new Map(planned.map(({ sourceReal, slug }) => [sourceReal, {
-    href: `${consoleOrigin}/app/index.html#/${slug}`,
-    slug,
-  }]));
+  const pageLinks = new Map(planned.map(({ sourceReal, slug }) => {
+    // Legacy source filenames remain the lookup key, but links emitted into
+    // the product must converge on the single v5 canonical route contract.
+    const destination = resolveDestination(`/app/index.html#/${slug}`);
+    return [sourceReal, {
+      href: destination ? `${consoleOrigin}${destination.canonical_route}` : `${consoleOrigin}/app/index.html#/${slug}`,
+      slug,
+    }];
+  }));
   const pages = planned.map(({ page, sourceReal, fallback, slug, navigationToken }) => {
     const html = injectPageNavigation(
       rewritePageLinks(bundleHtml(sourceReal, roots, config.content.maximumAssetBytes), sourceReal, `${contentOrigin}/pages/${slug}/index.html`, pageLinks),
