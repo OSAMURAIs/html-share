@@ -33,18 +33,33 @@
       item.setAttribute('aria-current', 'true');
     });
   });
-  document.querySelectorAll('[data-trip-mode]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const mode = button.getAttribute('data-trip-mode');
-      const workspace = button.closest('[data-travel-workspace]');
-      if (!mode || !workspace) return;
+  document.querySelectorAll('[data-travel-workspace]').forEach((workspace) => {
+    const buttons = [...workspace.querySelectorAll('[data-trip-mode]')];
+    const tripLinks = [...workspace.querySelectorAll('[data-trip-view-mode]')];
+    const panels = [...workspace.querySelectorAll('[data-trip-panel]')];
+    const applyMode = (mode) => {
+      if (!mode) return;
       workspace.setAttribute('data-travel-mode', mode);
-      workspace.querySelectorAll('[data-trip-mode]').forEach((item) => {
-        item.setAttribute('aria-pressed', String(item === button));
-      });
-      workspace.querySelectorAll('[data-trip-next]').forEach((item) => {
-        item.toggleAttribute('hidden', mode !== 'active');
-      });
-    });
+      buttons.forEach((item) => item.setAttribute('aria-pressed', String(item.dataset.tripMode === mode)));
+      panels.forEach((panel) => panel.toggleAttribute('hidden', panel.dataset.tripPanel !== mode));
+    };
+    applyMode(workspace.getAttribute('data-travel-mode') || 'planned');
+    buttons.forEach((button) => button.addEventListener('click', () => applyMode(button.dataset.tripMode)));
+    const revealTrip = (link) => {
+      applyMode(link.dataset.tripViewMode);
+      const target = document.getElementById(link.dataset.selectedValue || '');
+      if (target instanceof HTMLDetailsElement) target.open = true;
+    };
+    tripLinks.forEach((link) => link.addEventListener('click', () => revealTrip(link)));
+
+    const openTripFromHash = () => {
+      const target = document.getElementById(window.location.hash.slice(1));
+      if (!(target instanceof HTMLElement)) return;
+      const mode = target.closest('[data-trip-panel]')?.dataset.tripPanel;
+      if (mode) applyMode(mode);
+      if (target instanceof HTMLDetailsElement) target.open = true;
+    };
+    openTripFromHash();
+    window.addEventListener('hashchange', openTripFromHash);
   });
 })();

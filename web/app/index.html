@@ -32,13 +32,8 @@
   --blue-bright: #0aa0dc;
   --blue-soft: #eaf2fb;
   --blue-line: #cfe0f2;
-  --blue-grad: linear-gradient(135deg, #0e0d6a 0%, #0a4695 45%, #0862aa 68%, #01b6ec 100%);
-  /* 上バーの配色。青を保ったまま、右下へ向かって白へ抜ける。
-     白のにじみは中心を右下の外へ置いてあるので、上端の色には触れない */
-  --bar-glow: radial-gradient(135% 220% at 104% 142%,
-    rgba(255, 255, 255, .82) 0%,
-    rgba(150, 226, 250, .52) 28%,
-    rgba(1, 182, 236, 0) 64%);
+  --blue-grad: #172a46;
+  --bar-glow: none;
   /* 画面上端に接する色。theme-color と html の背景もこれに合わせること */
   --safe-top: #0a4695;
   --ink: #1a1a1f;
@@ -64,10 +59,10 @@
   --safe-top-inset: env(safe-area-inset-top, 0px);
   /* 上のバーと一覧カードで共有する左右の余白。ここ1か所だけを直せば全部そろう */
   --gutter: clamp(1.15rem, 3vw, 2.75rem);
-  --repository-deep: linear-gradient(90deg, #0e0d6a, #0a4695);
-  --repository-mid: linear-gradient(90deg, #0a4695, #0862aa);
-  --repository-bright: linear-gradient(90deg, #0862aa, #01b6ec);
-  --repository-soft: linear-gradient(90deg, #7db8df, #cfe0f2);
+  --repository-deep: #172a46;
+  --repository-mid: #294e7a;
+  --repository-bright: #3c78b8;
+  --repository-soft: #c8d9ea;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; background: var(--bg); }
@@ -104,10 +99,7 @@ iframe { flex: 1; width: 100%; border: 0; background: var(--panel); }
      別の色（html の背景）が覗いて継ぎはぎになる */
   padding-top: var(--safe-top-inset);
   color: #fff;
-  /* PCは横に長いので斜めのまま。右下へ向かって白へ抜ける */
-  background:
-    var(--bar-glow),
-    linear-gradient(115deg, #0e0d6a 0%, #0a4695 40%, #0862aa 70%, #0aa0dc 100%);
+  background: #172a46;
   box-shadow: 0 6px 20px rgba(14, 13, 106, .16);
 }
 .topbar-inner {
@@ -227,7 +219,7 @@ body.searching.has-query #search-clear { display: flex; }
   font-size: .75rem; font-weight: 700; letter-spacing: .12em;
   color: var(--blue);
 }
-.dhead::after { content: ""; flex: 1; height: 1px; background: var(--blue-line); opacity: .7; }
+.dhead::after { content: ""; flex: 1; height: 1px; background: var(--blue-line); }
 .dcount { order: 3; font-weight: 500; letter-spacing: .02em; color: var(--mut); }
 
 /* 高さのばらつく塊を隙間なく詰めるための多段組み。段数ではなく列幅で指定して
@@ -437,30 +429,10 @@ body.page-controls-hidden #page-actions {
     overflow-y: visible;
     background: var(--bg);
   }
-  /* Dynamic Island の周りは、幅いっぱい同じ色にする。
-     上端に接する色は theme-color・html の背景・PWAのステータスバーからも決まるが、
-     どれも単色しか置けない。一方 135deg の斜めグラデを高さ110pxの細い帯へ敷くと、
-     上端だけで色が左端から右端まで一気に進む（左は濃紺・右は水色）。
-     この「左右で変わる上端」と「単色しか置けない外側」は原理的に一致しないので、
-     継ぎはぎに見える。だから縦方向のグラデへ組み替え、斜めのニュアンスは
-     上端まで届かない放射グラデ（右下が中心）で足している。
-     上端を濃紺で覆ってフェードさせる手も試したが、覆いとグラデの境目が帯に見えた。 */
-  .topbar {
-    background:
-      var(--bar-glow),
-      linear-gradient(
-        to bottom,
-        var(--safe-top) 0,
-        var(--safe-top) calc(var(--safe-top-inset) + .2rem),
-        /* ⚠️ 中間点を % で置かない。% はバー全体（セーフエリア込み）に対する割合なので、
-           ホーム画面Webアプリのように上端の余白が59pxある状態では、単色の終わり(.2rem)と
-           58%がほぼ重なり、2pxで色が急変して「Dynamic Islandだけ別の島」に見える。
-           Safariのタブは余白が小さいので再現せず、PWAでだけ出る（2026-08-13 実機で再現）。
-           セーフエリアの下から測った実寸で置けば、どちらでも同じなだらかさになる */
-        #0862aa calc(var(--safe-top-inset) + 1.9rem),
-        #0aa0dc calc(var(--safe-top-inset) + 3.2rem)
-      );
-  }
+   /* The navigation surface stays a single authored sRGB color on every
+      viewport.  A gradient under the safe-area inset changes materially with
+      browser/OS compositing and is not part of the navigation semantics. */
+   .topbar { background: #172a46; }
   .topbar-inner { height: 3.2rem; gap: .35rem; }
   /* 画面が狭いので、件数の表示は検索・承認依頼の場所を奪わない範囲でだけ出す */
   .brand-meta { display: none; }
@@ -746,6 +718,36 @@ body.page-open .brand { visibility: visible; }
   .domain-nav { top: 0; }
   #home.on { padding-top: calc(3.5rem + var(--safe-top-inset)); }
 }
+
+/* C2X display-stability foundation: the shell's semantic chrome is authored
+   as opaque sRGB surfaces.  Gradients, translucent controls, and backdrop
+   filters make the same page depend on monitor/OS compositing and can make
+   navigation appear materially different across displays. */
+:root {
+  color-scheme: only light;
+  --bar-glow: none;
+}
+.topbar {
+  background: #172a46;
+  background-image: none;
+  box-shadow: 0 6px 20px #dfe5ec;
+}
+.tb-btn, .search {
+  background: #2b4264;
+  background-image: none;
+  border-color: #6d829e;
+}
+body.searching .search { background: #38557b; border-color: #94aac5; }
+.global-nav a[aria-current="page"] { background: #294e7a; }
+.operational-nav a[aria-current="page"] { background: #243f64; }
+#home-btn, #page-more, #page-menu, #page-share-panel {
+  background: #ffffff;
+  background-image: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#home-btn, #page-more { border-color: #a9b8c9; }
+#page-menu, #page-share-panel { border-color: #a9b8c9; }
 </style>
 </head>
 <body>

@@ -938,3 +938,360 @@ body { overflow-x: hidden; overflow-wrap: normal; }
 .paper-card-head > .v5-eyebrow { white-space: nowrap; overflow-wrap: normal; }
 .plan-card { align-self: start; }
 .security-summary td:first-child small { display: block; margin-top: .15rem; color: var(--v5-color-muted); }
+
+/* Travel detail grammar: summarize the source into a practical travel-day
+   view instead of reproducing every nested Notion block as a card. */
+.travel-context-panel {
+  grid-column: 1 / -1;
+  background: var(--v5-surface-research);
+  border-color: var(--v5-border-research);
+  border-top: 4px solid var(--v5-accent-research);
+}
+.travel-context-panel .travel-detail-rows { max-width: 68ch; }
+.travel-context-more { margin-top: .75rem; padding-top: .65rem; border-top: 1px solid var(--v5-border-research); }
+.travel-context-more .travel-detail-rows { margin-top: .5rem; }
+.travel-booking-panel {
+  grid-column: 1 / -1;
+  background: var(--v5-surface-neutral);
+  border-color: var(--v5-border-neutral);
+  border-top: 4px solid var(--v5-accent-research);
+}
+.travel-booking-list { display: grid; gap: 0; }
+.travel-booking-row {
+  display: grid;
+  grid-template-columns: minmax(7rem, .25fr) minmax(0, 1fr) auto;
+  gap: .8rem;
+  align-items: center;
+  min-width: 0;
+  padding: .8rem .75rem;
+  border-top: 1px solid var(--v5-color-line);
+  border-left: 4px solid transparent;
+  background: rgba(255,255,255,.72);
+}
+.travel-booking-row:first-child { border-top: 0; }
+.travel-booking-row--confirmed { border-left-color: #247756; background: #f1fbf5; }
+.travel-booking-row--unconfirmed { border-left-color: #b7473c; background: #fff4f1; }
+.travel-booking-row--unknown { border-left-color: #a15c12; background: #fffaf0; }
+.travel-booking-category, .travel-booking-summary, .travel-booking-status { min-width: 0; }
+.travel-booking-category { display: grid; gap: .12rem; }
+.travel-booking-category strong { color: var(--v5-color-navy); }
+.travel-booking-category small, .travel-booking-summary-detail { color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+.travel-booking-summary { overflow-wrap: anywhere; }
+.travel-booking-summary > strong { display: block; }
+.travel-booking-summary-detail { margin-top: .15rem; }
+.travel-booking-status { justify-self: end; white-space: nowrap; }
+.travel-itinerary-panel {
+  grid-column: 1 / -1;
+  background: var(--v5-surface-research);
+  border-color: var(--v5-border-research);
+  border-top: 4px solid var(--v5-accent-research);
+}
+.travel-itinerary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: .8rem;
+}
+.itinerary-day-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--v5-border-neutral);
+  border-radius: .7rem;
+  background: rgba(255,255,255,.82);
+}
+.itinerary-day-card header { margin-bottom: .45rem; padding-bottom: .45rem; border-bottom: 1px solid var(--v5-color-line); }
+.itinerary-day-card .v5-eyebrow { margin: 0; }
+.itinerary-day-card h4 { margin: .2rem 0 0; color: var(--v5-color-navy); font-size: 1.12rem; }
+.travel-operations-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .8rem;
+}
+.travel-detail-rows { display: grid; }
+.travel-detail-row { min-width: 0; padding: .7rem 0; border-top: 1px solid var(--v5-color-line); overflow-wrap: anywhere; }
+.travel-detail-row:first-child { border-top: 0; }
+.travel-notes-panel { grid-column: 1 / -1; }
+.travel-notes-disclosure { margin-top: 0; }
+.travel-notes-disclosure > summary, .travel-note-group > summary { color: var(--v5-color-navy); }
+.travel-note-group { padding: .65rem 0 0; border-top: 1px solid var(--v5-color-line); }
+.travel-note-group .travel-detail-rows { margin-top: .35rem; }
+
+@media (max-width: 42rem) {
+  .travel-booking-row { grid-template-columns: 1fr; gap: .25rem; }
+  .travel-booking-status { justify-self: start; }
+  .travel-operations-grid { grid-template-columns: 1fr; }
+  .itinerary-day-card { padding: .85rem; }
+}
+
+/* Review-driven shared semantic vocabulary.  These classes distinguish the
+   field's meaning (status, category, format, priority), rather than assigning
+   arbitrary colors to individual source values. */
+.v5-chip--format { border: 1px solid #a9c4e7; background: #e7f1ff; color: #245b96; }
+.v5-chip--category { border: 1px solid #b9a6dc; background: #f0eafe; color: #60439b; }
+.v5-chip--topic { border: 1px solid #9fc9c0; background: #e7f6f1; color: #276d61; }
+.v5-chip--priority-high { border: 1px solid var(--v5-border-blocked); background: #ffe0dc; color: #a33b37; }
+.v5-chip--priority-medium { border: 1px solid var(--v5-border-waiting); background: #fff0cd; color: #8c5504; }
+.v5-chip--priority-low { border: 1px solid var(--v5-border-neutral); background: #f1f4f8; color: #5c6b80; }
+.home-quality-details { margin-top: .65rem; padding-top: .55rem; border-top: 1px solid var(--v5-border-investment); }
+.home-quality-details summary { color: var(--v5-accent-investment); }
+.exploration-details { margin-top: .8rem; padding-top: .65rem; border-top: 1px solid var(--v5-border-research); }
+.exploration-action-list { margin: .8rem 0 0; }
+.exploration-action-list li { align-items: baseline; }
+.paper-focus-fields { display: grid; gap: 0; margin: .65rem 0 0; }
+.paper-focus-fields > div { min-width: 0; padding: .55rem 0; border-top: 1px solid var(--v5-color-line); }
+.paper-focus-fields dt { color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+.paper-focus-fields dd { margin: .15rem 0 0; }
+.paper-added-help { margin: .45rem 0 0; }
+.paper-queue-table th:nth-child(1), .paper-queue-table td:nth-child(1) { min-width: 15rem; }
+.paper-queue-table th:nth-child(2), .paper-queue-table td:nth-child(2) { min-width: 14rem; }
+.paper-queue-table th:nth-child(3), .paper-queue-table td:nth-child(3) { min-width: 7rem; }
+.paper-queue-table th:nth-child(4), .paper-queue-table td:nth-child(4) { min-width: 8.5rem; white-space: nowrap; }
+.paper-queue-table th:nth-child(5), .paper-queue-table td:nth-child(5) { min-width: 8.5rem; white-space: nowrap; }
+.paper-queue-table th:nth-child(6), .paper-queue-table td:nth-child(6) { min-width: 16rem; }
+.focus-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: .55rem; flex-wrap: wrap; }
+.focus-card--purchase { border-color: var(--v5-border-waiting); background: #fffaf0; }
+.focus-card--purchase .home-summary-row { margin-top: .55rem; }
+.current-context-more { margin-top: .8rem; padding-top: .65rem; border-top: 1px solid var(--v5-border-current); }
+.current-context-more > summary { color: var(--v5-accent-current); }
+.portfolio-summary-v5 .summary-kpi { min-width: 0; }
+.portfolio-summary-v5 .summary-kpi strong { display: block; overflow-wrap: anywhere; }
+.investment-exposure-note { max-width: 70ch; }
+.investment-total-line { margin: .7rem 0 0; padding-top: .65rem; border-top: 1px solid var(--v5-color-line-strong); font-weight: 700; }
+.investment-quality-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: .45rem .8rem; }
+
+@media (max-width: 58rem) {
+  .paper-queue-table { min-width: 52rem; }
+  .travel-booking-row { grid-template-columns: minmax(6.5rem, .3fr) minmax(0, 1fr) auto; }
+}
+
+@media (max-width: 42rem) {
+  .paper-focus-fields { grid-template-columns: 1fr; }
+  .paper-queue-table { min-width: 52rem; }
+  .travel-booking-row { grid-template-columns: 1fr; }
+  .travel-booking-status { justify-self: start; }
+}
+
+/* Final review pass: semantic meaning must survive displays with weaker
+   contrast.  Each state has an opaque surface, a readable border/accent, and
+   a text/chip treatment; tint is never the only signal. */
+:root {
+  --v5-surface-neutral: #ffffff;
+  --v5-surface-research: #e4f0ff;
+  --v5-surface-current: #e3f4eb;
+  --v5-surface-waiting: #fff0d0;
+  --v5-surface-blocked: #ffe3df;
+  --v5-surface-operational: #dff2e8;
+  --v5-surface-investment: #ffedc7;
+  --v5-border-neutral: #a9bbcf;
+  --v5-border-research: #6098cf;
+  --v5-border-current: #5eaa83;
+  --v5-border-waiting: #d09328;
+  --v5-border-blocked: #c56a5d;
+  --v5-border-operational: #4d9d70;
+  --v5-border-investment: #c27e13;
+  --v5-accent-research: #164f86;
+  --v5-accent-current: #176544;
+  --v5-accent-waiting: #7b4700;
+  --v5-accent-blocked: #8f2f28;
+  --v5-accent-operational: #176544;
+  --v5-accent-investment: #784700;
+}
+.v5-surface, .v5-card { background: var(--v5-surface-neutral); }
+.v5-surface--neutral { background: var(--v5-surface-neutral); border-color: var(--v5-border-neutral); border-top-color: var(--v5-border-neutral); }
+.v5-surface--research, .v5-card--research { background: var(--v5-surface-research); border-color: var(--v5-border-research); border-top-color: var(--v5-accent-research); }
+.v5-surface--current { background: var(--v5-surface-current); border-color: var(--v5-border-current); border-top-color: var(--v5-accent-current); }
+.v5-surface--waiting { background: var(--v5-surface-waiting); border-color: var(--v5-border-waiting); border-top-color: var(--v5-accent-waiting); }
+.v5-surface--blocked { background: var(--v5-surface-blocked); border-color: var(--v5-border-blocked); border-top-color: var(--v5-accent-blocked); }
+.v5-surface--operational, .v5-card--operational { background: var(--v5-surface-operational); border-color: var(--v5-border-operational); border-top-color: var(--v5-accent-operational); }
+.v5-surface--investment { background: var(--v5-surface-investment); border-color: var(--v5-border-investment); border-top-color: var(--v5-accent-investment); }
+.v5-surface--research > h2, .v5-surface--research > h3, .v5-card--research h3 { color: var(--v5-accent-research); }
+.v5-surface--current > h2, .v5-surface--current > h3 { color: var(--v5-accent-current); }
+.v5-surface--waiting > h2, .v5-surface--waiting > h3 { color: var(--v5-accent-waiting); }
+.v5-surface--blocked > h2, .v5-surface--blocked > h3 { color: var(--v5-accent-blocked); }
+.v5-surface--operational > h2, .v5-surface--operational > h3 { color: var(--v5-accent-operational); }
+.v5-surface--investment > h2, .v5-surface--investment > h3 { color: var(--v5-accent-investment); }
+.task-state--active { color: var(--v5-accent-current); }
+.task-state--waiting { color: var(--v5-accent-waiting); }
+.task-state--blocked { color: var(--v5-accent-blocked); }
+.review-focus-item-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.review-focus-item-head .v5-eyebrow { color: var(--v5-accent-waiting); }
+.review-focus-item h3 { margin: .35rem 0; color: var(--v5-accent-waiting); }
+.review-focus-item p { max-width: 68ch; }
+.exploration-action-list li { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: .2rem .8rem; }
+.exploration-action-list li > small { grid-column: 2; color: var(--v5-color-muted); }
+.research-entry-links { display: grid; gap: .55rem; margin-top: .8rem; }
+.research-entry-links a { display: flex; align-items: baseline; justify-content: space-between; gap: .8rem; text-decoration: none; }
+.research-entry-links a span { color: var(--v5-color-muted); font-size: var(--v5-font-secondary); text-align: right; }
+.travel-mode-panel { min-width: 0; }
+.travel-mode-panel[hidden] { display: none !important; }
+.travel-booking-row--confirmed { border-left-color: var(--v5-accent-current); background: var(--v5-surface-current); }
+.travel-booking-row--unconfirmed { border-left-color: var(--v5-accent-blocked); background: var(--v5-surface-blocked); }
+.travel-booking-row--unknown { border-left-color: var(--v5-accent-waiting); background: var(--v5-surface-waiting); }
+.itinerary-day-card { background: var(--v5-surface-neutral); border-color: var(--v5-border-research); }
+.travel-context-panel, .travel-itinerary-panel { background: var(--v5-surface-research); border-color: var(--v5-border-research); }
+.travel-booking-panel { border-color: var(--v5-border-neutral); border-top-color: var(--v5-accent-current); }
+.travel-notes-panel { background: var(--v5-surface-neutral); border-color: var(--v5-border-neutral); }
+.home-action { background: var(--v5-surface-neutral); border-color: var(--v5-border-waiting); }
+.home-stats span { background: var(--v5-surface-neutral); border-color: var(--v5-border-neutral); }
+
+@media (max-width: 52rem) {
+  .home-research-grid, .v5-grid.project-header, .v5-grid.project-workspace,
+  .paper-focus-grid, .library-card-grid, .trip-overview-grid {
+    grid-template-columns: 1fr;
+  }
+  .home-research-grid .home-card, .project-definition { height: auto; }
+}
+
+/* C2X review corrections: authored sRGB colors and opaque surfaces keep the
+   semantic system stable when the browser/OS composites the page on displays
+   with different profiles or HDR settings.  Borders, accents, and labels
+   remain the semantic fallback when a tint is visually compressed. */
+:root {
+  color-scheme: only light;
+  --v5-surface-neutral: #ffffff;
+  --v5-surface-research: #e8f2ff;
+  --v5-surface-current: #e3f4eb;
+  --v5-surface-waiting: #fff0d0;
+  --v5-surface-blocked: #ffe3df;
+  --v5-surface-operational: #dff2e8;
+  --v5-surface-investment: #ffedc7;
+  --v5-border-neutral: #9fb3c8;
+  --v5-border-research: #568fca;
+  --v5-border-current: #4f9b76;
+  --v5-border-waiting: #c8871c;
+  --v5-border-blocked: #bd5b50;
+  --v5-border-operational: #3e9567;
+  --v5-border-investment: #b86f08;
+  --v5-accent-research: #164f86;
+  --v5-accent-current: #176544;
+  --v5-accent-waiting: #7b4700;
+  --v5-accent-blocked: #8f2f28;
+  --v5-accent-operational: #176544;
+  --v5-accent-investment: #784700;
+}
+
+/* No gradient/alpha overlay is allowed to redefine a semantic surface. */
+.v5-surface, .v5-card, .home-card, .home-context, .home-research,
+.home-updates, .research-exploration, .exploration-row, .summary-kpi,
+.v5-data-table-wrap, .review-focus-rows, .library-card, .journal-next-row,
+.travel-booking-row, .itinerary-day-card { background-image: none; }
+.v5-surface, .v5-card, .home-card { background-color: var(--v5-surface-neutral); }
+.v5-surface--neutral { background-color: var(--v5-surface-neutral); border-color: var(--v5-border-neutral); border-top-color: var(--v5-border-neutral); }
+.v5-surface--research, .v5-card--research { background-color: var(--v5-surface-research); border-color: var(--v5-border-research); border-top-color: var(--v5-accent-research); }
+.v5-surface--current { background-color: var(--v5-surface-current); border-color: var(--v5-border-current); border-top-color: var(--v5-accent-current); }
+.v5-surface--waiting { background-color: var(--v5-surface-waiting); border-color: var(--v5-border-waiting); border-top-color: var(--v5-accent-waiting); }
+.v5-surface--blocked { background-color: var(--v5-surface-blocked); border-color: var(--v5-border-blocked); border-top-color: var(--v5-accent-blocked); }
+.v5-surface--operational, .v5-card--operational { background-color: var(--v5-surface-operational); border-color: var(--v5-border-operational); border-top-color: var(--v5-accent-operational); }
+.v5-surface--investment { background-color: var(--v5-surface-investment); border-color: var(--v5-border-investment); border-top-color: var(--v5-accent-investment); }
+.home-context { background-color: var(--v5-surface-neutral); }
+.home-research, .research-exploration { background-color: var(--v5-surface-research); }
+.home-updates { background-color: var(--v5-surface-neutral); }
+.v5-data-table-wrap { background-color: var(--v5-surface-neutral); }
+.v5-chip--relation { border-color: var(--v5-border-research); background-color: #d9eaff; color: var(--v5-accent-research); }
+.v5-chip--current, .v5-status-green { border-color: var(--v5-border-current); background-color: #cfeedd; color: var(--v5-accent-current); }
+.v5-chip--waiting, .v5-status-amber { border-color: var(--v5-border-waiting); background-color: #ffe5ad; color: var(--v5-accent-waiting); }
+.v5-chip--blocked, .v5-status-red { border-color: var(--v5-border-blocked); background-color: #ffd2cc; color: var(--v5-accent-blocked); }
+.v5-chip--muted { border-color: var(--v5-border-neutral); background-color: #e8edf3; color: var(--v5-color-ink); }
+.home-action { background-color: #fff8e8; border-color: var(--v5-border-waiting); }
+.home-stats span { background-color: #ffffff; border-color: var(--v5-border-neutral); }
+.review-focus-rows { background-color: #fffaf0; }
+.exploration-row { background-color: #f3f8ff; border-color: var(--v5-border-research); }
+.paper-next-row, .decision-lead { background-color: #e5f0ff; }
+.trip-next-v5 { background-color: #e5f0ff; }
+.v5-metadata-row div, .property, .v5-state { background-color: #f3f7fb; }
+.library-card, .journal-next-row, .itinerary-day-card { background-color: #ffffff; }
+.travel-booking-row { background-color: #ffffff; }
+.travel-booking-row--confirmed { background-color: var(--v5-surface-current); border-left-color: var(--v5-accent-current); }
+.travel-booking-row--unconfirmed { background-color: var(--v5-surface-blocked); border-left-color: var(--v5-accent-blocked); }
+.travel-booking-row--unknown { background-color: var(--v5-surface-waiting); border-left-color: var(--v5-accent-waiting); }
+
+/* Investment values are important, but their hierarchy should not make the
+   summary unreadable at narrow desktop widths. */
+.portfolio-summary-v5 > .v5-number { display: block; max-width: 100%; font-size: clamp(1.95rem, 3vw, 2.7rem); line-height: 1.15; letter-spacing: -.035em; white-space: nowrap; }
+.portfolio-summary-v5 .summary-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .7rem; }
+.portfolio-summary-v5 .summary-kpi { display: grid; min-width: 0; gap: .18rem; padding: .75rem; border: 1px solid var(--v5-border-investment); border-radius: .6rem; background-color: #fffaf0; }
+.portfolio-summary-v5 .summary-kpi .v5-number { display: block; min-width: 0; overflow-wrap: anywhere; font-size: clamp(1.1rem, 1.8vw, 1.55rem); line-height: 1.25; letter-spacing: -.02em; }
+.portfolio-summary-v5 .summary-kpi .v5-muted { color: var(--v5-color-muted); }
+.investment-breakdown { margin-top: .8rem; padding-top: .65rem; border-top: 1px solid var(--v5-border-investment); }
+.investment-breakdown summary { color: var(--v5-accent-investment); }
+.investment-breakdown .v5-data-table { min-width: 0; }
+.investment-exposure-list { display: grid; max-width: 36rem; margin-top: .65rem; border-top: 1px solid var(--v5-color-line-strong); }
+.investment-exposure-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: baseline; min-width: 0; padding: .65rem .2rem; border-bottom: 1px solid var(--v5-color-line); }
+.investment-exposure-row > span { min-width: 0; overflow-wrap: anywhere; }
+.investment-exposure-row > strong { color: var(--v5-color-navy); }
+.investment-holdings-list { max-width: 44rem; margin-top: .65rem; border-top: 1px solid var(--v5-color-line-strong); }
+.investment-holdings-head, .investment-holding-row { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) auto auto; gap: .65rem; align-items: baseline; min-width: 0; padding: .62rem .2rem; border-bottom: 1px solid var(--v5-color-line); }
+.investment-holdings-head { color: var(--v5-color-muted); font-size: var(--v5-font-secondary); font-weight: 700; }
+.investment-holding-row strong { min-width: 0; overflow-wrap: anywhere; }
+.investment-holding-rank, .investment-holding-ratio { color: var(--v5-color-muted); }
+
+@media (max-width: 42rem) {
+  .portfolio-summary-v5 .summary-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .portfolio-summary-v5 .summary-kpi { padding: .65rem; }
+  .portfolio-summary-v5 .summary-kpi .v5-number { font-size: 1.05rem; }
+  .investment-holdings-head, .investment-holding-row { grid-template-columns: 2rem minmax(0, 1fr) auto; }
+  .investment-holdings-head span:last-child, .investment-holding-ratio { display: none; }
+  .investment-exposure-row { gap: .6rem; }
+}
+
+@media (max-width: 22rem) {
+  .portfolio-summary-v5 .summary-kpis { grid-template-columns: 1fr; }
+}
+
+/* Keep the semantic surfaces above the generic white card fallback. */
+.library-current { background-color: var(--v5-surface-current); border-color: var(--v5-border-current); border-top-color: var(--v5-accent-current); }
+.library-acquired { background-color: var(--v5-surface-operational); border-color: var(--v5-border-operational); border-top-color: var(--v5-accent-operational); }
+.library-waiting { background-color: var(--v5-surface-waiting); border-color: var(--v5-border-waiting); border-top-color: var(--v5-accent-waiting); }
+.library-complete { background-color: var(--v5-surface-current); border-color: var(--v5-border-current); border-top-color: var(--v5-accent-current); }
+.library-dismissed { background-color: var(--v5-surface-blocked); border-color: var(--v5-border-blocked); border-top-color: var(--v5-accent-blocked); }
+.travel-itinerary-panel { background-color: var(--v5-surface-research); border-color: var(--v5-border-research); border-top-color: var(--v5-accent-research); }
+.travel-important-panel { background-color: var(--v5-surface-waiting); border-color: var(--v5-border-waiting); border-top-color: var(--v5-accent-waiting); }
+.travel-fallback-panel { background-color: var(--v5-surface-blocked); border-color: var(--v5-border-blocked); border-top-color: var(--v5-accent-blocked); }
+.travel-context-panel { background-color: var(--v5-surface-research); border-color: var(--v5-border-research); border-top-color: var(--v5-accent-research); }
+.travel-notes-panel { background-color: var(--v5-surface-neutral); border-color: var(--v5-border-neutral); }
+.journal-next { background-color: var(--v5-surface-waiting); border-color: var(--v5-border-waiting); border-top-color: var(--v5-accent-waiting); }
+.focus-card--purchase { background-color: var(--v5-surface-waiting); border-color: var(--v5-border-waiting); }
+.priority-card { background-color: var(--v5-surface-current); border-color: var(--v5-border-current); border-top-color: var(--v5-accent-current); }
+.plan-card { background-color: var(--v5-surface-neutral); border-color: var(--v5-border-neutral); }
+.travel-mode-panel { background-color: var(--v5-surface-neutral); }
+.travel-mode-panel[data-trip-panel="completed"] { border-top-color: var(--v5-accent-current); }
+.travel-mode-panel[data-trip-panel="active"] { border-top-color: var(--v5-accent-operational); }
+.travel-mode-panel[data-trip-panel="planned"] { border-top-color: var(--v5-accent-waiting); }
+
+@media (min-width: 58.01rem) {
+  .v5-grid.project-header { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v5-grid.project-workspace { grid-template-columns: 1fr; }
+  .project-workspace .task-panel { min-height: 0; }
+}
+
+/* C2X-R display stability: authored opaque sRGB surfaces prevent browser/OS
+   compositing from changing the apparent page palette between displays.  The
+   donut is the only intentional gradient; semantic surfaces use solid colors,
+   borders, and labels as separate signals. */
+body {
+  background-color: #f7f9fd;
+  background-image: none;
+  color-scheme: only light;
+}
+.v5-surface, .v5-card, .home-card, .v5-data-table-wrap,
+.review-focus-rows, .library-card, .journal-next-row,
+.travel-booking-row, .itinerary-day-card, .home-action, .home-stats span,
+.v5-metadata-row div, .property, .v5-state {
+  background-image: none;
+}
+.v5-surface, .v5-card, .home-card { background-color: #ffffff; }
+.v5-surface--research, .v5-card--research { background-color: var(--v5-surface-research); }
+.v5-surface--current { background-color: var(--v5-surface-current); }
+.v5-surface--waiting { background-color: var(--v5-surface-waiting); }
+.v5-surface--blocked { background-color: var(--v5-surface-blocked); }
+.v5-surface--operational, .v5-card--operational { background-color: var(--v5-surface-operational); }
+.v5-surface--investment { background-color: var(--v5-surface-investment); }
+.home-action { background-color: #fff8e8; }
+.home-stats span, .v5-metadata-row div, .property, .v5-state,
+.review-focus-rows, .library-card, .journal-next-row, .itinerary-day-card,
+.travel-booking-row, .v5-data-table-wrap { background-color: #ffffff; }
+.paper-focus-fields .v5-empty { padding: .25rem 0; text-align: left; }
+.library-saved { background-color: var(--v5-surface-waiting); border-color: var(--v5-border-waiting); border-top-color: var(--v5-accent-waiting); }
+.travel-booking-row--confirmed { background-color: var(--v5-surface-current); }
+.travel-booking-row--unconfirmed { background-color: var(--v5-surface-blocked); }
+.travel-booking-row--unknown { background-color: var(--v5-surface-waiting); }
