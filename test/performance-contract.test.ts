@@ -114,7 +114,7 @@ test('cache contract and security policy invariants remain explicit', () => {
   assertFreshnessDirective(objectCacheControl, 'published mutable object');
   assert.equal(cacheControlFor('content', 'assets/v5/1/presentation.js'), 'public, max-age=31536000, immutable');
   assert.match(publish, /cacheControlFor\(bucket\.kind, key\)/);
-  assert.match(infra, /assets\/v5\/1\/\*/);
+  assert.match(infra, /assets\/v5\/\*/);
   assertFreshnessDirective(responseCacheControl, 'CloudFront response');
   assertFreshnessPolicy(contentBehavior, 'mutable content');
   assertFreshnessPolicy(sharedConsoleBehavior, 'console and owner API');

@@ -1067,7 +1067,7 @@
       "domain_grammar": "A dominant portfolio summary, an allocation figure that encodes share quantitatively, and a divergent P/L figure that encodes gain and loss in opposite directions from a zero rule. Every figure states its denominator.",
       "desktop": {
         "global_chrome_orientation": "vertical-rail",
-        "layout": "60/40 summary band, full-width allocation figure, 50/50 chart pair, full-width divergent figure",
+        "layout": "60/40 summary band, 50/50 allocation and concentration pair, 50/50 price P/L and leverage exposure pair",
         "expected_column_count": 2,
         "expected_column_ratios": [
           60,
@@ -1091,7 +1091,8 @@
             "match": {
               "classAny": [
                 "chart-panel",
-                "v5-grid"
+                "v5-grid",
+                "v5-donut"
               ],
               "heading": "配分|allocation|Invested-asset"
             }
@@ -1108,7 +1109,8 @@
             "match": {
               "classAny": [
                 "chart-panel",
-                "divergent-v5"
+                "divergent-v5",
+                "v5-divergent"
               ],
               "heading": "損益|P/L|contribution"
             }
@@ -1140,7 +1142,8 @@
             "match": {
               "classAny": [
                 "chart-panel",
-                "v5-grid"
+                "v5-grid",
+                "v5-donut"
               ],
               "heading": "配分|allocation|Invested-asset"
             }
@@ -1157,7 +1160,8 @@
             "match": {
               "classAny": [
                 "chart-panel",
-                "divergent-v5"
+                "divergent-v5",
+                "v5-divergent"
               ],
               "heading": "損益|P/L|contribution"
             }
@@ -1181,25 +1185,28 @@
     },
     "investment.pulse": {
       "label": "Investment Pulse",
-      "domain_grammar": "A judgment surface, explicitly NOT a quantitative dashboard: 次回確認 emphasised at the top, then the items needing action or review. Movers use the Dashboard diverging grammar. The half-width detail table is abolished in favour of a compact ranked list.",
+      "domain_grammar": "A judgment surface, explicitly NOT a quantitative dashboard: 次回確認 is the first region, followed by the items needing action or review. Profile 2 adds the same allocation donut grammar as the Dashboard without removing the exact fallback table. Movers use the Dashboard diverging grammar. The half-width detail table is replaced by a compact ranked list.",
       "desktop": {
         "global_chrome_orientation": "vertical-rail",
-        "layout": "four-column KPI row, full-width next-check block, 50/50 action/snapshot pair, 50/50 tables, full-width quality disclosure",
-        "expected_column_count": 4,
+        "layout": "full-width next-check block, 50/50 action/review pair, two-column detail grid, full-width quality disclosure",
+        "expected_column_count": 2,
         "expected_column_ratios": [
-          26.8,
-          24.4,
-          24.4,
-          24.4
+          50,
+          50
         ],
         "expected_content_column_count": 2,
-        "primary_first_fold": "The four KPI tiles, then the next-check card, then the top of the action/review pair.",
+        "expected_content_column_ratios": [
+          50,
+          50
+        ],
+        "primary_first_fold": "The next-check card, followed by the top of the action/review pair.",
         "section_order": [
           {
             "id": "next-check",
             "match": {
               "classAny": [
-                "attention-v5"
+                "attention-v5",
+                "pulse-next-check"
               ],
               "heading": "次回確認|Next check|attention|利確"
             }
@@ -1210,6 +1217,7 @@
               "classAny": [
                 "pulse-layout",
                 "action-section",
+                "attention-pair",
                 "v5-wide"
               ],
               "heading": "今確認|判断する|Action|Review|needs review"
@@ -1230,16 +1238,18 @@
             "match": {
               "classAny": [
                 "quality-panel",
-                "warn"
+                "warn",
+                "v5-surface--waiting",
+                "v5-surface--current"
               ],
-              "heading": "Data [Qq]uality|freshness|WARN"
+              "heading": "Data [Qq]uality|データ品質|freshness|WARN"
             }
           }
         ],
         "visual_grammar": {
           "quantitative_visuals": {
             "min": 1,
-            "why": "Pulse carries compact allocation bars, not only numbers."
+            "why": "Profile 2 Pulse carries the allocation donut and exact numeric fallback, not only numbers."
           },
           "sections": {
             "min": 3,
@@ -1259,7 +1269,8 @@
             "id": "next-check",
             "match": {
               "classAny": [
-                "attention-v5"
+                "attention-v5",
+                "pulse-next-check"
               ],
               "heading": "次回確認|Next check|attention|利確"
             }
@@ -1270,6 +1281,7 @@
               "classAny": [
                 "pulse-layout",
                 "action-section",
+                "attention-pair",
                 "v5-wide"
               ],
               "heading": "今確認|判断する|Action|Review|needs review"
@@ -1290,19 +1302,21 @@
             "match": {
               "classAny": [
                 "quality-panel",
-                "warn"
+                "warn",
+                "v5-surface--waiting",
+                "v5-surface--current"
               ],
-              "heading": "Data [Qq]uality|freshness|WARN"
+              "heading": "Data [Qq]uality|データ品質|freshness|WARN"
             }
           }
         ],
         "critical_first_screen": [
-          "portfolio headline metric",
-          "the next thing to check"
+          "the next-check card",
+          "the items needing action or review"
         ],
         "table_overflow_strategy": "horizontal-scroll-container",
         "sticky_identity": false,
-        "hierarchy_note": "Every wide table must sit in a scroll container — the Prototype fails this here and must not be copied. Allocation bars must keep a usable track width.",
+        "hierarchy_note": "Every wide table must sit in a scroll container — the Prototype fails this here and must not be copied. The allocation figure and its legend must remain readable at mobile width.",
         "first_section": [
           "next-check",
           "action-review"
