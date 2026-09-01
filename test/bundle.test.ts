@@ -72,9 +72,9 @@ test('marks configured page links and injects postMessage navigation', () => {
   const knowledgeHref = knowledge.match(/href="([^"]+)"/)?.[1];
   assert.equal(new URL(pulseHref!, 'https://content.example.com/pages/research-pulse/index.html').origin, 'https://share.example.com');
   assert.equal(new URL(pulseHref!, 'https://content.example.com/pages/research-pulse/index.html').pathname, '/app/index.html');
-  assert.equal(new URL(pulseHref!, 'https://content.example.com/pages/research-pulse/index.html').hash, '#/knowledge-review');
+  assert.equal(new URL(pulseHref!, 'https://content.example.com/pages/research-pulse/index.html').hash, '#/research/knowledge-review');
   assert.equal(new URL(knowledgeHref!, 'https://content.example.com/pages/knowledge-review/index.html').origin, 'https://share.example.com');
-  assert.equal(new URL(knowledgeHref!, 'https://content.example.com/pages/knowledge-review/index.html').hash, '#/research-pulse');
+  assert.equal(new URL(knowledgeHref!, 'https://content.example.com/pages/knowledge-review/index.html').hash, '#/research/overview');
   assert.match(pulse, /data-html-share-page="knowledge-review"/);
   assert.match(knowledge, /data-html-share-page="research-pulse"/);
   const internalAnchor = pulse.match(/<a\b[^>]*data-html-share-page="knowledge-review"[^>]*>/)?.[0];

@@ -127,7 +127,7 @@
         .toolbar { transition: none; }
       }
     </style>
-    <div class="toolbar" aria-label="共有くんのページ操作">
+    <div class="toolbar" aria-label="ORBITのページ操作">
       <button class="tool nav" type="button" aria-label="トップへ戻る" title="トップへ戻る">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 4.5l8 6.7M6.4 9.6V19h11.2V9.6"/></svg>
       </button>
@@ -331,7 +331,7 @@
   $('.delete').addEventListener('click', async () => {
     if (!currentPage || !pageIdentity(currentPage)) return;
     closePopovers();
-    if (!confirm(`「${currentPage.title}」を共有くんの一覧から削除します。\n\n原本と発行済みURLは残り、左の「削除済み」から戻せます。`)) return;
+    if (!confirm(`「${currentPage.title}」をORBITの一覧から削除します。\n\n原本と発行済みURLは残り、左の「削除済み」から戻せます。`)) return;
     const previousHidden = new Set(hiddenSources);
     const previousStarred = [...starredSources];
     hiddenSources.add(pageIdentity(currentPage));

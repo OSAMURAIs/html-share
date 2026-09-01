@@ -16,6 +16,7 @@ import {
   declaredPresentationVersion,
   readGeneratedV5Metadata,
   resolvePresentationProfile,
+  resolveDestination,
   V5_PRESENTATION,
   type GeneratedV5Metadata,
   type PresentationProfile,
@@ -75,6 +76,11 @@ export interface BuildManifest {
   pages: BuiltPage[];
 }
 
+export interface BuildSiteOptions {
+  /** Override the parent shell origin for an explicitly local preview build. */
+  consoleOrigin?: string;
+}
+
 function copyManagedV5Assets(contentRoot: string, profile: PresentationProfile): void {
   for (const publicPath of profile.staged_assets) {
     const relative = publicPath.replace(/^\//, '');
@@ -132,10 +138,6 @@ export function bundleHtml(
   if (!inside(source, roots)) throw new Error(`Page is outside content.roots: ${sourceFile}`);
   const sourceDirectory = path.dirname(source);
   let html = readFileSync(source, 'utf8');
-  // Explicit contract check, ahead of any asset handling: a page that declares
-  // a different presentation profile than the one this build is publishing is
-  // rejected by name, not by an incidental "local asset not found" once the
-  // inliner later trips over one of its foreign asset references.
   const declaredVersion = declaredPresentationVersion(html);
   if (declaredVersion !== null && declaredVersion !== profile.version) {
     throw new Error(
@@ -185,6 +187,30 @@ function isParentMediatedExternalHref(value: string, contentHref: string): boole
   } catch {
     return false;
   }
+}
+
+function resolveConsoleOrigin(config: HtmlShareConfig, override?: string): string {
+  if (override === undefined) return `https://${config.aws.consoleDomain}`;
+  let url: URL;
+  try {
+    url = new URL(override);
+  } catch {
+    throw new Error('consoleOrigin override must be the supported local loopback origin');
+  }
+  if (
+    url.protocol !== 'http:' ||
+    url.hostname !== '127.0.0.1' ||
+    !url.port ||
+    url.username ||
+    url.password ||
+    url.pathname !== '/' ||
+    url.search ||
+    url.hash ||
+    url.origin !== override
+  ) {
+    throw new Error('consoleOrigin override must be the supported local loopback origin');
+  }
+  return url.origin;
 }
 
 function rewritePageLinks(html: string, sourceFile: string, contentHref: string, pageLinks: Map<string, PageLink>): string {
@@ -259,7 +285,7 @@ function defaultGroup(page: PageConfig): string {
   return parent && parent !== '.' ? parent : 'pages';
 }
 
-export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildManifest {
+export function buildSite(config: HtmlShareConfig, buildRoot: string, options: BuildSiteOptions = {}): BuildManifest {
   const roots = validatedRoots(config);
   const contentRoot = path.join(buildRoot, 'content');
   const tokenFile = path.join(config.baseDir, '.html-share', 'navigation-tokens.json');
@@ -292,12 +318,17 @@ export function buildSite(config: HtmlShareConfig, buildRoot: string): BuildMani
   });
   mkdirSync(path.dirname(tokenFile), { recursive: true });
   writeFileSync(tokenFile, `${JSON.stringify(nextTokens, null, 2)}\n`, { mode: 0o600 });
-  const consoleOrigin = `https://${config.aws.consoleDomain}`;
+  const consoleOrigin = resolveConsoleOrigin(config, options.consoleOrigin);
   const contentOrigin = `https://${config.aws.contentDomain}`;
-  const pageLinks = new Map(planned.map(({ sourceReal, slug }) => [sourceReal, {
-    href: `${consoleOrigin}/app/index.html#/${slug}`,
-    slug,
-  }]));
+  const pageLinks = new Map(planned.map(({ sourceReal, slug }) => {
+    // Legacy source filenames remain the lookup key, but links emitted into
+    // the product must converge on the single v5 canonical route contract.
+    const destination = resolveDestination(`/app/index.html#/${slug}`);
+    return [sourceReal, {
+      href: destination ? `${consoleOrigin}${destination.canonical_route}` : `${consoleOrigin}/app/index.html#/${slug}`,
+      slug,
+    }];
+  }));
   const pages = planned.map(({ page, sourceReal, fallback, slug, navigationToken }) => {
     const html = injectPageNavigation(
       rewritePageLinks(bundleHtml(sourceReal, roots, config.content.maximumAssetBytes, presentation), sourceReal, `${contentOrigin}/pages/${slug}/index.html`, pageLinks),

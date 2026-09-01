@@ -104,14 +104,22 @@ function copyConsole(buildRoot: string, manifest: object, manifestV2: ManifestV2
   writeFileSync(path.join(consoleRoot, 'app', 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   writeFileSync(path.join(consoleRoot, 'app', 'manifest.v2.json'), `${JSON.stringify(manifestV2, null, 2)}\n`);
   writeFileSync(path.join(consoleRoot, 'app.webmanifest'), `${JSON.stringify({
-    name: 'HTML共有くん', short_name: '共有くん', lang: 'ja', start_url: '/app/index.html', scope: '/', display: 'standalone',
-    background_color: '#f6f7f9', theme_color: '#0e0d6a',
+    name: 'ORBIT', short_name: 'ORBIT', lang: 'ja', start_url: '/app/index.html', scope: '/', display: 'standalone',
+    background_color: '#f6f7f9', theme_color: '#172a46',
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
       { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
     ],
   }, null, 2)}\n`);
+}
+
+function localPreviewConsoleOrigin(): string {
+  const rawPort = process.env.HTML_SHARE_PREVIEW_PORT ?? '4311';
+  if (!/^\d+$/.test(rawPort)) throw new Error('HTML_SHARE_PREVIEW_PORT must be a valid TCP port');
+  const port = Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('HTML_SHARE_PREVIEW_PORT must be a valid TCP port');
+  return `http://127.0.0.1:${port}`;
 }
 
 function journalDir(config: HtmlShareConfig): string {
@@ -581,8 +589,10 @@ function ownerManifest(manifest: BuildManifest, outputs: StackOutputs, config: H
 
 export function buildOnly(config: HtmlShareConfig): { buildRoot: string; manifest: BuildManifest; manifestV2: ManifestV2 } {
   const buildRoot = path.resolve(config.baseDir, '.html-share', 'build');
-  const manifest = buildSite(config, buildRoot);
   const localPreview = process.env.HTML_SHARE_PREVIEW_LOCAL === '1';
+  const manifest = buildSite(config, buildRoot, {
+    consoleOrigin: localPreview ? localPreviewConsoleOrigin() : undefined,
+  });
   const hrefForPage = (page: BuiltPage): string | null => localPreview ? `/content/${page.objectKey}` : null;
   const presentation = resolvePresentationProfile(config.presentationVersion);
   const manifestV2 = buildManifestV2(manifest, () => null, presentation);

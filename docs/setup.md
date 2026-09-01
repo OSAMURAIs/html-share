@@ -1,6 +1,6 @@
 # 初回セットアップ
 
-HTML共有くんは、自分のAWSアカウントへ構築して使います。セットアップ後の日常操作は、Claude Codeへ日本語で依頼できます。
+HTML共有くんは、自分のAWSアカウントへ構築して使います。セットアップ後の日常操作は、Claude CodeまたはCodexへ日本語で依頼できます。
 
 ## 必要なもの
 
@@ -21,7 +21,7 @@ npm link
 cp html-share.config.example.yaml html-share.config.yaml
 ```
 
-`html-share.config.yaml` のサンプル値を、自分のAWS環境とドメインへ置き換えてください。`content.roots` には、共有を許可するディレクトリだけを列挙します。
+`html-share.config.yaml` 内のサンプル値を、自分のAWS環境とドメインの値へ置き換えてください。`content.roots` には、共有を許可するディレクトリだけを列挙します。
 
 ## 署名鍵とAWS環境の作成
 
@@ -49,6 +49,6 @@ ln -s "$(pwd)/skills/inbox" ~/.claude/skills/inbox
 
 ## 動作確認
 
-Claude Codeへ「このHTMLを共有くんに追加して」と依頼し、本人専用の一覧にページが表示されれば完了です。
+Claude CodeまたはCodexへ「このHTMLを共有くんに追加して」と依頼し、本人専用の一覧にページが表示されれば完了です。
 
 開発者向けの検証コマンドは [CONTRIBUTING.md](../CONTRIBUTING.md) を参照してください。

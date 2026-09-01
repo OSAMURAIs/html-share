@@ -39,8 +39,8 @@ test('generated app manifest preserves current PWA identity and navigation field
 
   const result = buildOnly(config);
   const manifest = JSON.parse(readFileSync(path.join(result.buildRoot, 'console', 'app.webmanifest'), 'utf8')) as Record<string, any>;
-  assert.equal(manifest.name, 'HTML共有くん');
-  assert.equal(manifest.short_name, '共有くん');
+  assert.equal(manifest.name, 'ORBIT');
+  assert.equal(manifest.short_name, 'ORBIT');
   assert.equal(manifest.lang, 'ja');
   assert.equal(manifest.start_url, '/app/index.html');
   assert.equal(manifest.scope, '/');
