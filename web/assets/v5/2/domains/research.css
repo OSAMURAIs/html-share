@@ -1,0 +1,214 @@
+/*
+ * html-share v5 presentation profile 2 — Research domain grammar.
+ *
+ * Reading / investigation / knowledge-work character throughout: high
+ * information density, restrained metadata, explicit project/workspace and
+ * review-state hierarchy. Research must not read as a generic equal-weight
+ * card dashboard. research/v5.py already emits the right semantic structure
+ * for all four destinations (project cards before exploration, current
+ * papers before the full collection, the six knowledge-review regions in
+ * the strengthened production-target order) — this file is styling only,
+ * no renderer markup change was needed for any of the four routes.
+ *
+ * Research Feed pilot (CLOSE in V1): reading-first hierarchy (body/
+ * evaluation text outranks the title, which outranks metadata chips), dated
+ * digest batches, a two-column candidate grid, and a two-column evidence
+ * footer per card.
+ *
+ * Candidate profile: inactive in production. See docs/presentation-profiles.md.
+ */
+/* The Prototype's toolbar is a plain compact flex row with no boxed surface
+   around it (no border, background, or padding) — it is a filter affordance,
+   not content. Kept as a .v5-surface in markup for the shared primitive
+   vocabulary; stripped back to that plain row here. */
+.feed-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--v5-space-3);
+  margin: 17px 0 12px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
+}
+.filter-group { display: flex; gap: 5px; flex-wrap: wrap; }
+.filter-button {
+  padding: 8px 11px; border: var(--v5-border-width) solid var(--v5-color-line); border-radius: 999px;
+  color: var(--v5-color-muted); background: transparent; font-size: var(--v5-font-secondary); cursor: pointer;
+}
+.filter-button[aria-pressed="true"], .filter-button:hover { color: var(--v5-color-navy); border-color: var(--v5-color-blue); background: var(--v5-color-blue-soft); }
+
+/* The Prototype gives a date-batch label its own compact heading style
+   (.batch-head h2 at 15px) — smaller than a real section heading, since a
+   date is an organizational label, not major content. */
+.feed-batch .v5-section-header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--v5-space-3); margin: var(--v5-space-6) 0 9px; }
+.feed-batch:first-of-type .v5-section-header { margin-top: var(--v5-space-5); }
+.feed-batch .v5-section-header h2 { font-size: 15px; }
+.feed-batch .v5-section-header p { margin: 0; color: var(--v5-color-muted); font-size: var(--v5-font-tiny); }
+.feed-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--v5-space-3); }
+
+/* Reading-first: the card's own prose (body / evaluation) sits first in the
+   DOM and is styled as the dominant element; title, chips, and the evidence
+   footer all read as secondary to it — never a generic equal-weight card. */
+.feed-card { display: flex; flex-direction: column; min-height: 325px; padding: var(--v5-space-5); transition: transform .2s ease, border-color .2s ease; }
+.feed-card:hover { transform: translateY(-2px); border-color: #acd3c8; }
+.feed-card .v5-prose { order: -1; }
+.feed-card .v5-prose h4 { margin: 0 0 6px; color: var(--v5-color-muted); font-size: var(--v5-font-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.feed-card .v5-prose p { font-size: var(--v5-font-body); line-height: 1.5; }
+.feed-card h3 { margin: var(--v5-space-3) 0 var(--v5-space-2); font-family: Georgia, "Times New Roman", serif; font-size: 19px; line-height: 1.3; font-weight: 400; color: var(--v5-color-ink); }
+.feed-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--v5-space-2); }
+.feed-card .v5-metadata-row { margin-top: auto; padding-top: var(--v5-space-3); }
+.feed-card .v5-metadata-row div { padding: 0; border: 0; background: none; border-top: var(--v5-border-width) solid var(--v5-color-line); border-radius: 0; padding-top: 8px; }
+.feed-card .v5-metadata-row dt, .feed-card .v5-metadata-row strong { display: block; color: var(--v5-color-muted); font-size: var(--v5-font-eyebrow); letter-spacing: .02em; font-weight: 700; }
+.feed-card footer { display: flex; justify-content: space-between; gap: var(--v5-space-2); margin-top: var(--v5-space-3); color: var(--v5-color-muted); font-size: var(--v5-font-eyebrow); }
+.feed-card footer p { margin: 0; }
+
+.search-box { min-width: 180px; padding: 8px 10px; border: var(--v5-border-width) solid var(--v5-color-line); border-radius: 8px; color: var(--v5-color-ink); background: var(--v5-color-white); font-size: var(--v5-font-secondary); }
+
+/* ── Research Overview ──────────────────────────────────────────────
+   Prototype grammar (app.css .project-header / .project-definition /
+   .research-exploration): project identity leads as its own tinted
+   workspace surface, two up on desktop; a distinct gradient-tinted
+   "exploration" band — not another project — carries counts and recent
+   activity as compact label/value rows, never equal-weight generic cards. */
+/* Prototype grammar: two Project columns beside a visually subordinate,
+   narrower exploration column (36/36/28.1 — visual/route-geometry.contract.json
+   routes["research.overview"].desktop.expected_column_ratios). */
+.project-header { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(16rem, .78fr); align-items: start; }
+.project-definition { background: linear-gradient(150deg, var(--v5-color-paper-2), #e4ecfb); border-color: var(--v5-color-line); }
+.project-definition > h2 { margin-top: var(--v5-space-1); font-size: var(--v5-font-heading-2); }
+.project-definition h3 { margin-top: var(--v5-space-4); font-size: var(--v5-font-secondary); color: var(--v5-color-muted); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.project-definition h3:first-of-type { margin-top: var(--v5-space-3); }
+.project-definition > .v5-prose, .project-definition > .v5-list, .project-definition > .v5-empty { font-size: var(--v5-font-secondary); }
+
+.research-exploration { background: linear-gradient(145deg, #f5f8ff, var(--v5-color-blue-soft)); border-color: #cfe0fb; }
+.research-exploration > h2 { margin-top: var(--v5-space-1); }
+.research-exploration > p { color: var(--v5-color-muted); font-size: var(--v5-font-secondary); }
+/* The narrower exploration column has no room for a 4-up stat grid or a
+   2-column activity grid — both collapse to single-column compact rows,
+   matching the Prototype's own narrow .exploration-list grammar. */
+.research-exploration .v5-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--v5-space-2); margin: var(--v5-space-4) 0 var(--v5-space-5); }
+.research-exploration .v5-stat { padding: var(--v5-space-2); border: 0; background: none; text-align: left; }
+.research-exploration .v5-stat .v5-number { font-size: 20px; color: var(--v5-color-navy); }
+.research-exploration > .v5-grid { grid-template-columns: 1fr; gap: 0; }
+.research-exploration > .v5-grid h3 { margin: var(--v5-space-4) 0 var(--v5-space-2); font-size: var(--v5-font-secondary); color: var(--v5-color-muted); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.research-exploration > .v5-grid > section:first-child h3 { margin-top: 0; }
+.research-exploration > .v5-grid .v5-list { padding-left: 0; list-style: none; }
+.research-exploration > .v5-grid .v5-list li { margin: 0; padding: 9px 0; border-top: var(--v5-border-width) solid #d8e4f6; font-size: var(--v5-font-secondary); }
+.research-exploration > .v5-grid .v5-list li:first-child { border-top: 0; }
+.research-exploration > .v5-grid .v5-list li strong { display: block; color: var(--v5-color-ink); font-size: var(--v5-font-body); font-weight: 600; }
+.research-exploration .v5-status-chip { font-size: 10px; }
+
+/* Cross-project workspace: the second Overview region (production target,
+   replacing the Prototype's removed Relation model panel — divergence
+   overview.no-relation-model in visual/route-geometry.contract.json). */
+.project-workspace { margin-top: var(--v5-space-5); grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+.task-panel .v5-list, .context-panel .v5-prose { font-size: var(--v5-font-secondary); }
+.task-panel .v5-list li { padding: var(--v5-space-2) 0; border-top: var(--v5-border-width) solid var(--v5-color-line); }
+.task-panel .v5-list li:first-child { border-top: 0; }
+.context-panel .v5-prose > div { padding: var(--v5-space-3) 0; border-top: var(--v5-border-width) solid var(--v5-color-line); }
+.context-panel .v5-prose > div:first-child { padding-top: 0; border-top: 0; }
+.context-panel .v5-prose strong { display: block; margin-bottom: 4px; color: var(--v5-color-muted); font-size: var(--v5-font-eyebrow); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+
+/* ── Research Papers ────────────────────────────────────────────────
+   Focus/queue grammar: the current reading target leads as one prominent
+   surface (Prototype .priority-card gradient treatment); the complete
+   collection follows, grouped by lifecycle, as a dense multi-column card
+   scan rather than one undifferentiated list. */
+.collection-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--v5-space-3); margin: var(--v5-space-4) 0; padding: var(--v5-space-3) var(--v5-space-4); }
+.collection-toolbar label { font-size: var(--v5-font-secondary); font-weight: 700; color: var(--v5-color-muted); }
+section.v5-focus { background: linear-gradient(150deg, #f8fbff, var(--v5-color-blue-soft)); border-color: #cdddf5; }
+section.v5-focus .v5-list { padding-left: 1.1rem; }
+
+/* Focus records: three rich records first (Prototype .focus-list — three
+   columns, 33/33/33), each its own card with relevance/result detail lines,
+   never a plain list. auto-fit + a min track width means 3 real records take
+   3 equal columns exactly as the Prototype does, but fewer records (as few
+   as 1, the current sanitized fixture's actual count) fill the available
+   row width instead of a fixed 3-track grid stranding a narrow card beside
+   dead whitespace. */
+/* Sized so 3 real focus records take exactly 3 columns at the 1280px
+   desktop viewport (content column ~942px net of the rail and page
+   padding): 3*272 + 2*gap(12px) = 840px, comfortably under that budget,
+   while auto-fit still lets fewer records fill the row instead of leaving
+   dead whitespace beside a stranded narrow card. */
+.focus-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(272px, 100%), 1fr)); gap: var(--v5-space-3); margin-bottom: var(--v5-space-5); }
+.focus-paper { padding: var(--v5-space-4); background: linear-gradient(150deg, #f8fbff, var(--v5-color-blue-soft)); border-color: #cdddf5; }
+.focus-paper h3 { font-size: var(--v5-font-heading-4); line-height: 1.35; }
+.focus-paper .feed-meta { margin-bottom: var(--v5-space-2); }
+.focus-paper .detail-line { margin-top: var(--v5-space-3); padding-top: var(--v5-space-2); border-top: var(--v5-border-width) solid #cdddf5; }
+.focus-paper .detail-line strong { display: block; margin-bottom: 2px; color: var(--v5-color-muted); font-size: var(--v5-font-eyebrow); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.focus-paper .detail-line p { margin: 0; font-size: var(--v5-font-secondary); line-height: 1.5; }
+
+/* Complete Collection: one real, compact, searchable table — cards are not
+   substituted for it. */
+/* #complete-paper-collection has no primitives.css class (unlike .v5-surface,
+   which sets min-width:0) — as a direct child of <main class="v5-main">
+   (display:grid), its default min-width:auto lets the table's 34rem
+   min-content width drag the whole grid track, and the page, wider than the
+   viewport even though the table's own wrapper scrolls correctly. */
+#complete-paper-collection { min-width: 0; }
+.collection-table-wrap { min-width: 0; border: var(--v5-border-width) solid var(--v5-color-line); border-radius: var(--v5-radius-md); }
+.collection-table th, .collection-table td { font-size: var(--v5-font-secondary); }
+.collection-table td small { display: block; margin-top: 2px; color: var(--v5-color-muted); font-size: 9px; }
+.collection-table td:nth-child(3) { max-width: 22rem; }
+
+#complete-paper-collection > .v5-surface { margin-bottom: var(--v5-space-4); }
+#complete-paper-collection .v5-collection { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.paper-card { padding: var(--v5-space-4); transition: opacity .18s ease, max-height .18s ease, margin .18s ease; }
+.paper-card h3 { font-size: var(--v5-font-heading-4); line-height: 1.35; }
+.paper-card .feed-meta { margin-bottom: var(--v5-space-2); }
+/* research/v5.py emits <dl class="kv">, unstyled by primitives.css — this is
+   the paper's own identity/state/context fields, so it gets a compact
+   two-column definition-list treatment scoped to Papers only. */
+.paper-card .kv { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; }
+.paper-card .kv div { padding: 7px 0; border-top: var(--v5-border-width) solid var(--v5-color-line); }
+.paper-card .kv div:first-child { border-top: 0; }
+.paper-card .kv dt { margin: 0 0 2px; color: var(--v5-color-muted); font-size: var(--v5-font-eyebrow); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+.paper-card .kv dd { margin: 0; font-size: var(--v5-font-secondary); line-height: 1.5; }
+.paper-card .kv dd:empty::after, .paper-card .kv dd p:empty::after { content: "—"; color: var(--v5-color-faint); }
+
+/* ── Research Knowledge Review ──────────────────────────────────────
+   Production target (visual/route-geometry.contract.json
+   routes["research.knowledge-review"]): a single-column sequence of six
+   regions — workflow-state summary, the two named task categories,
+   Uncertain, Conflict, then the kind-partitioned backlog — read as a
+   knowledge-work control surface, not a database dump. */
+/* Profile 2's research/v5.py emits the six regions as direct children of
+   <main class="v5-main"> (primitives.css: display:grid, single implicit
+   column) — the production-target single-column sequence needs no override
+   here; only the regions' own tinting and spacing are domain-specific. */
+/* Workflow-state summary: the review question/state, not a priority claim
+   on any single item — a tinted band with a compact counts strip. */
+section.v5-focus.v5-wide { background: linear-gradient(150deg, #fffaf0, #fff2dd); border-color: #ead8b8; }
+section.v5-focus.v5-wide .v5-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: var(--v5-space-4); }
+section.v5-focus.v5-wide .v5-stat { background: rgba(255, 255, 255, .55); border: 0; }
+section.v5-uncertain, section.v5-conflict { border-left: 4px solid currentColor; }
+section.v5-uncertain { color: var(--v5-color-amber); background: var(--v5-color-amber-soft); }
+section.v5-conflict { color: var(--v5-color-red-text); background: var(--v5-color-coral-soft); }
+section.v5-uncertain h2, section.v5-conflict h2 { color: inherit; }
+section.v5-uncertain .v5-list, section.v5-conflict .v5-list { color: var(--v5-color-ink); }
+/* Backlog: kind-partitioned disclosure, foldable, restrained until opened. */
+.v5-wide > .v5-disclosure { padding: var(--v5-space-3) var(--v5-space-4); border: var(--v5-border-width) solid var(--v5-color-line); border-radius: var(--v5-radius-md); background: var(--v5-color-paper-2); }
+.v5-wide > .v5-disclosure + .v5-disclosure { margin-top: var(--v5-space-2); }
+.v5-wide > .v5-disclosure summary { display: flex; align-items: center; justify-content: space-between; }
+/* A discrete six-region page reads correctly with a tighter vertical rhythm
+   than a dense repeating grid needs anyway — this also raises first-fold
+   density toward the Prototype's. Scoped to the one Research page whose
+   <main> has a v5-uncertain region as a direct child: Knowledge Review. */
+main:has(> section.v5-uncertain) { gap: var(--v5-space-4); }
+main:has(> section.v5-uncertain) > .v5-surface { padding: var(--v5-space-4); }
+section.v5-focus.v5-wide .v5-cards { margin-top: var(--v5-space-3); }
+section.v5-focus.v5-wide .v5-stat { padding: var(--v5-space-2); }
+section.v5-focus.v5-wide .v5-label { font-size: 9px; }
+
+@media (max-width: 860px) {
+  .feed-grid { grid-template-columns: 1fr; }
+  .project-header { grid-template-columns: 1fr; }
+  .project-workspace { grid-template-columns: 1fr; }
+  .research-exploration .v5-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .research-exploration > .v5-grid { grid-template-columns: 1fr; }
+  #complete-paper-collection .v5-collection { grid-template-columns: 1fr; }
+  .focus-list { grid-template-columns: 1fr; }
+  section.v5-focus.v5-wide .v5-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .feed-card .v5-metadata-row { grid-template-columns: 1fr; }
+  .search-box { width: 100%; }
+  .research-exploration .v5-cards { grid-template-columns: 1fr; }
+  section.v5-focus.v5-wide .v5-cards { grid-template-columns: 1fr; }
+}

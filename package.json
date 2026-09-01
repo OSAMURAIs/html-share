@@ -37,6 +37,8 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test test/*.test.ts",
+    "visual": "npm run build && node scripts/visual/run.mjs",
+    "visual:reproduce": "node scripts/visual/run.mjs --out .html-share/visual/run-1 && node scripts/visual/run.mjs --out .html-share/visual/run-2 && node scripts/visual/compare-runs.mjs .html-share/visual/run-1 .html-share/visual/run-2",
     "validate:skill": "node scripts/validate-skill.mjs skills/mobile skills/create-html skills/inbox",
     "validate:plugin": "node scripts/validate-plugin.mjs .",
     "security:scan": "node scripts/security-scan.mjs",

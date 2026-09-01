@@ -38,10 +38,25 @@
     }
   };
 
+  // Presentation profile validity is checked STRUCTURALLY, not against a
+  // literal "1": the shell must recognize whichever profile the manifest
+  // actually declares (production's v1, or a candidate like v2), not only
+  // the profile that existed when this file was first written. A profile
+  // that isn't internally coherent (assets outside its own declared
+  // asset_base, a page naming a different version than the manifest's own)
+  // is still rejected — this only stops assuming there is exactly one valid
+  // version string.
+  function validPresentation(presentation) {
+    return isRecord(presentation) && presentation.contract === 'html-share-v5'
+      && typeof presentation.version === 'string' && presentation.version.length > 0
+      && presentation.asset_base === `/assets/v5/${presentation.version}`
+      && Array.isArray(presentation.assets) && presentation.assets.length > 0
+      && presentation.assets.every((asset) => typeof asset === 'string' && asset.startsWith(`${presentation.asset_base}/`));
+  }
+
   function validV2(manifest) {
     if (!isRecord(manifest) || manifest.schema_version !== 2 || typeof manifest.generated_at !== 'string' || !Array.isArray(manifest.pages)) return false;
-    if (!isRecord(manifest.presentation) || manifest.presentation.contract !== 'html-share-v5' || manifest.presentation.version !== '1'
-      || manifest.presentation.asset_base !== '/assets/v5/1' || JSON.stringify(manifest.presentation.assets) !== JSON.stringify(['/assets/v5/1/presentation.css', '/assets/v5/1/presentation.js'])) return false;
+    if (!validPresentation(manifest.presentation)) return false;
     const ids = new Set();
     return manifest.pages.every((page) => {
       const domain = typeof page?.destination_id === 'string' ? page.destination_id.split('.')[0] : '';
@@ -56,7 +71,7 @@
         || !isRecord(page.access) || page.access.audience !== 'owner' || !['owner_only', 'shareable'].includes(page.access.share_policy)
         || !isRecord(page.search) || typeof page.search.title !== 'string' || !Array.isArray(page.search.terms)
         || !isRecord(page.navigation) || page.navigation.section !== domain || !Number.isInteger(page.navigation.order)
-        || !isRecord(page.presentation) || page.presentation.contract !== 'html-share-v5' || page.presentation.version !== '1'
+        || !isRecord(page.presentation) || page.presentation.contract !== 'html-share-v5' || page.presentation.version !== manifest.presentation.version
         || typeof page.object_key !== 'string'
         || !page.object_key.startsWith('pages/') || !isRecord(page.access)
         || (page.href !== null && typeof page.href !== 'string')) return false;

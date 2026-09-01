@@ -4,13 +4,14 @@ import {
   V5_MANIFEST_VERSION,
   V5_PRESENTATION,
   destinationById,
+  type PresentationProfile,
   resolveDestination,
   validateManifestV2,
   type ManifestV2,
   type ManifestV2Page,
 } from './v5-contract.js';
 
-function pageV2(page: BuiltPage, href: string | null): ManifestV2Page | null {
+function pageV2(page: BuiltPage, href: string | null, profile: PresentationProfile): ManifestV2Page | null {
   const definition = page.v5
     ? destinationById(page.v5.destination_id)
     : resolveDestination(page.slug);
@@ -32,7 +33,7 @@ function pageV2(page: BuiltPage, href: string | null): ManifestV2Page | null {
     access: { audience: 'owner', share_policy: page.share_policy },
     search: { title: page.title || definition.label, terms: [...definition.search_terms] },
     navigation: { section: definition.domain, order: definition.navigation_order },
-    presentation: V5_PRESENTATION,
+    presentation: profile,
     object_key: page.objectKey,
     href,
   };
@@ -41,13 +42,14 @@ function pageV2(page: BuiltPage, href: string | null): ManifestV2Page | null {
 export function buildManifestV2(
   manifest: BuildManifest,
   hrefForPage: (page: BuiltPage) => string | null = () => null,
+  profile: PresentationProfile = V5_PRESENTATION,
 ): ManifestV2 {
   const result: ManifestV2 = {
     schema_version: V5_MANIFEST_VERSION,
     generated_at: manifest.generatedAt,
-    presentation: V5_PRESENTATION,
-    pages: manifest.pages.map((page) => pageV2(page, hrefForPage(page))).filter((page): page is ManifestV2Page => page !== null),
+    presentation: profile,
+    pages: manifest.pages.map((page) => pageV2(page, hrefForPage(page), profile)).filter((page): page is ManifestV2Page => page !== null),
   };
-  validateManifestV2(result);
+  validateManifestV2(result, profile);
   return result;
 }

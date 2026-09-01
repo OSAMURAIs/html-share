@@ -1,11 +1,84 @@
 export const V5_MANIFEST_VERSION = 2 as const;
 
-export const V5_PRESENTATION = Object.freeze({
-  contract: 'html-share-v5',
+export const V5_PRESENTATION_CONTRACT = 'html-share-v5' as const;
+
+/**
+ * A presentation profile is an immutable, versioned bundle of managed assets.
+ *
+ * `assets` are required in *every* v5 page of that profile. `domain_assets` are
+ * optional per-domain sheets; a page may reference only the sheet for its own
+ * domain. `staged_assets` is everything the build copies and the publisher
+ * uploads, and is always a superset of the other two.
+ *
+ * Profiles are additive. An existing profile is never edited once published,
+ * because `/assets/v5/<version>/*` is served immutable.
+ */
+export interface PresentationProfile {
+  readonly contract: typeof V5_PRESENTATION_CONTRACT;
+  readonly version: string;
+  readonly asset_base: string;
+  readonly assets: readonly string[];
+  readonly domain_assets: Readonly<Partial<Record<Domain, string>>>;
+  readonly staged_assets: readonly string[];
+}
+
+const PRESENTATION_V1: PresentationProfile = Object.freeze({
+  contract: V5_PRESENTATION_CONTRACT,
   version: '1',
   asset_base: '/assets/v5/1',
-  assets: ['/assets/v5/1/presentation.css', '/assets/v5/1/presentation.js'] as const,
+  assets: Object.freeze(['/assets/v5/1/presentation.css', '/assets/v5/1/presentation.js']),
+  domain_assets: Object.freeze({}),
+  staged_assets: Object.freeze(['/assets/v5/1/presentation.css', '/assets/v5/1/presentation.js']),
 });
+
+const V2_CORE = Object.freeze([
+  '/assets/v5/2/tokens.css',
+  '/assets/v5/2/primitives.css',
+  '/assets/v5/2/shell.css',
+  '/assets/v5/2/motion.css',
+  '/assets/v5/2/presentation.js',
+]);
+
+const V2_DOMAIN_ASSETS = Object.freeze({
+  home: '/assets/v5/2/domains/home.css',
+  research: '/assets/v5/2/domains/research.css',
+  personal: '/assets/v5/2/domains/personal.css',
+  investment: '/assets/v5/2/domains/investment.css',
+  operational: '/assets/v5/2/domains/live-work.css',
+});
+
+const PRESENTATION_V2: PresentationProfile = Object.freeze({
+  contract: V5_PRESENTATION_CONTRACT,
+  version: '2',
+  asset_base: '/assets/v5/2',
+  assets: V2_CORE,
+  domain_assets: V2_DOMAIN_ASSETS,
+  staged_assets: Object.freeze([...V2_CORE, ...Object.values(V2_DOMAIN_ASSETS)]),
+});
+
+export const PRESENTATION_PROFILES: Readonly<Record<string, PresentationProfile>> = Object.freeze({
+  '1': PRESENTATION_V1,
+  '2': PRESENTATION_V2,
+});
+
+/**
+ * The profile production publishes when nothing explicitly selects one.
+ *
+ * Changing this constant is the *only* way merging code can change what
+ * production serves, which is exactly why it is a single reviewed literal and
+ * is asserted by test/presentation-profile.test.ts.
+ */
+export const DEFAULT_PRESENTATION_VERSION = '1' as const;
+
+export function resolvePresentationProfile(version?: string | null): PresentationProfile {
+  const key = version ?? DEFAULT_PRESENTATION_VERSION;
+  const resolved = PRESENTATION_PROFILES[key];
+  if (!resolved) throw new Error(`Unknown presentation profile: ${version}`);
+  return resolved;
+}
+
+/** The default (production) profile. Retained as the historical name. */
+export const V5_PRESENTATION = PRESENTATION_PROFILES[DEFAULT_PRESENTATION_VERSION];
 
 export const ARTIFACT_CLASSES = Object.freeze({
   canonical: 'canonical_static_page',
@@ -149,7 +222,7 @@ export function validateTargetV5Topology(artifacts: readonly ClassifiedArtifact[
   if (!sameSet(operational, expectedOperationalIds)) throw new Error('target topology must contain exactly one operational destination');
 }
 
-export function targetV5ArtifactFixture(): ClassifiedArtifact[] {
+export function targetV5ArtifactFixture(profile: PresentationProfile = V5_PRESENTATION): ClassifiedArtifact[] {
   return [
     ...V5_DESTINATIONS.map((item) => ({
       path: item.canonical_route,
@@ -161,7 +234,7 @@ export function targetV5ArtifactFixture(): ClassifiedArtifact[] {
       artifact_class: ARTIFACT_CLASSES.alias,
       alias_for,
     })),
-    ...V5_PRESENTATION.assets.map((asset) => ({ path: asset, artifact_class: ARTIFACT_CLASSES.asset })),
+    ...profile.staged_assets.map((asset) => ({ path: asset, artifact_class: ARTIFACT_CLASSES.asset })),
     { path: '/app/index.html', artifact_class: ARTIFACT_CLASSES.shell },
   ];
 }
@@ -180,7 +253,19 @@ function meta(html: string, name: string): string | null {
   return html.match(new RegExp(`<meta\\s+name=["']${escaped}["']\\s+content=["']([^"']+)["']`, 'i'))?.[1] ?? null;
 }
 
-export function readGeneratedV5Metadata(html: string): GeneratedV5Metadata | null {
+/**
+ * The `html-share:presentation-version` a page declares, read directly off the
+ * raw source HTML — before any bundling or asset inlining runs. `null` means
+ * the page carries no v5 presentation metadata at all (a legacy page).
+ */
+export function declaredPresentationVersion(html: string): string | null {
+  return meta(html, 'html-share:presentation-version');
+}
+
+export function readGeneratedV5Metadata(
+  html: string,
+  profile: PresentationProfile = V5_PRESENTATION,
+): GeneratedV5Metadata | null {
   const destination_id = meta(html, 'html-share:destination-id');
   if (!destination_id) return null;
   const definition = destinationById(destination_id);
@@ -194,12 +279,19 @@ export function readGeneratedV5Metadata(html: string): GeneratedV5Metadata | nul
   };
   if (!definition || result.domain !== definition.domain || result.artifact_class !== definition.artifact_class
     || !result.content_id?.match(/^sha256:[0-9a-f]{64}$/)
-    || result.presentation_contract !== V5_PRESENTATION.contract || result.presentation_version !== V5_PRESENTATION.version) {
+    || result.presentation_contract !== profile.contract || result.presentation_version !== profile.version) {
     throw new Error(`invalid v5 generated metadata for ${destination_id}`);
   }
   if (!/<(?:main|article)\b/i.test(html)) throw new Error('v5 content must contain semantic static main/article content');
-  for (const asset of V5_PRESENTATION.assets) {
+  const required = [...profile.assets];
+  const domainAsset = profile.domain_assets[definition.domain];
+  if (domainAsset) required.push(domainAsset);
+  for (const asset of required) {
     if (!html.includes(asset)) throw new Error(`v5 content is missing managed presentation asset: ${asset}`);
+  }
+  const foreign = profile.staged_assets.filter((asset) => !required.includes(asset) && html.includes(asset));
+  if (foreign.length > 0) {
+    throw new Error(`v5 content references a presentation asset outside its domain: ${foreign[0]}`);
   }
   if (/\b(?:src|href)=["'](?:https?:)?\/\//i.test(html.replace(/<a\b[^>]*>/gi, ''))) {
     throw new Error('v5 presentation dependencies must be same-origin managed assets');
@@ -219,7 +311,7 @@ export interface ManifestV2Page {
   access: { audience: 'owner'; share_policy: 'owner_only' | 'shareable' };
   search: { title: string; terms: string[] };
   navigation: { section: Domain; order: number };
-  presentation: typeof V5_PRESENTATION;
+  presentation: PresentationProfile;
   object_key: string;
   href: string | null;
 }
@@ -227,13 +319,13 @@ export interface ManifestV2Page {
 export interface ManifestV2 {
   schema_version: typeof V5_MANIFEST_VERSION;
   generated_at: string;
-  presentation: typeof V5_PRESENTATION;
+  presentation: PresentationProfile;
   pages: ManifestV2Page[];
 }
 
-export function validateManifestV2(manifest: ManifestV2): void {
+export function validateManifestV2(manifest: ManifestV2, profile: PresentationProfile = V5_PRESENTATION): void {
   if (manifest.schema_version !== V5_MANIFEST_VERSION) throw new Error('Manifest v2 schema_version must be 2');
-  if (manifest.presentation.contract !== V5_PRESENTATION.contract || manifest.presentation.version !== V5_PRESENTATION.version) {
+  if (manifest.presentation.contract !== profile.contract || manifest.presentation.version !== profile.version) {
     throw new Error('Manifest v2 presentation contract is unsupported');
   }
   const ids = new Set<string>();
@@ -252,7 +344,7 @@ export function validateManifestV2(manifest: ManifestV2): void {
       || !['owner_only', 'shareable'].includes(page.access.share_policy)
       || !page.labels?.primary || !page.labels.navigation || !page.search?.title
       || page.navigation?.section !== definition.domain || !Number.isInteger(page.navigation.order)
-      || page.presentation?.contract !== V5_PRESENTATION.contract || page.presentation.version !== V5_PRESENTATION.version
+      || page.presentation?.contract !== profile.contract || page.presentation.version !== profile.version
       || !page.object_key || !page.object_key.startsWith('pages/')) {
       throw new Error('Manifest v2 required public fields are invalid');
     }
