@@ -116,7 +116,7 @@ export class HtmlShareStack extends Stack {
         compress: true,
       },
       additionalBehaviors: {
-        'assets/v5/1/*': {
+        'assets/v5/*': {
           origin: origins.S3BucketOrigin.withOriginAccessControl(contentBucket),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,

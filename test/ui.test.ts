@@ -59,10 +59,10 @@ test('ships the full dashboard UI and inbox wording', () => {
 
 test('R5 uses canonical Home as the primary surface and keeps the legacy browser as a utility', () => {
   const dashboard = readFileSync(path.join(root, 'web', 'app', 'index.html'), 'utf8');
-  assert.match(dashboard, /data-destination-id="home">Home/);
-  assert.match(dashboard, /data-domain="research">Research/);
+  assert.match(dashboard, /data-destination-id="home">ホーム/);
+  assert.match(dashboard, /data-domain="research">研究/);
   assert.match(dashboard, /data-domain="personal">暮らし/);
-  assert.match(dashboard, /data-domain="investment">Investment/);
+  assert.match(dashboard, /data-domain="investment">投資/);
   assert.match(dashboard, /<nav class="operational-nav" id="operational-nav" aria-label="運用アクセス">[\s\S]*data-operational="true">Live Work/);
   assert.match(dashboard, /id="browser-toggle"/);
   assert.match(dashboard, /const destinationId = resolved \|\| .*'home'/);
@@ -71,6 +71,7 @@ test('R5 uses canonical Home as the primary surface and keeps the legacy browser
   assert.match(dashboard, /searchToggle\.focus\(\)/);
   assert.match(dashboard, /@media \(min-width: 46\.01rem\)/);
   assert.match(dashboard, /@media \(max-width: 46rem\)/);
+  assert.match(dashboard, /@media \(max-width: 860px\)/);
   assert.match(dashboard, /prefers-reduced-motion/);
 });
 
